@@ -1,0 +1,10 @@
+dist
+coverage
+out-tsc
+.angular
+node_modules
+vendor
+playwright-report
+test-results
+package-lock.json
+implementation.md

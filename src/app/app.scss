@@ -1,0 +1,15 @@
+:host {
+  display: flex;
+  flex-direction: column;
+  min-height: 100%;
+}
+
+.app-title {
+  margin: 0;
+  font: var(--mat-sys-title-large);
+}
+
+main {
+  flex: 1;
+  padding: 16px;
+}

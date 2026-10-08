@@ -1,5 +1,8 @@
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
+import { ThemeService } from '@core/theme/theme-service';
+import { DB_WORKER_FACTORY, DbService } from '@data/db/db-service';
+import { inProcessDbWorker } from '../../../testing/in-process-db-worker';
 import { Sidebar } from './sidebar';
 
 describe('Sidebar', () => {
@@ -7,6 +10,7 @@ describe('Sidebar', () => {
     TestBed.configureTestingModule({
       imports: [Sidebar],
       providers: [
+        { provide: DB_WORKER_FACTORY, useValue: inProcessDbWorker },
         provideRouter([
           { path: '', title: 'Resumen', data: { icon: 'dashboard' }, children: [] },
           { path: 'movimientos', title: 'Movimientos', children: [] },
@@ -56,5 +60,35 @@ describe('Sidebar', () => {
     element.querySelector<HTMLAnchorElement>('nav a')?.click();
 
     expect(spy).toHaveBeenCalled();
+  });
+
+  it('ofrece ver la demo justo encima del modo oscuro y lo oculta dentro de ella', async () => {
+    const { fixture, element } = await setup();
+    const footer = element.querySelector('.footer');
+    const demo = footer?.querySelector<HTMLAnchorElement>('a[href="/demo"]');
+
+    expect(demo?.textContent).toContain('Ver la demo');
+    expect(demo?.nextElementSibling?.tagName.toLowerCase()).toBe('mat-slide-toggle');
+
+    await TestBed.inject(DbService).openDemo();
+    await fixture.whenStable();
+    expect(element.querySelector('a[href="/demo"]')).toBeNull();
+  });
+
+  it('el interruptor de modo oscuro cambia el tema con un clic', async () => {
+    const { fixture, element } = await setup();
+    const theme = TestBed.inject(ThemeService);
+    theme.set('light');
+    await fixture.whenStable();
+
+    const toggle = element.querySelector<HTMLButtonElement>('button[role="switch"]');
+    expect(toggle?.getAttribute('aria-checked')).toBe('false');
+    expect(element.textContent).toContain('Modo oscuro');
+
+    toggle?.click();
+    await fixture.whenStable();
+
+    expect(theme.isDark()).toBe(true);
+    expect(toggle?.getAttribute('aria-checked')).toBe('true');
   });
 });

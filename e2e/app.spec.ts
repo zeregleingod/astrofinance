@@ -39,3 +39,21 @@ test('la CSP no permite unsafe-inline ni unsafe-eval en scripts', async ({ page 
     expect(directives.get('default-src')).toEqual(["'self'"]);
   }
 });
+
+test('el interruptor de modo oscuro cambia el tema en caliente y se recuerda', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.goto('/');
+  const openMenu = page.getByRole('button', { name: 'Abrir menú' });
+  if (await openMenu.isVisible()) {
+    await openMenu.click();
+  }
+  const toggle = page.getByRole('switch', { name: 'Modo oscuro' });
+  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+
+  await toggle.click();
+
+  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await expect(page.locator('html')).toHaveClass(/theme-dark/);
+  await page.reload();
+  await expect(page.locator('html')).toHaveClass(/theme-dark/);
+});

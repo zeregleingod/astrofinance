@@ -1,0 +1,137 @@
+<header class="page-header">
+  <h2>{{ texts.transactions.title }}</h2>
+  @if (selection.period(); as period) {
+    <app-month-nav
+      [periods]="selection.available()"
+      [period]="period"
+      (periodChange)="selection.select($event)"
+    />
+  }
+</header>
+
+@if (db.ready()) {
+  @if (selection.period(); as period) {
+    <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+      <mat-label>{{ texts.transactions.search }}</mat-label>
+      <mat-icon matPrefix fontIcon="search" aria-hidden="true" />
+      <input
+        #search
+        matInput
+        type="search"
+        autocomplete="off"
+        [placeholder]="texts.transactions.searchPlaceholder"
+        [value]="query()"
+        (input)="query.set(search.value)"
+      />
+      @if (query()) {
+        <button
+          matSuffix
+          mat-icon-button
+          type="button"
+          [attr.aria-label]="texts.transactions.clearSearch"
+          (click)="query.set('')"
+        >
+          <mat-icon fontIcon="close" aria-hidden="true" />
+        </button>
+      }
+    </mat-form-field>
+
+    <div
+      class="table-wrap"
+      role="region"
+      [attr.aria-label]="texts.transactions.region"
+      tabindex="0"
+    >
+      <table>
+        <caption>
+          {{
+            texts.transactions.caption
+          }}
+          {{
+            period | periodLabel
+          }}
+          ({{
+            count()
+          }})
+        </caption>
+        <colgroup>
+          <col class="col-booked" />
+          <col class="col-date" />
+          <col class="col-description" />
+          <col class="col-tags" />
+          <col class="col-category" />
+          <col class="col-subcategory" />
+          <col class="col-account" />
+          <col class="col-amount" />
+          <col class="col-notes" />
+        </colgroup>
+        <thead>
+          <tr>
+            @for (column of columns; track column.key) {
+              <th scope="col" [class.num]="column.numeric" [attr.aria-sort]="ariaSort(column.key)">
+                <button
+                  type="button"
+                  class="sort"
+                  [title]="column.label"
+                  (click)="sortBy(column.key)"
+                >
+                  <span class="label">{{ column.label }}</span>
+                  <mat-icon
+                    class="sort-icon"
+                    [class.active]="sort().key === column.key"
+                    [fontIcon]="sortIcon(column.key)"
+                    aria-hidden="true"
+                  />
+                </button>
+              </th>
+            }
+          </tr>
+        </thead>
+        <tbody>
+          @for (row of rows(); track row.id) {
+            <tr>
+              <!-- Por ahora solo lectura; se podrá editar para imputar el movimiento a otra fecha. -->
+              <td class="date" [class.date-changed]="row.dateChanged">
+                {{ row.bookedDate | isoDate }}
+                @if (row.dateChanged) {
+                  <mat-icon class="changed-icon" fontIcon="edit_calendar" aria-hidden="true" />
+                  <span class="visually-hidden">{{ texts.transactions.dateChanged }}</span>
+                }
+              </td>
+              <td class="date">{{ row.opDate | isoDate }}</td>
+              <td [title]="row.description">{{ row.description }}</td>
+              <td [title]="row.tags.join(', ')">
+                @for (tag of row.tags; track tag) {
+                  <!-- El espacio separa las etiquetas también para los lectores de pantalla. -->
+                  <span class="badge">{{ tag }}</span
+                  >{{ ' ' }}
+                }
+              </td>
+              <td [title]="row.categoryName ?? texts.dashboard.uncategorized">
+                {{ row.categoryName ?? texts.dashboard.uncategorized }}
+              </td>
+              <td [title]="row.subcategoryName ?? ''">{{ row.subcategoryName }}</td>
+              <td [title]="row.accountName">{{ row.accountName }}</td>
+              <td
+                class="num"
+                [class.positive]="row.amountCents > 0"
+                [class.negative]="row.amountCents < 0"
+              >
+                {{ row.amountCents | cents }}
+              </td>
+              <td class="notes" [title]="row.note ?? ''">{{ row.note }}</td>
+            </tr>
+          } @empty {
+            <tr>
+              <td class="no-results" [attr.colspan]="columns.length">
+                {{ texts.transactions.noResults }}
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
+  }
+} @else {
+  <app-empty-state [status]="db.status()" />
+}

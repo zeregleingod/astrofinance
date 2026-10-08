@@ -7,15 +7,19 @@
   height: 100%;
 }
 
-mat-sidenav {
-  width: 260px;
-}
-
 .toolbar-title {
   margin: 0;
   font: var(--mat-sys-title-large);
+  font-weight: 600;
+  color: var(--mat-sys-primary);
 }
 
 main {
-  padding: 16px;
+  padding: 24px;
+}
+
+@media (max-width: 839.98px) {
+  main {
+    padding: 16px;
+  }
 }

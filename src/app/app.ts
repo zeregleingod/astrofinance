@@ -6,6 +6,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterOutlet } from '@angular/router';
+import { DemoBanner } from '@core/layout/demo-banner';
 import { Sidebar } from '@core/layout/sidebar';
 import { TEXTS } from '@core/i18n/texts';
 import { map } from 'rxjs';
@@ -17,6 +18,7 @@ const COMPACT_QUERY = '(max-width: 839.98px)';
   selector: 'app-root',
   imports: [
     RouterOutlet,
+    DemoBanner,
     Sidebar,
     MatButtonModule,
     MatIconModule,
@@ -47,6 +49,7 @@ const COMPACT_QUERY = '(max-width: 839.98px)';
             <h1 class="toolbar-title">{{ texts.app.name }}</h1>
           </mat-toolbar>
         }
+        <app-demo-banner />
         <main>
           <router-outlet />
         </main>

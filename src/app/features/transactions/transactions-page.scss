@@ -1,0 +1,224 @@
+:host {
+  display: block;
+}
+
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 24px;
+
+  h2 {
+    margin: 0;
+    font: var(--mat-sys-headline-small);
+    font-weight: 600;
+  }
+}
+
+.search {
+  width: min(100%, 420px);
+  margin-bottom: 16px;
+
+  // El botón propio «Borrar búsqueda» sustituye al aspa nativa del navegador.
+  input::-webkit-search-cancel-button {
+    display: none;
+  }
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 16px;
+  background: var(--mat-sys-surface-container-lowest);
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+}
+
+// Anchos fijos por columna: la tabla cabe en su contenedor y lo largo se recorta.
+table {
+  width: 100%;
+  min-width: 1200px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+// Columnas de contenido corto: ancho fijo para que nunca se recorten.
+// Caben la fecha y el icono de fecha modificada.
+.col-booked {
+  width: 134px;
+}
+
+.col-date {
+  width: 160px;
+}
+
+.col-tags {
+  width: 132px;
+}
+
+.col-amount {
+  width: 112px;
+}
+
+// Columnas de texto libre: se reparten el resto y recortan con «…».
+.col-description {
+  width: 16%;
+}
+
+.col-category {
+  width: 10%;
+}
+
+.col-subcategory {
+  width: 11.5%;
+}
+
+.col-account {
+  width: 8.5%;
+}
+
+// .col-notes: el ancho restante.
+
+caption {
+  padding: 16px 20px 8px;
+  text-align: left;
+  font: var(--mat-sys-title-small);
+}
+
+// Una sola línea por fila y por cabecera: lo largo se recorta con «…» (texto completo en `title`).
+th,
+td {
+  padding: 10px;
+  overflow: hidden;
+  text-align: left;
+  vertical-align: middle;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+th {
+  font: var(--mat-sys-label-large);
+  color: var(--mat-sys-on-surface-variant);
+
+  &[aria-sort='ascending'],
+  &[aria-sort='descending'] {
+    color: var(--mat-sys-on-surface);
+  }
+}
+
+// Cabecera ordenable: todo el texto es el botón.
+.sort {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .label {
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &:hover .sort-icon {
+    opacity: 1;
+  }
+}
+
+.num .sort {
+  justify-content: flex-end;
+}
+
+.sort-icon {
+  flex: none;
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+  opacity: 0.45;
+
+  &.active {
+    opacity: 1;
+    color: var(--mat-sys-primary);
+  }
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.no-results {
+  padding: 24px 12px;
+  text-align: center;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.notes {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.date,
+.num {
+  font-variant-numeric: tabular-nums;
+  font-weight: 500;
+}
+
+.num {
+  text-align: right;
+}
+
+.positive {
+  color: var(--af-positive);
+}
+
+.negative {
+  color: var(--af-negative);
+}
+
+// Fecha imputada distinta de la original: color, icono y texto oculto (no solo el color).
+.date-changed {
+  color: var(--mat-sys-tertiary);
+  font-weight: 600;
+}
+
+.changed-icon {
+  width: 18px;
+  height: 18px;
+  margin-left: 4px;
+  font-size: 18px;
+  vertical-align: -3px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.badge {
+  display: inline-block;
+  margin-right: 4px;
+  padding: 1px 8px;
+  border-radius: 999px;
+  font: var(--mat-sys-label-small);
+  background: var(--mat-sys-secondary-container);
+  color: var(--mat-sys-on-secondary-container);
+}

@@ -1,0 +1,105 @@
+<header class="page-header">
+  <h2>{{ texts.dashboard.title }}</h2>
+  @if (selection.period(); as period) {
+    <app-month-nav
+      [periods]="selection.available()"
+      [period]="period"
+      (periodChange)="selection.select($event)"
+    />
+  }
+</header>
+
+@if (db.ready()) {
+  @if (report.value(); as r) {
+    <dl class="kpis" [attr.aria-label]="texts.dashboard.kpis">
+      <div class="kpi">
+        <dt>{{ texts.dashboard.income }}</dt>
+        <dd [class.positive]="r.incomeCents > 0" [class.negative]="r.incomeCents < 0">
+          {{ r.incomeCents | cents }}
+        </dd>
+      </div>
+      <div class="kpi">
+        <dt>{{ texts.dashboard.expense }}</dt>
+        <dd [class.positive]="r.expenseCents > 0" [class.negative]="r.expenseCents < 0">
+          {{ r.expenseCents | cents }}
+        </dd>
+      </div>
+      <div class="kpi">
+        <dt>{{ texts.dashboard.savings }}</dt>
+        <dd [class.positive]="r.savingsCents > 0" [class.negative]="r.savingsCents < 0">
+          {{ r.savingsCents | cents }}
+        </dd>
+      </div>
+      <div class="kpi highlight">
+        <dt>{{ texts.dashboard.balance }}</dt>
+        <dd [class.positive]="r.balanceCents > 0" [class.negative]="r.balanceCents < 0">
+          {{ r.balanceCents | cents }}
+        </dd>
+      </div>
+      <div class="kpi">
+        <dt>{{ texts.dashboard.pending }}</dt>
+        <dd
+          [class.positive]="r.pendingReimbursementCents > 0"
+          [class.negative]="r.pendingReimbursementCents < 0"
+        >
+          {{ r.pendingReimbursementCents | cents }}
+        </dd>
+      </div>
+    </dl>
+
+    <div class="groups">
+      @for (group of r.groups; track group.id) {
+        <section class="group" [attr.aria-labelledby]="'group-' + group.id">
+          <!-- Colores de categoría como atributos SVG: sin estilos en línea. -->
+          <svg class="bar" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+            <rect width="1" height="1" [attr.fill]="group.color" />
+          </svg>
+          <header class="group-header">
+            <h3 [id]="'group-' + group.id">{{ group.name }}</h3>
+            <span
+              class="amount"
+              [class.positive]="group.totalCents > 0"
+              [class.negative]="group.totalCents < 0"
+              >{{ group.totalCents | cents }}</span
+            >
+          </header>
+          <ul>
+            @for (line of group.lines; track line.id) {
+              <li [class.empty]="line.count === 0">
+                <svg class="dot" viewBox="0 0 10 10" aria-hidden="true">
+                  <circle cx="5" cy="5" r="5" [attr.fill]="line.color" />
+                </svg>
+                <span class="name">{{ line.name }}</span>
+                <span
+                  class="amount"
+                  [class.positive]="line.totalCents > 0"
+                  [class.negative]="line.totalCents < 0"
+                >
+                  {{ line.totalCents | cents }}
+                </span>
+              </li>
+            }
+          </ul>
+        </section>
+      }
+      @if (r.uncategorized.count > 0) {
+        <section class="group" aria-labelledby="group-none">
+          <svg class="bar" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+            <rect width="1" height="1" />
+          </svg>
+          <header class="group-header">
+            <h3 id="group-none">{{ texts.dashboard.uncategorized }}</h3>
+            <span
+              class="amount"
+              [class.positive]="r.uncategorized.totalCents > 0"
+              [class.negative]="r.uncategorized.totalCents < 0"
+              >{{ r.uncategorized.totalCents | cents }}</span
+            >
+          </header>
+        </section>
+      }
+    </div>
+  }
+} @else {
+  <app-empty-state [status]="db.status()" />
+}

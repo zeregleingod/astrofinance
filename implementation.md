@@ -26,7 +26,8 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 | Tema | Supuesto adoptado |
 |---|---|
 | Cifrado de datos | Decisión del usuario: v1 **sin cifrado en reposo** (todo local). La Fase 10 queda como opcional; reconsiderar antes de añadir Google Drive o si el `.db` exportado se va a compartir. |
-| Moneda / cuentas | EUR única; el modelo ya admite varias cuentas (una activa en v1). |
+| Moneda / cuentas | EUR única; varias cuentas corrientes y de ahorro (huchas), con traspasos entre ellas (ADR-0005). |
+| Modelo de datos | Sacado del Excel mensual actual: gastos compartidos con reembolsos enlazados, mes de imputación, préstamos con cuotas, presupuestos y cargos previstos (ADR-0005). |
 | Formato Sabadell | Confirmado con una muestra real (`.xls` de mayo de 2025; ver T6.0–T6.3). Pendiente: muestra en CSV si se va a usar ese formato. |
 | Versiones | Verificar compatibilidad real de Angular 22, Material y SW en T0.1. |
 
@@ -56,10 +57,10 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 
 > Todo con TDD estricto. Sin dependencias de navegador, SQLite ni Angular.
 
-- [ ] **T1.1 `Money`**: importes en céntimos (enteros), suma/resta/negación, parseo de `"1.234,56"` y `"-12,3"`, formateo es-ES.
+- [ ] **T1.1 `Money`**: importes en céntimos (enteros), suma/resta/negación, parseo de `"1.234,56"` y `"-12,3"`, formateo es-ES. *(Hecho el formateo: `domain/money/format-cents.ts`.)*
   - Test primero: casos de redondeo, negativos, separadores, entrada inválida, desbordamiento.
   - Hecho cuando: ninguna operación usa `number` decimal.
-- [ ] **T1.2 Modelos y invariantes**: `Transaction`, `Category`, `Account`, `Rule`, `RecurringSeries` con constructores/validadores. `Category` tiene tipo `ingreso | gasto | neutra`: las neutras (p. ej. transferencias entre cuentas propias) no cuentan como ingreso ni gasto. Un importe positivo en una categoría de gasto (devolución/anulación) se resta del gasto.
+- [ ] **T1.2 Modelos y invariantes**: `Transaction` (con `period` de imputación), `Category`, `Account` (corriente/ahorro), `Rule`, `RecurringSeries`, `Transfer`, `Person`, `SharedExpense` + `Reimbursement`, `Loan` + `LoanInstallment`, `Budget` con constructores/validadores (ver ADR-0005). `Category` tiene tipo `ingreso | gasto | neutra`: las neutras (p. ej. transferencias entre cuentas propias) no cuentan como ingreso ni gasto. Un importe positivo en una categoría de gasto (devolución/anulación) se resta del gasto.
 - [ ] **T1.3 Normalizador de descripciones**: mayúsculas, quitar tildes, colapsar espacios; eliminar la tarjeta enmascarada (`5402XXXXXXXX6019`), identificadores variables de operación (p. ej. `P36E5ECBA5`), teléfonos, asteriscos y fechas incrustadas; separar el prefijo de operación (`COMPRA TARJ.`, `ANUL COMPRA TARJ.`, `ADEUDO RECIBO`, `ABONO TRANSFERENCIA`…) del comercio.
   - Test primero: tabla de entradas reales anonimizadas → salida esperada.
 - [ ] **T1.4 Hash de deduplicación**: determinista sobre (cuenta, fecha operativa, importe, concepto **original**, saldo posterior al movimiento, contador de repetición dentro del lote). Se usa el concepto original (con sus identificadores) y no el normalizado, para no fusionar movimientos distintos.
@@ -79,12 +80,12 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 - [ ] **T2.1 Spike de viabilidad** (documentar en ADR): SQLite WASM oficial en Worker con BD en memoria + lectura/escritura de bytes en OPFS con `createSyncAccessHandle`; comprobar que **no** se necesitan cabeceras COOP/COEP.
   - Test primero: Vitest en modo navegador (Playwright provider): crear tabla, serializar, escribir en OPFS, recargar y deserializar.
   - Hecho cuando: funciona en Chromium, Firefox y WebKit.
-- [ ] **T2.2 RPC tipado main ↔ worker**: IDs de petición, errores serializables, timeouts, cancelación; sin dependencias externas.
+- [x] **T2.2 RPC tipado main ↔ worker** (`workers/rpc/`, `data/rpc/rpc-client.ts`): IDs de petición, errores serializables, timeouts, cancelación; sin dependencias externas.
   - Test primero: con `MessageChannel` simulado (éxito, error, timeout, respuesta desordenada).
-- [ ] **T2.3 Ejecutor de migraciones** con `PRAGMA user_version`.
+- [x] **T2.3 Ejecutor de migraciones** con `PRAGMA user_version` (`workers/db/migrate.ts`).
   - Test primero: BD vacía → última versión; idempotente; rechaza BD con versión **mayor** que la soportada; migración atómica (rollback si falla).
-- [ ] **T2.4 Esquema inicial (migración 001)**: `meta(db_uuid, revision, created_at)`, `accounts` (alias + últimos 4 dígitos del IBAN; nunca IBAN completo ni titular), `categories(parent_id)`, `transactions` (importe en céntimos `INTEGER`, fecha ISO `TEXT`, `category_source` manual/regla/ninguna, `dedupe_hash UNIQUE`, `import_batch_id`, `recurring_id`), `rules`, `import_batches`, `recurring_series`, `settings`; FKs activadas, `CHECK`s e índices por fecha, categoría y hash.
-  - Test primero: violaciones de constraints deben fallar (importe no entero, FK rota, hash duplicado).
+- [x] **T2.4 Esquema inicial (migración 001)** — modelo en **ADR-0005**, SQL en `workers/db/migrations/001-esquema-inicial.ts`: tablas `STRICT` `meta`, `settings`, `accounts` (corriente/ahorro, conjunta; solo últimos 4 dígitos del IBAN), `people`, `categories(parent_id)`, `rules`, `import_batches`, `transactions` (céntimos `INTEGER`, fecha ISO, fecha original `op_date` y fecha imputada `booked_date`, `period` generado a partir de la imputada, `category_source`, `dedupe_hash UNIQUE`), `transfers`, `shared_expenses`, `reimbursements` (+ vista `shared_expense_status`), `loans`, `loan_installments`, `recurring_series`, `recurring_occurrences`, `budgets`; triggers de signos y de no repartir de más; plantilla de categorías en `workers/db/seeds/category-template.ts`.
+  - Test primero: violaciones de constraints deben fallar (importe no entero, FK rota, hash duplicado, fechas imposibles, reembolsos o traspasos incoherentes).
 - [ ] **T2.5 Repositorios** (puertos en `domain/ports`, implementación en el worker): categorías, cuentas, movimientos, reglas, recurrentes, lotes.
   - Test primero: CRUD contra SQLite en memoria en Node; inyección SQL en campos de texto no tiene efecto.
 - [ ] **T2.6 Consultas de agregación en SQL**: por mes, categoría, subcategoría y totales.
@@ -105,11 +106,11 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 ## Fase 3 — Shell de la aplicación y estado
 
 - [ ] **T3.1 Rutas lazy y layout Material** responsive (navegación lateral en escritorio, inferior en móvil), tema claro/oscuro, textos en español centralizados.
-- [ ] **T3.2 `DbService` (fachada)**: signals de solo lectura `status`, `dirty`, `lastSavedAt`, `dataVersion`, `error`.
+- [ ] **T3.2 `DbService` (fachada)**: signals de solo lectura `status`, `dirty`, `lastSavedAt`, `dataVersion`, `error`. *(Hechos `status`, `mode`, `dataVersion` y `ready` para la demo; faltan `dirty`, `lastSavedAt` y `error`.)*
   - Test primero: transiciones de estado con un worker falso.
 - [ ] **T3.3 Barra de persistencia global**: botones **Guardar** y **Descartar**, indicador de cambios sin guardar, `beforeunload` y *guard* de navegación cuando `dirty`.
   - Test primero: componente + e2e (editar → recargar sin guardar → aviso).
-- [ ] **T3.4 Primer arranque**: crear BD nueva (con plantilla opcional de categorías) o cargar un `.db` existente.
+- [ ] **T3.4 Primer arranque**: crear BD nueva (con plantilla opcional de categorías, `workers/db/seeds/category-template.ts`), cargar un `.db` existente o **probar la demo** (`/demo`, ADR-0006, ya disponible).
 - [ ] **T3.5 Errores y notificaciones**: manejador global, `MatSnackBar`, sin volcar datos financieros a la consola.
 - [ ] **T3.6 Patrón de lectura**: consultas con `resource()`/equivalente dependientes de `dataVersion`; escrituras mediante *use-cases* que incrementan `dataVersion` y marcan `dirty`.
 
@@ -131,6 +132,9 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 - [ ] **T5.2 Alta/edición/borrado manual** con validación (`Money`, fecha).
 - [ ] **T5.3 Edición masiva** (asignar categoría a una selección).
 - [ ] **T5.4 E2E del flujo manual**: crear → categorizar → guardar → recargar → los datos persisten.
+- [ ] **T5.5 Gastos compartidos y reembolsos**: marcar un gasto como compartido (persona + parte esperada), enlazar un ingreso a uno o varios gastos, ver lo pendiente de cobrar por persona; al enlazar, proponer el periodo del gasto como mes de imputación.
+  - Test primero: un Bizum que cubre dos gastos; reembolso parcial; borrar el Bizum deja el gasto pendiente.
+- [ ] **T5.6 Traspasos entre cuentas**: crear o emparejar las dos patas de un traspaso; saldo por cuenta (incluidas las huchas de ahorro).
 
 ---
 
@@ -160,6 +164,9 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 - [ ] **T7.2 Pantalla de sugerencias**: detección con puntuación de confianza → confirmar / descartar (los descartes se recuerdan).
 - [ ] **T7.3 Vista de suscripciones**: coste mensual y anual equivalente, próximo cobro, aviso de subida de importe.
 - [ ] **T7.4 Movimientos previstos** integrados en el dashboard, claramente diferenciados de los reales.
+- [ ] **T7.5 Cargos previstos manuales**: alta de previstos con importe opcional (IBI, seguros); marcar como cumplido u omitido.
+- [ ] **T7.6 Préstamos y financiaciones**: alta con cuadro de cuotas, enlace pago ↔ cuota `n/N`, cuotas pendientes y fecha de fin, parte compartida.
+  - Test primero: generación del cuadro (dominio), pago enlazado, cuota impagada.
 
 ---
 
@@ -170,9 +177,10 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 - [ ] **T8.1 Selector de mes/rango y KPIs**: ingresos, gastos, balance, tasa de ahorro.
 - [ ] **T8.2 Desglose por categoría y subcategoría** (*drill-down*) con gráfico y tabla accesible.
 - [ ] **T8.3 Tendencia de 12 meses** y comparación con el mes anterior.
-- [ ] **T8.4 Vista mensual individual** (`/mes/:aaaa-mm`) con movimientos y navegación mes a mes.
+- [ ] **T8.4 Vista mensual individual** con movimientos y navegación mes a mes. *(Base hecha para la demo: Resumen por bloques y Movimientos con `?mes=AAAA-MM`.)*
 - [ ] **T8.5 Rendimiento**: *benchmark* con ≥ 50 000 movimientos; las consultas del dashboard no bloquean la UI (todo en el worker).
 - [ ] **T8.6 Accesibilidad**: resumen textual de gráficos, no depender solo del color, contraste AA, navegación por teclado.
+- [ ] **T8.7 Presupuesto frente a real** por categoría y mes, con copia del presupuesto al mes siguiente.
 
 ---
 
@@ -199,7 +207,7 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 ## Fase 11 — Extensiones previstas (no implementar aún)
 
 - Adaptador de **Google Drive** detrás del puerto `StoragePort` (rompe el “100 % offline”: requerirá relajar `connect-src` solo en ese módulo y un ADR específico).
-- Multi-cuenta real, presupuestos, multi-moneda, nuevos `BankProfile`.
+- Multi-moneda, nuevos `BankProfile`.
 
 ---
 

@@ -13,17 +13,17 @@ bloquear la UI.
 
 **Stack (versiones fijadas en `package.json` + `package-lock.json`):**
 
-| Pieza                  | Versión                                  | Notas                                                                  |
-| ---------------------- | ---------------------------------------- | ---------------------------------------------------------------------- |
-| Node                   | 24.19.0 LTS (`.nvmrc`, `engines`)        | npm 11.17 (`packageManager`)                                           |
-| Angular / CLI          | 22.2                                     | standalone, zoneless (por defecto en v22), OnPush por defecto, Signals |
-| Angular Material / CDK | 22.2                                     | Material 3, tema claro/oscuro según el sistema                         |
-| TypeScript             | 6.0                                      | `strict`, `noUncheckedIndexedAccess`, `strictTemplates`                |
-| SQLite WASM oficial    | `@sqlite.org/sqlite-wasm` 3.53.4         | en Web Worker, persistencia en OPFS (spike en T2.1)                    |
-| SheetJS                | 0.20.3 vendorizado                       | ver ADR-0003                                                           |
-| Vitest                 | 5.0                                      | vía `@angular/build:unit-test` (jsdom)                                 |
-| Playwright             | 1.63                                     | Chromium, Firefox, WebKit y Pixel 7                                    |
-| Fuentes                | `@fontsource/roboto`, `material-symbols` | autoalojadas: sin Google Fonts                                         |
+| Pieza                  | Versión                                   | Notas                                                                  |
+| ---------------------- | ----------------------------------------- | ---------------------------------------------------------------------- |
+| Node                   | 24.19.0 LTS (`.nvmrc`, `engines`)         | npm 11.17 (`packageManager`)                                           |
+| Angular / CLI          | 22.2                                      | standalone, zoneless (por defecto en v22), OnPush por defecto, Signals |
+| Angular Material / CDK | 22.2                                      | Material 3, identidad visual en ADR-0004                               |
+| TypeScript             | 6.0                                       | `strict`, `noUncheckedIndexedAccess`, `strictTemplates`                |
+| SQLite WASM oficial    | `@sqlite.org/sqlite-wasm` 3.53.4          | en Web Worker, persistencia en OPFS (spike en T2.1)                    |
+| SheetJS                | 0.20.3 vendorizado                        | ver ADR-0003                                                           |
+| Vitest                 | 5.0                                       | vía `@angular/build:unit-test` (jsdom)                                 |
+| Playwright             | 1.63                                      | Chromium, Firefox, WebKit y Pixel 7                                    |
+| Fuentes                | `@fontsource/poppins`, `material-symbols` | autoalojadas: sin Google Fonts                                         |
 
 **Capas** (`src/app/`), con alias de TypeScript (`@domain/*`, `@data/*`…) y fronteras impuestas
 por ESLint (`no-restricted-imports`, verificado por `npm run lint:boundaries`):

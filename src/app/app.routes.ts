@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { demoGuard } from '@core/demo/demo-guard';
 import { TEXTS } from '@core/i18n/texts';
 
 /**
@@ -12,5 +13,14 @@ export const routes: Routes = [
     data: { icon: 'dashboard' },
     loadComponent: () => import('@features/dashboard/dashboard-page').then((m) => m.DashboardPage),
   },
+  {
+    path: 'movimientos',
+    title: TEXTS.transactions.title,
+    data: { icon: 'receipt_long' },
+    loadComponent: () =>
+      import('@features/transactions/transactions-page').then((m) => m.TransactionsPage),
+  },
+  // Abre la BD de demo (en memoria, nunca se guarda) y redirige al Resumen.
+  { path: 'demo', canActivate: [demoGuard], children: [] },
   { path: '**', redirectTo: '' },
 ];

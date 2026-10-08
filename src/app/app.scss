@@ -1,15 +1,21 @@
 :host {
-  display: flex;
-  flex-direction: column;
-  min-height: 100%;
+  display: block;
+  height: 100%;
 }
 
-.app-title {
+.shell {
+  height: 100%;
+}
+
+mat-sidenav {
+  width: 260px;
+}
+
+.toolbar-title {
   margin: 0;
   font: var(--mat-sys-title-large);
 }
 
 main {
-  flex: 1;
   padding: 16px;
 }

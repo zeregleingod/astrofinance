@@ -9,7 +9,8 @@ import {
   provideBrowserGlobalErrorListeners,
 } from '@angular/core';
 import { MatIconRegistry } from '@angular/material/icon';
-import { provideRouter, withComponentInputBinding } from '@angular/router';
+import { TitleStrategy, provideRouter, withComponentInputBinding } from '@angular/router';
+import { AppTitleStrategy } from '@core/navigation/app-title-strategy';
 import { routes } from './app.routes';
 
 registerLocaleData(localeEs);
@@ -18,6 +19,7 @@ export const appConfig: ApplicationConfig = {
   providers: [
     provideBrowserGlobalErrorListeners(),
     provideRouter(routes, withComponentInputBinding()),
+    { provide: TitleStrategy, useClass: AppTitleStrategy },
     { provide: LOCALE_ID, useValue: 'es-ES' },
     { provide: DEFAULT_CURRENCY_CODE, useValue: 'EUR' },
     provideAppInitializer(() => {

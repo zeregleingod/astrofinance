@@ -1,0 +1,46 @@
+name: Deploy GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+      - run: npm ci
+      # Project site: served under /<repo>/, not at the domain root.
+      - run: npx ng build --base-href "/${{ github.event.repository.name }}/"
+      # SPA fallback: Pages serves 404.html for unknown paths (deep links / refresh).
+      - run: cp dist/astrofinance/browser/index.html dist/astrofinance/browser/404.html
+      # Disable Jekyll so files/folders starting with "_" are published as-is.
+      - run: touch dist/astrofinance/browser/.nojekyll
+      - uses: actions/upload-pages-artifact@v4
+        with:
+          path: dist/astrofinance/browser
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@v4

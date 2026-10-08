@@ -6,6 +6,10 @@ export const TEXTS = {
   app: {
     name: 'AstroFinance',
   },
+  nav: {
+    label: 'Navegación principal',
+    openMenu: 'Abrir menú',
+  },
   dashboard: {
     title: 'Resumen',
     empty: 'Todavía no hay movimientos.',

@@ -16,7 +16,9 @@ import {
   type TransactionSortKey,
 } from '@domain/reports/transaction-table';
 import { EmptyState } from '@shared/empty-state/empty-state';
-import { CentsPipe, IsoDatePipe, PeriodLabelPipe } from '@shared/format/format-pipes';
+import { CentsPipe } from '@shared/format/cents-pipe';
+import { IsoDatePipe } from '@shared/format/iso-date-pipe';
+import { PeriodLabelPipe } from '@shared/format/period-label-pipe';
 import { MonthNav } from '@shared/month-nav/month-nav';
 
 interface Column {

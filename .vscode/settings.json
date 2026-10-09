@@ -1,0 +1,9 @@
+{
+  "files.exclude": {
+    ".angular": true,
+    "coverage": true,
+    "out-tsc": true,
+    "test-results": true,
+    "dist": true
+  }
+}

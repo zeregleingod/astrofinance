@@ -41,11 +41,11 @@ npm start            # http://localhost:4200
 ```
 src/app/
   domain/     TypeScript puro: modelos, Money, reglas, recurrencias (sin Angular)
-    ports/    Interfaces que implementa la capa de datos
+    reports/  Modelos de lectura (filas de consulta) y cálculos de informes
   workers/    Web Workers: SQLite WASM + OPFS, lectura de ficheros (solo importan domain)
   data/       Lado main-thread de la persistencia: cliente RPC y fachadas
-  core/       Servicios transversales: textos (i18n), errores, notificaciones
-  shared/     Componentes de UI reutilizables
+  core/       Armazón de la app: layout, navegación, tema, textos (i18n), helpers entre features
+  shared/     Componentes y pipes de UI reutilizables, sin estado de negocio
   features/   Pantallas lazy (dashboard, movimientos, categorías, reglas, importación…)
 e2e/          Tests Playwright (fixtures con garantía de "cero red")
 docs/adr/     Architecture Decision Records

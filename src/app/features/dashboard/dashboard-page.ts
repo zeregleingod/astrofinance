@@ -3,7 +3,7 @@ import { TEXTS } from '@core/i18n/texts';
 import { injectMonthSelection } from '@core/period/month-selection';
 import { DbService } from '@data/db/db-service';
 import { EmptyState } from '@shared/empty-state/empty-state';
-import { CentsPipe } from '@shared/format/format-pipes';
+import { CentsPipe } from '@shared/format/cents-pipe';
 import { MonthNav } from '@shared/month-nav/month-nav';
 
 /** Resumen mensual con los bloques de la hoja de gastos: totales por grupo y subcategoría. */

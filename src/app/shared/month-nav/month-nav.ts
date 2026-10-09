@@ -2,7 +2,7 @@ import { Component, computed, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { TEXTS } from '@core/i18n/texts';
-import { PeriodLabelPipe } from '../format/format-pipes';
+import { PeriodLabelPipe } from '../format/period-label-pipe';
 
 /** Paso entre los meses que tienen datos: anterior · mes actual · siguiente. */
 @Component({

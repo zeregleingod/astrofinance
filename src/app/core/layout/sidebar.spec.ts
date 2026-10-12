@@ -15,6 +15,11 @@ describe('Sidebar', () => {
           { path: '', title: 'Resumen', data: { icon: 'dashboard' }, children: [] },
           { path: 'movimientos', title: 'Movimientos', children: [] },
           { path: 'oculta', title: 'Oculta', data: { nav: false }, children: [] },
+          {
+            path: 'configuracion',
+            data: { section: 'Configuración' },
+            children: [{ path: 'categorias', title: 'Categorías', children: [] }],
+          },
           { path: '**', redirectTo: '' },
         ]),
       ],
@@ -38,8 +43,24 @@ describe('Sidebar', () => {
     expect(links.map((a) => a.textContent?.replace('dashboard', '').trim())).toEqual([
       'Resumen',
       'Movimientos',
+      'Categorías',
     ]);
-    expect(links.map((a) => a.getAttribute('href'))).toEqual(['/', '/movimientos']);
+    expect(links.map((a) => a.getAttribute('href'))).toEqual([
+      '/',
+      '/movimientos',
+      '/configuracion/categorias',
+    ]);
+  });
+
+  it('agrupa los enlaces en apartados con su rótulo', async () => {
+    const { element } = await setup();
+
+    const labels = Array.from(element.querySelectorAll('.section-label'));
+    expect(labels.map((p) => p.textContent.trim())).toEqual(['Menú', 'Configuración']);
+    const lists = Array.from(element.querySelectorAll('mat-nav-list'));
+    expect(lists.map((list) => list.getAttribute('aria-label'))).toEqual(['Menú', 'Configuración']);
+    expect(lists[1]?.querySelectorAll('a')).toHaveLength(1);
+    expect(lists[1]?.textContent).toContain('Categorías');
   });
 
   it('marca la sección activa con aria-current', async () => {
@@ -71,6 +92,20 @@ describe('Sidebar', () => {
     expect(demo?.nextElementSibling?.tagName.toLowerCase()).toBe('mat-slide-toggle');
 
     await TestBed.inject(DbService).openDemo();
+    await fixture.whenStable();
+    expect(element.querySelector('a[href="/demo"]')).toBeNull();
+  });
+
+  it('sigue ofreciendo la demo con la BD del usuario abierta, hasta que tiene algo suyo', async () => {
+    const { fixture, element } = await setup();
+    const db = TestBed.inject(DbService);
+
+    // Abrirla (p. ej. al entrar en Categorías) solo carga la plantilla.
+    await db.openLocal();
+    await fixture.whenStable();
+    expect(element.querySelector('a[href="/demo"]')).not.toBeNull();
+
+    await db.createCategory({ parentId: null, name: 'Mascotas', color: null });
     await fixture.whenStable();
     expect(element.querySelector('a[href="/demo"]')).toBeNull();
   });

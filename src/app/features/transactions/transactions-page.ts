@@ -1,4 +1,15 @@
-import { Component, computed, inject, input, resource, signal } from '@angular/core';
+import { LiveAnnouncer } from '@angular/cdk/a11y';
+import { CdkDrag, type CdkDragDrop, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
+import {
+  Component,
+  Injector,
+  afterNextRender,
+  computed,
+  inject,
+  input,
+  resource,
+  signal,
+} from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -41,6 +52,8 @@ const LABELS: TableLabels = {
 @Component({
   selector: 'app-transactions-page',
   imports: [
+    CdkDrag,
+    CdkDropList,
     CentsPipe,
     EmptyState,
     IsoDatePipe,
@@ -57,13 +70,16 @@ const LABELS: TableLabels = {
 export class TransactionsPage {
   protected readonly texts = TEXTS;
   protected readonly db = inject(DbService);
+  private readonly announcer = inject(LiveAnnouncer);
+  private readonly injector = inject(Injector);
 
   /** `?mes=AAAA-MM`. */
   readonly mes = input<string>();
 
   protected readonly selection = injectMonthSelection(this.mes);
 
-  protected readonly columns: readonly Column[] = [
+  /** En el orden elegido por el usuario; se conserva al cambiar de mes. */
+  protected readonly columns = signal<readonly Column[]>([
     { key: 'bookedDate', label: t.bookedDate },
     { key: 'opDate', label: t.originalDate },
     { key: 'description', label: t.description },
@@ -73,7 +89,7 @@ export class TransactionsPage {
     { key: 'account', label: t.account },
     { key: 'amount', label: t.amount, numeric: true },
     { key: 'notes', label: t.notes },
-  ];
+  ]);
 
   protected readonly query = signal('');
   protected readonly sort = signal<TransactionSort>({ key: 'bookedDate', direction: 'desc' });
@@ -106,6 +122,36 @@ export class TransactionsPage {
 
   protected sortBy(key: TransactionSortKey): void {
     this.sort.update((current) => nextSort(current, key));
+  }
+
+  protected dropColumn({ previousIndex, currentIndex }: CdkDragDrop<unknown>): void {
+    this.moveColumn(previousIndex, currentIndex);
+  }
+
+  /** Alternativa de teclado al arrastre: Alt + flecha desplaza la columna una posición. */
+  protected shiftColumn(index: number, delta: -1 | 1, event: Event): void {
+    event.preventDefault();
+    const moved = this.moveColumn(index, index + delta);
+    if (!moved) return;
+    void this.announcer.announce(
+      `${moved.label}: ${t.columnPosition} ${index + delta + 1} ${t.of} ${this.columns().length}`,
+    );
+    // Al recolocar la cabecera en el DOM el navegador le quita el foco.
+    const button = event.currentTarget;
+    afterNextRender(
+      () => {
+        if (button instanceof HTMLElement) button.focus();
+      },
+      { injector: this.injector },
+    );
+  }
+
+  private moveColumn(from: number, to: number): Column | undefined {
+    const columns = [...this.columns()];
+    if (from === to || to < 0 || to >= columns.length) return undefined;
+    moveItemInArray(columns, from, to);
+    this.columns.set(columns);
+    return columns[to];
   }
 
   protected ariaSort(key: TransactionSortKey): 'ascending' | 'descending' | 'none' {

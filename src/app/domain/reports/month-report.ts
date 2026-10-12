@@ -5,7 +5,8 @@ export interface CategoryTotalRow {
   readonly id: number;
   readonly parentId: number | null;
   readonly name: string;
-  readonly kind: CategoryKind;
+  /** `null` en las categorías principales: el tipo es de las subcategorías. */
+  readonly kind: CategoryKind | null;
   readonly color: string | null;
   readonly totalCents: number;
   readonly count: number;
@@ -15,13 +16,13 @@ export interface CategoryLine {
   readonly id: number;
   readonly name: string;
   readonly color: string | null;
+  /** Como se enseña: con su signo, salvo el ahorro, que va en positivo cuando se aparta dinero. */
   readonly totalCents: number;
   readonly count: number;
 }
 
 /** Un bloque de la hoja mensual (Ingresos, Hipoteca…) con sus subcategorías. */
 export interface CategoryGroup extends CategoryLine {
-  readonly kind: CategoryKind;
   readonly lines: readonly CategoryLine[];
 }
 
@@ -35,7 +36,7 @@ export interface MonthReport {
   readonly incomeCents: number;
   /** Negativo: gasto neto (las devoluciones y reembolsos ya restan). */
   readonly expenseCents: number;
-  /** Negativo: dinero apartado a cuentas de ahorro. */
+  /** Positivo: dinero apartado a ahorro en el mes (aportaciones menos retiradas). */
   readonly savingsCents: number;
   readonly balanceCents: number;
   readonly pendingReimbursementCents: number;
@@ -61,15 +62,14 @@ export function buildMonthReport(input: MonthReportInput): MonthReport {
       id: c.id,
       name: c.name,
       color: c.color ?? color,
-      totalCents: c.totalCents,
+      totalCents: shown(c),
       count: c.count,
     }));
     return {
       id: root.id,
       name: root.name,
-      kind: root.kind,
       color,
-      totalCents: sum([root, ...children].map((c) => c.totalCents)),
+      totalCents: sum([root, ...children].map(shown)),
       count: sum([root, ...children].map((c) => c.count)),
       lines,
     };
@@ -79,18 +79,28 @@ export function buildMonthReport(input: MonthReportInput): MonthReport {
     sum(input.categories.filter((c) => c.kind === kind).map((c) => c.totalCents));
   const incomeCents = byKind('ingreso');
   const expenseCents = byKind('gasto');
-  const savingsCents = byKind('neutra');
+  // Apartar dinero es una salida de la cuenta (negativa): como ahorro se enseña en positivo.
+  const savingsCents = 0 - byKind('ahorro');
 
   return {
     period: input.period,
     incomeCents,
     expenseCents,
     savingsCents,
-    balanceCents: incomeCents + expenseCents + savingsCents + input.uncategorized.totalCents,
+    // Todo lo del mes, tenga tipo o no su categoría.
+    balanceCents: sum(input.categories.map((c) => c.totalCents)) + input.uncategorized.totalCents,
     pendingReimbursementCents: input.pendingReimbursementCents,
     uncategorized: input.uncategorized,
     groups,
   };
+}
+
+/**
+ * Apartar dinero es una salida de la cuenta (negativa), pero para el usuario es ahorro que
+ * suma: en el resumen el importe de las categorías de ahorro cambia de signo.
+ */
+function shown(category: CategoryTotalRow): number {
+  return category.kind === 'ahorro' ? 0 - category.totalCents : category.totalCents;
 }
 
 function sum(values: readonly number[]): number {

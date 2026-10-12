@@ -1,0 +1,277 @@
+:host {
+  display: block;
+}
+
+.page-header {
+  margin-bottom: 24px;
+
+  h2 {
+    margin: 0;
+    font: var(--mat-sys-headline-small);
+    font-weight: 600;
+  }
+}
+
+.panel {
+  max-width: 880px;
+  margin: 0 0 16px;
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--mat-sys-surface-container-lowest);
+
+  p {
+    margin: 0 0 12px;
+  }
+
+  h3 {
+    margin: 0 0 4px;
+    font: var(--mat-sys-title-large);
+    font-weight: 600;
+  }
+
+  button + .hint {
+    margin: 16px 0 0;
+  }
+}
+
+.hint {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+}
+
+.warning {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+}
+
+.error,
+.done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.error {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+.alert {
+  color: var(--mat-sys-error);
+  font-weight: 500;
+}
+
+.summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 16px 0;
+
+  div {
+    min-width: 112px;
+    padding: 8px 12px;
+    border-radius: 12px;
+    background: var(--mat-sys-surface-container);
+  }
+
+  dt {
+    font: var(--mat-sys-label-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 0;
+    font: var(--mat-sys-title-large);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .highlight {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+
+    dt {
+      color: inherit;
+    }
+  }
+
+  .alert dt {
+    color: inherit;
+  }
+}
+
+.table-wrap {
+  overflow-x: auto;
+  border-radius: 16px;
+  background: var(--mat-sys-surface-container-lowest);
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+}
+
+table {
+  width: 100%;
+  min-width: 1240px;
+  table-layout: fixed;
+  border-collapse: collapse;
+}
+
+.col-include {
+  width: 76px;
+}
+
+.col-date {
+  width: 108px;
+}
+
+.col-description {
+  width: 26%;
+}
+
+.col-category {
+  width: 17%;
+}
+
+.col-amount {
+  width: 124px;
+}
+
+.col-status {
+  width: 148px;
+}
+
+// .col-notes: el ancho restante.
+
+caption {
+  padding: 16px 20px 8px;
+  text-align: left;
+  font: var(--mat-sys-title-small);
+}
+
+th,
+td {
+  padding: 8px 10px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+}
+
+th {
+  font: var(--mat-sys-label-large);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.date,
+.num {
+  font-variant-numeric: tabular-nums;
+}
+
+.num {
+  text-align: right;
+}
+
+// Fila que no se va a guardar (descartada o ya guardada): atenuada pero legible.
+.muted .date {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+input[type='text'],
+select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 36px;
+  padding: 6px 8px;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: 8px;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 1px;
+  }
+
+  &:disabled {
+    border-color: var(--mat-sys-outline-variant);
+    background: transparent;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  // El error no depende solo del color: la fila pasa además a «Revisar».
+  &[aria-invalid='true'] {
+    border-color: var(--mat-sys-error);
+    border-width: 2px;
+  }
+}
+
+input[type='checkbox'] {
+  width: 20px;
+  height: 20px;
+  margin: 0 8px;
+  accent-color: var(--mat-sys-primary);
+}
+
+.original {
+  display: block;
+  margin-top: 4px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.badge {
+  display: inline-block;
+  padding: 2px 10px;
+  border-radius: 999px;
+  font: var(--mat-sys-label-medium);
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface);
+
+  &.new {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+  }
+
+  &.edited {
+    background: var(--mat-sys-secondary-container);
+    color: var(--mat-sys-on-secondary-container);
+  }
+
+  &.invalid {
+    background: var(--mat-sys-error-container);
+    color: var(--mat-sys-on-error-container);
+  }
+}
+
+.restore {
+  --mat-icon-button-state-layer-size: 32px;
+  --mat-icon-button-icon-size: 18px;
+
+  vertical-align: middle;
+  padding: 4px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 16px;
+
+  .hint {
+    flex: 1;
+    min-width: 240px;
+    margin: 0;
+  }
+}

@@ -25,11 +25,33 @@ export function migrate(db: SqlDb, migrations: readonly Migration[]): { from: nu
   }
 
   for (const migration of migrations.slice(from)) {
-    db.transaction(() => {
-      db.run(migration.sql);
-      // `version` viene del código, nunca del usuario: PRAGMA no admite parámetros.
-      db.run(`PRAGMA user_version = ${migration.version}`);
-    });
+    if (migration.rebuildsTables) withoutForeignKeys(db, () => apply(db, migration));
+    else apply(db, migration);
   }
   return { from, to: latest };
+}
+
+function apply(db: SqlDb, migration: Migration): void {
+  db.transaction(() => {
+    db.run(migration.sql);
+    if (migration.rebuildsTables && db.rows('PRAGMA foreign_key_check').length > 0) {
+      throw new MigrationError(`La migración «${migration.name}» deja claves ajenas rotas.`);
+    }
+    // `version` viene del código, nunca del usuario: PRAGMA no admite parámetros.
+    db.run(`PRAGMA user_version = ${migration.version}`);
+  });
+}
+
+/**
+ * Borrar una tabla referenciada falla con las claves ajenas activas, y el PRAGMA no tiene
+ * efecto dentro de una transacción: se cambia fuera y se deja como estaba.
+ */
+function withoutForeignKeys(db: SqlDb, fn: () => void): void {
+  const enabled = Number(db.value('PRAGMA foreign_keys')) === 1;
+  db.run('PRAGMA foreign_keys = OFF');
+  try {
+    fn();
+  } finally {
+    if (enabled) db.run('PRAGMA foreign_keys = ON');
+  }
 }

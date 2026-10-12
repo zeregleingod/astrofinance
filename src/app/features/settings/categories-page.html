@@ -1,0 +1,265 @@
+<header class="page-header">
+  <h2>{{ texts.categories.title }}</h2>
+</header>
+
+@if (!db.ready()) {
+  @if (db.status() === 'error') {
+    <p class="panel error" role="alert">
+      <mat-icon fontIcon="error" aria-hidden="true" />
+      {{ texts.categories.loadError }}
+    </p>
+  } @else {
+    <p class="panel" role="status">{{ texts.categories.loading }}</p>
+  }
+} @else {
+  <section class="panel" aria-labelledby="new-category-title">
+    <h3 id="new-category-title">{{ texts.categories.newTitle }}</h3>
+    <p class="hint">{{ texts.categories.intro }}</p>
+
+    <form class="fields" [formRoot]="categoryForm">
+      <label class="field name">
+        <span>{{ texts.categories.name }}</span>
+        <input
+          type="text"
+          autocomplete="off"
+          [formField]="categoryForm.name"
+          [attr.aria-invalid]="showNameError()"
+          [attr.aria-describedby]="showNameError() ? 'name-error' : null"
+        />
+      </label>
+      <label class="field color">
+        <span>{{ texts.categories.color }}</span>
+        <input type="color" [formField]="categoryForm.color" />
+      </label>
+      <button mat-flat-button type="submit" [disabled]="categoryForm().submitting()">
+        <mat-icon fontIcon="add" aria-hidden="true" />
+        {{ texts.categories.add }}
+      </button>
+    </form>
+
+    @if (showNameError()) {
+      <p id="name-error" class="alert">
+        @for (problem of categoryForm.name().errors(); track problem.kind) {
+          {{ problem.message }}
+        }
+      </p>
+    }
+    @if (error(); as message) {
+      <p class="alert" role="alert">{{ message }}</p>
+    }
+    <p class="done" role="status">
+      @if (notice(); as message) {
+        <mat-icon fontIcon="check_circle" aria-hidden="true" />
+        {{ message }}
+      }
+    </p>
+    @if (db.mode() === 'local') {
+      <p class="hint warning">{{ texts.imports.memoryOnly }}</p>
+    }
+  </section>
+
+  <section>
+    <h3 id="category-list-title" class="list-title" tabindex="-1">{{ texts.categories.list }}</h3>
+    <p class="hint list-hint">{{ texts.categories.kindHint }}</p>
+    <div class="table-wrap" role="region" aria-labelledby="category-list-title" tabindex="0">
+      <table aria-labelledby="category-list-title">
+        <thead>
+          <tr>
+            <th scope="col">{{ texts.categories.name }}</th>
+            <th scope="col" class="col-kind">{{ texts.categories.kind }}</th>
+            <th scope="col" class="col-count num">
+              <span class="long">{{ texts.categories.movementsColumn }}</span>
+              <span class="short" aria-hidden="true">{{ texts.categories.movementsShort }}</span>
+            </th>
+            <th scope="col" class="col-actions">{{ texts.categories.actions }}</th>
+          </tr>
+        </thead>
+        <!-- Un bloque por categoría principal: su fila y, debajo, las de sus subcategorías. -->
+        @for (card of cards(); track card.group.id) {
+          <tbody class="group">
+            <tr class="group-row">
+              <th scope="row">
+                <div class="name-cell">
+                  @if (isEditing(card.row)) {
+                    <ng-container
+                      [ngTemplateOutlet]="nameEditor"
+                      [ngTemplateOutletContext]="{ color: true }"
+                    />
+                  } @else {
+                    <!-- Color de la categoría como atributo SVG: sin estilos en línea. -->
+                    <svg class="dot" viewBox="0 0 10 10" aria-hidden="true">
+                      <circle cx="5" cy="5" r="5" [attr.fill]="card.group.color" />
+                    </svg>
+                    <span class="name">{{ card.group.name }}</span>
+                  }
+                </div>
+              </th>
+              <td class="kind"></td>
+              <td class="num">
+                <span class="count" [class.unused]="card.row.count === 0">{{
+                  card.row.count
+                }}</span>
+              </td>
+              <td>
+                <div class="actions">
+                  @if (isEditing(card.row)) {
+                    <ng-container [ngTemplateOutlet]="editorActions" />
+                  } @else {
+                    <button
+                      mat-icon-button
+                      type="button"
+                      class="tool add-subcategory"
+                      [id]="'add-' + card.group.id"
+                      [attr.aria-label]="texts.categories.addSubcategory + ': ' + card.group.name"
+                      [title]="texts.categories.addSubcategory"
+                      (click)="addSubcategory(card.group)"
+                    >
+                      <mat-icon fontIcon="add" aria-hidden="true" />
+                    </button>
+                    <ng-container
+                      [ngTemplateOutlet]="rowActions"
+                      [ngTemplateOutletContext]="{ $implicit: card.row }"
+                    />
+                  }
+                </div>
+              </td>
+            </tr>
+            @for (row of card.rows; track row.id) {
+              <tr class="sub">
+                @if (isEditing(row)) {
+                  <th scope="row">
+                    <div class="name-cell"><ng-container [ngTemplateOutlet]="nameEditor" /></div>
+                  </th>
+                  <td class="kind"><ng-container [ngTemplateOutlet]="kindEditor" /></td>
+                } @else {
+                  <th scope="row">
+                    <div class="name-cell">
+                      <span class="name">{{ row.name }}</span>
+                    </div>
+                  </th>
+                  <td class="kind">{{ row.kind ? texts.categories.kinds[row.kind] : '' }}</td>
+                }
+                <td class="num">
+                  <span class="count" [class.unused]="row.count === 0">{{ row.count }}</span>
+                </td>
+                <td>
+                  <div class="actions">
+                    <ng-container
+                      [ngTemplateOutlet]="isEditing(row) ? editorActions : rowActions"
+                      [ngTemplateOutletContext]="{ $implicit: row }"
+                    />
+                  </div>
+                </td>
+              </tr>
+            }
+            @if (isAddingTo(card.group)) {
+              <tr class="sub new">
+                <th scope="row">
+                  <div class="name-cell"><ng-container [ngTemplateOutlet]="nameEditor" /></div>
+                </th>
+                <td class="kind"><ng-container [ngTemplateOutlet]="kindEditor" /></td>
+                <td></td>
+                <td>
+                  <div class="actions"><ng-container [ngTemplateOutlet]="editorActions" /></div>
+                </td>
+              </tr>
+            }
+          </tbody>
+        }
+      </table>
+    </div>
+  </section>
+}
+
+<!--
+  Editor de la fila: el formulario vive en la celda del nombre; el tipo y los botones, en sus
+  celdas, se asocian a él con el atributo `form`.
+-->
+<ng-template #nameEditor let-color="color">
+  <form id="row-editor" class="row-editor" [formRoot]="rowForm" (keydown.escape)="cancelEdit()">
+    @if (color) {
+      <input
+        type="color"
+        [formField]="rowForm.color"
+        [attr.aria-label]="texts.categories.color + ': ' + editor()?.label"
+        [title]="texts.categories.color"
+      />
+    }
+    <input
+      type="text"
+      autocomplete="off"
+      [formField]="rowForm.name"
+      [attr.aria-label]="texts.categories.name + ': ' + editor()?.label"
+      [attr.aria-invalid]="showRowError()"
+      [attr.aria-describedby]="showRowError() ? 'row-error' : null"
+    />
+    @if (showRowError()) {
+      <p id="row-error" class="alert">
+        @for (problem of rowForm.name().errors(); track problem.kind) {
+          {{ problem.message }}
+        }
+      </p>
+    }
+  </form>
+</ng-template>
+
+<ng-template #kindEditor>
+  <select
+    form="row-editor"
+    [formField]="rowForm.kind"
+    (keydown.escape)="cancelEdit()"
+    [attr.aria-label]="texts.categories.kind + ': ' + editor()?.label"
+  >
+    @for (kind of kinds; track kind) {
+      <option [value]="kind">{{ texts.categories.kinds[kind] }}</option>
+    }
+  </select>
+</ng-template>
+
+<ng-template #editorActions>
+  <button
+    mat-icon-button
+    type="submit"
+    form="row-editor"
+    class="tool"
+    [attr.aria-label]="texts.categories.save"
+    [title]="texts.categories.save"
+    [disabled]="rowForm().submitting()"
+  >
+    <mat-icon fontIcon="check" aria-hidden="true" />
+  </button>
+  <button
+    mat-icon-button
+    type="button"
+    class="tool"
+    [attr.aria-label]="texts.categories.cancelEdit"
+    [title]="texts.categories.cancelEdit"
+    (click)="cancelEdit()"
+  >
+    <mat-icon fontIcon="close" aria-hidden="true" />
+  </button>
+</ng-template>
+
+<ng-template #rowActions let-row>
+  <button
+    mat-icon-button
+    type="button"
+    class="tool"
+    [id]="'edit-' + row.id"
+    [attr.aria-label]="texts.categories.edit + ': ' + row.label"
+    [title]="texts.categories.edit"
+    (click)="edit(row)"
+  >
+    <mat-icon fontIcon="edit" aria-hidden="true" />
+  </button>
+  <button
+    mat-icon-button
+    type="button"
+    class="tool"
+    [attr.aria-label]="texts.categories.delete + ': ' + row.label"
+    [title]="texts.categories.delete"
+    (click)="remove(row)"
+  >
+    <mat-icon fontIcon="delete" aria-hidden="true" />
+  </button>
+</ng-template>

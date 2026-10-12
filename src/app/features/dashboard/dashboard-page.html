@@ -9,7 +9,7 @@
   }
 </header>
 
-@if (db.ready()) {
+@if (db.ready() && !selection.empty()) {
   @if (report.value(); as r) {
     <dl class="kpis" [attr.aria-label]="texts.dashboard.kpis">
       <div class="kpi">

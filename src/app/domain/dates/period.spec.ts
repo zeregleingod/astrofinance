@@ -1,4 +1,31 @@
-import { formatIsoDate, isPeriod, periodParts, resolvePeriod, shiftPeriod } from './period';
+import {
+  formatIsoDate,
+  isIsoDate,
+  isPeriod,
+  isoDate,
+  periodParts,
+  resolvePeriod,
+  shiftPeriod,
+} from './period';
+
+describe('fechas ISO', () => {
+  it('compone fechas reales y rechaza las imposibles', () => {
+    expect(isoDate(2026, 1, 30)).toBe('2026-01-30');
+    expect(isoDate(2024, 2, 29)).toBe('2024-02-29');
+    expect(isoDate(2026, 2, 29)).toBeNull();
+    expect(isoDate(2026, 13, 1)).toBeNull();
+    expect(isoDate(2026, 1, 0)).toBeNull();
+    expect(isoDate(26, 1, 1)).toBeNull();
+    expect(isoDate(10000, 1, 1)).toBeNull();
+  });
+
+  it('valida textos AAAA-MM-DD', () => {
+    expect(isIsoDate('2026-01-30')).toBe(true);
+    expect(isIsoDate('2026-02-30')).toBe(false);
+    expect(isIsoDate('30/01/2026')).toBe(false);
+    expect(isIsoDate(20260130)).toBe(false);
+  });
+});
 
 describe('periodos (AAAA-MM)', () => {
   it('reconoce periodos válidos', () => {

@@ -3,10 +3,11 @@
  * mensual del usuario. Los nombres son datos semilla: una vez cargados, el usuario los edita.
  */
 
-type Kind = 'ingreso' | 'gasto' | 'neutra';
+type Kind = 'ingreso' | 'gasto' | 'ahorro';
 
 interface TemplateGroup {
   readonly name: string;
+  /** Tipo de sus subcategorías; el grupo en sí no tiene tipo. */
   readonly kind: Kind;
   readonly color: string;
   /** Subcategorías: nombre y color propio opcional (si no, hereda el del grupo en la UI). */
@@ -23,11 +24,11 @@ export const CATEGORY_TEMPLATE: readonly TemplateGroup[] = [
     name: 'Ingresos',
     kind: 'ingreso',
     color: '#2E8B57',
-    children: [['Nómina'], ['Ingresos extra', '#7CC242']],
+    children: [['Nómina'], ['Ingresos extra']],
   },
   {
     name: 'Ahorro',
-    kind: 'neutra',
+    kind: 'ahorro',
     color: '#8C8CE0',
     children: [['Aportación a ahorro'], ['Retirada de ahorro']],
   },
@@ -35,7 +36,7 @@ export const CATEGORY_TEMPLATE: readonly TemplateGroup[] = [
     name: 'Hipoteca y vivienda',
     kind: 'gasto',
     color: '#E9675A',
-    children: [['Cuota hipoteca'], ['Seguros de la vivienda', '#E53935'], ['Impuestos', '#F28C00']],
+    children: [['Cuota hipoteca'], ['Seguros de la vivienda'], ['Impuestos']],
   },
   {
     name: 'Préstamos y financiaciones',
@@ -43,9 +44,9 @@ export const CATEGORY_TEMPLATE: readonly TemplateGroup[] = [
     color: '#D81BD8',
     children: [
       ['Financiaciones'],
-      ['Plataformas y suscripciones', '#F062F0'],
-      ['Donaciones y colaboraciones', '#F062F0'],
-      ['Otros', '#F062F0'],
+      ['Plataformas y suscripciones'],
+      ['Donaciones y colaboraciones'],
+      ['Otros'],
     ],
   },
   {
@@ -66,7 +67,6 @@ export const CATEGORY_TEMPLATE: readonly TemplateGroup[] = [
       ['Ocio'],
       ['Manualidades'],
       ['Estudios'],
-      ['Yes Be More', '#B388EB'],
       ['Ropa'],
       ['Escapadas y viajes'],
       ['Regalos'],
@@ -75,20 +75,20 @@ export const CATEGORY_TEMPLATE: readonly TemplateGroup[] = [
 ];
 
 const INSERT_GROUP =
-  'INSERT INTO categories (parent_id, name, kind, color, sort_order) VALUES (NULL, ?, ?, ?, ?)';
+  'INSERT INTO categories (parent_id, name, color, sort_order) VALUES (NULL, ?, ?, ?)';
 
 const INSERT_CHILD = `INSERT INTO categories (parent_id, name, kind, color, sort_order)
-  SELECT id, ?, kind, ?, ? FROM categories WHERE parent_id IS NULL AND name = ?`;
+  SELECT id, ?, ?, ?, ? FROM categories WHERE parent_id IS NULL AND name = ?`;
 
 /** Sentencias parametrizadas para cargar la plantilla; se ejecutan en una transacción. */
 export function categoryTemplateStatements(
   template: readonly TemplateGroup[] = CATEGORY_TEMPLATE,
 ): SeedStatement[] {
   return template.flatMap((group, groupIndex) => [
-    { sql: INSERT_GROUP, bind: [group.name, group.kind, group.color, groupIndex + 1] },
+    { sql: INSERT_GROUP, bind: [group.name, group.color, groupIndex + 1] },
     ...group.children.map(([name, color], childIndex) => ({
       sql: INSERT_CHILD,
-      bind: [name, color ?? null, childIndex + 1, group.name],
+      bind: [name, group.kind, color ?? null, childIndex + 1, group.name],
     })),
   ]);
 }

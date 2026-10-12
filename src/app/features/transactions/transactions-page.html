@@ -9,7 +9,7 @@
   }
 </header>
 
-@if (db.ready()) {
+@if (db.ready() && !selection.empty()) {
   @if (selection.period(); as period) {
     <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
       <mat-label>{{ texts.transactions.search }}</mat-label>
@@ -55,25 +55,33 @@
           }})
         </caption>
         <colgroup>
-          <col class="col-booked" />
-          <col class="col-date" />
-          <col class="col-description" />
-          <col class="col-tags" />
-          <col class="col-category" />
-          <col class="col-subcategory" />
-          <col class="col-account" />
-          <col class="col-amount" />
-          <col class="col-notes" />
+          @for (column of columns(); track column.key) {
+            <col [class]="'col-' + column.key" />
+          }
         </colgroup>
         <thead>
-          <tr>
-            @for (column of columns; track column.key) {
-              <th scope="col" [class.num]="column.numeric" [attr.aria-sort]="ariaSort(column.key)">
+          <tr
+            cdkDropList
+            cdkDropListOrientation="horizontal"
+            (cdkDropListDropped)="dropColumn($event)"
+          >
+            @for (column of columns(); track column.key; let index = $index) {
+              <th
+                scope="col"
+                cdkDrag
+                cdkDragLockAxis="x"
+                cdkDragPreviewContainer="parent"
+                [class.num]="column.numeric"
+                [attr.aria-sort]="ariaSort(column.key)"
+              >
                 <button
                   type="button"
                   class="sort"
+                  aria-describedby="reorder-hint"
                   [title]="column.label"
                   (click)="sortBy(column.key)"
+                  (keydown.alt.arrowleft)="shiftColumn(index, -1, $event)"
+                  (keydown.alt.arrowright)="shiftColumn(index, 1, $event)"
                 >
                   <span class="label">{{ column.label }}</span>
                   <mat-icon
@@ -90,40 +98,66 @@
         <tbody>
           @for (row of rows(); track row.id) {
             <tr>
-              <!-- Por ahora solo lectura; se podrá editar para imputar el movimiento a otra fecha. -->
-              <td class="date" [class.date-changed]="row.dateChanged">
-                {{ row.bookedDate | isoDate }}
-                @if (row.dateChanged) {
-                  <mat-icon class="changed-icon" fontIcon="edit_calendar" aria-hidden="true" />
-                  <span class="visually-hidden">{{ texts.transactions.dateChanged }}</span>
+              @for (column of columns(); track column.key) {
+                @switch (column.key) {
+                  @case ('bookedDate') {
+                    <!-- Por ahora solo lectura; se podrá editar para imputar el movimiento a otra fecha. -->
+                    <td class="date" [class.date-changed]="row.dateChanged">
+                      {{ row.bookedDate | isoDate }}
+                      @if (row.dateChanged) {
+                        <mat-icon
+                          class="changed-icon"
+                          fontIcon="edit_calendar"
+                          aria-hidden="true"
+                        />
+                        <span class="visually-hidden">{{ texts.transactions.dateChanged }}</span>
+                      }
+                    </td>
+                  }
+                  @case ('opDate') {
+                    <td class="date">{{ row.opDate | isoDate }}</td>
+                  }
+                  @case ('description') {
+                    <td [title]="row.description">{{ row.description }}</td>
+                  }
+                  @case ('tags') {
+                    <td [title]="row.tags.join(', ')">
+                      @for (tag of row.tags; track tag) {
+                        <!-- El espacio separa las etiquetas también para los lectores de pantalla. -->
+                        <span class="badge">{{ tag }}</span
+                        >{{ ' ' }}
+                      }
+                    </td>
+                  }
+                  @case ('category') {
+                    <td [title]="row.categoryName ?? texts.dashboard.uncategorized">
+                      {{ row.categoryName ?? texts.dashboard.uncategorized }}
+                    </td>
+                  }
+                  @case ('subcategory') {
+                    <td [title]="row.subcategoryName ?? ''">{{ row.subcategoryName }}</td>
+                  }
+                  @case ('account') {
+                    <td [title]="row.accountName">{{ row.accountName }}</td>
+                  }
+                  @case ('amount') {
+                    <td
+                      class="num"
+                      [class.positive]="row.amountCents > 0"
+                      [class.negative]="row.amountCents < 0"
+                    >
+                      {{ row.amountCents | cents }}
+                    </td>
+                  }
+                  @case ('notes') {
+                    <td class="notes" [title]="row.note ?? ''">{{ row.note }}</td>
+                  }
                 }
-              </td>
-              <td class="date">{{ row.opDate | isoDate }}</td>
-              <td [title]="row.description">{{ row.description }}</td>
-              <td [title]="row.tags.join(', ')">
-                @for (tag of row.tags; track tag) {
-                  <!-- El espacio separa las etiquetas también para los lectores de pantalla. -->
-                  <span class="badge">{{ tag }}</span
-                  >{{ ' ' }}
-                }
-              </td>
-              <td [title]="row.categoryName ?? texts.dashboard.uncategorized">
-                {{ row.categoryName ?? texts.dashboard.uncategorized }}
-              </td>
-              <td [title]="row.subcategoryName ?? ''">{{ row.subcategoryName }}</td>
-              <td [title]="row.accountName">{{ row.accountName }}</td>
-              <td
-                class="num"
-                [class.positive]="row.amountCents > 0"
-                [class.negative]="row.amountCents < 0"
-              >
-                {{ row.amountCents | cents }}
-              </td>
-              <td class="notes" [title]="row.note ?? ''">{{ row.note }}</td>
+              }
             </tr>
           } @empty {
             <tr>
-              <td class="no-results" [attr.colspan]="columns.length">
+              <td class="no-results" [attr.colspan]="columns().length">
                 {{ texts.transactions.noResults }}
               </td>
             </tr>
@@ -131,6 +165,7 @@
         </tbody>
       </table>
     </div>
+    <p id="reorder-hint" class="visually-hidden">{{ texts.transactions.reorderHint }}</p>
   }
 } @else {
   <app-empty-state [status]="db.status()" />

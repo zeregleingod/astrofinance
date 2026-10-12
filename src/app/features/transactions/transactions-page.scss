@@ -48,11 +48,11 @@ table {
 
 // Columnas de contenido corto: ancho fijo para que nunca se recorten.
 // Caben la fecha y el icono de fecha modificada.
-.col-booked {
+.col-bookedDate {
   width: 134px;
 }
 
-.col-date {
+.col-opDate {
   width: 160px;
 }
 
@@ -111,6 +111,32 @@ th {
   }
 }
 
+// Cabeceras arrastrables para reordenar las columnas.
+th.cdk-drag {
+  cursor: grab;
+}
+
+th.cdk-drag-preview {
+  box-sizing: border-box;
+  border-bottom: none;
+  border-radius: 8px;
+  background: var(--mat-sys-surface-container-high);
+  color: var(--mat-sys-on-surface);
+  box-shadow: var(--mat-sys-level3);
+  cursor: grabbing;
+}
+
+th.cdk-drag-placeholder {
+  opacity: 0.3;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  th.cdk-drag-animating,
+  .cdk-drop-list-dragging th:not(.cdk-drag-placeholder) {
+    transition: transform 200ms cubic-bezier(0, 0, 0.2, 1);
+  }
+}
+
 // Cabecera ordenable: todo el texto es el botón.
 .sort {
   display: flex;
@@ -122,7 +148,7 @@ th {
   background: none;
   font: inherit;
   color: inherit;
-  cursor: pointer;
+  cursor: inherit;
 
   &:focus-visible {
     outline: 2px solid var(--mat-sys-primary);

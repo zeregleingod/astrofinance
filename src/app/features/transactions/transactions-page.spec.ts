@@ -155,6 +155,71 @@ describe('TransactionsPage', () => {
     });
   });
 
+  describe('orden de las columnas', () => {
+    const headers = (element: HTMLElement) => [...element.querySelectorAll('thead th')].map(text);
+    const press = async (
+      fixture: { whenStable(): Promise<unknown> },
+      th: Element | undefined,
+      key: string,
+    ) => {
+      th?.querySelector('button')?.dispatchEvent(
+        new KeyboardEvent('keydown', { key, altKey: true, bubbles: true, cancelable: true }),
+      );
+      await fixture.whenStable();
+    };
+
+    it('al soltar una cabecera arrastrada mueve la columna y sus celdas', async () => {
+      const { element, rows, fixture } = await setup(true);
+      const cells = () =>
+        [
+          ...(rows()
+            .find((r) => text(r)?.includes('Alex - Cortinas'))
+            ?.querySelectorAll('td') ?? []),
+        ].map(text);
+
+      fixture.debugElement
+        .query((el) => el.name === 'tr' && el.parent?.name === 'thead')
+        .triggerEventHandler('cdkDropListDropped', { previousIndex: 7, currentIndex: 0 });
+      await fixture.whenStable();
+
+      expect(headers(element).slice(0, 3)).toEqual(['Importe', 'Fecha', 'Fecha original']);
+      expect(cells().slice(0, 3)).toEqual([
+        '65,47 €',
+        '28/09/2026 (fecha modificada)',
+        '03/10/2026',
+      ]);
+      expect(element.querySelectorAll('colgroup col')[0]?.classList.contains('col-amount')).toBe(
+        true,
+      );
+    });
+
+    it('con Alt + flecha mueve la columna y conserva el foco', async () => {
+      const { element, header, fixture } = await setup(true);
+      header('Fecha')?.querySelector('button')?.focus();
+
+      await press(fixture, header('Fecha'), 'ArrowRight');
+      expect(headers(element).slice(0, 2)).toEqual(['Fecha original', 'Fecha']);
+      expect(document.activeElement).toBe(header('Fecha')?.querySelector('button'));
+
+      await press(fixture, header('Fecha'), 'ArrowLeft');
+      await press(fixture, header('Fecha'), 'ArrowLeft');
+      expect(headers(element).slice(0, 2)).toEqual(['Fecha', 'Fecha original']);
+    });
+
+    it('se mantiene al cambiar de mes', async () => {
+      const { element, header, fixture } = await setup(true);
+      const periods = await TestBed.inject(DbService).periods();
+      const caption = text(element.querySelector('caption'));
+
+      await press(fixture, header('Observaciones'), 'ArrowLeft');
+      fixture.componentRef.setInput('mes', periods[0]);
+      await fixture.whenStable();
+
+      expect(text(element.querySelector('caption'))).not.toBe(caption);
+      expect(headers(element).slice(-2)).toEqual(['Observaciones', 'Importe']);
+    });
+  });
+
   describe('búsqueda', () => {
     it('filtra al escribir, sin tildes ni mayúsculas, y actualiza el recuento', async () => {
       const { element, rows, search } = await setup(true);

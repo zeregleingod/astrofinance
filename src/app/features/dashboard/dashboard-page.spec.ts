@@ -35,7 +35,7 @@ describe('DashboardPage', () => {
       text(k.querySelector('dd')),
     ]);
     expect(kpis).toContainEqual(['Ingresos', '1.850,00 €']);
-    expect(kpis).toContainEqual(['Ahorro', '-200,00 €']);
+    expect(kpis).toContainEqual(['Ahorro', '200,00 €']);
     expect(kpis).toContainEqual(['Pendiente de cobrar', '39,29 €']);
     expect([...element.querySelectorAll('.group h3')].map(text)).toEqual([
       'Ingresos',

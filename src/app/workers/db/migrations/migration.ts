@@ -4,4 +4,9 @@ export interface Migration {
   readonly version: number;
   readonly name: string;
   readonly sql: string;
+  /**
+   * Reconstruye alguna tabla (crear otra, copiar, borrar y renombrar). El ejecutor desactiva
+   * las claves ajenas mientras dura y comprueba que ninguna queda rota antes de confirmar.
+   */
+  readonly rebuildsTables?: boolean;
 }

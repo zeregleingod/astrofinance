@@ -1,5 +1,7 @@
 import sqlite3InitModule, { type Database, type Sqlite3Static } from '@sqlite.org/sqlite-wasm';
+import { migrate } from '../migrate';
 import { categoryTemplateStatements } from '../seeds/category-template';
+import { wrapDatabase } from '../sql-db';
 import { MIGRATIONS } from './index';
 import { migration001 } from './001-esquema-inicial';
 
@@ -55,7 +57,7 @@ describe('Migración 001: esquema inicial', () => {
 
   describe('estructura', () => {
     it('es la primera migración registrada', () => {
-      expect(MIGRATIONS.map((m) => m.version)).toEqual([1]);
+      expect(MIGRATIONS[0]).toBe(migration001);
       expect(value('PRAGMA user_version')).toBe(1);
     });
 
@@ -422,6 +424,8 @@ describe('Migración 001: esquema inicial', () => {
 
   describe('plantilla de categorías', () => {
     beforeEach(() => {
+      // La plantilla se carga sobre el esquema actual, no sobre el inicial.
+      migrate(wrapDatabase(db), MIGRATIONS);
       for (const statement of categoryTemplateStatements()) {
         run(statement.sql, [...statement.bind]);
       }
@@ -438,16 +442,19 @@ describe('Migración 001: esquema inicial', () => {
         'Suministros',
         'Variables',
       ]);
-      expect(Number(value('SELECT count(*) FROM categories WHERE parent_id IS NOT NULL'))).toBe(24);
+      expect(Number(value('SELECT count(*) FROM categories WHERE parent_id IS NOT NULL'))).toBe(23);
     });
 
-    it('las subcategorías tienen el mismo tipo que su grupo', () => {
+    it('el tipo es de las subcategorías: los grupos no tienen', () => {
       expect(
-        value(
-          `SELECT count(*) FROM categories c JOIN categories p ON p.id = c.parent_id
-           WHERE c.kind <> p.kind`,
-        ),
+        value('SELECT count(*) FROM categories WHERE parent_id IS NULL AND kind IS NOT NULL'),
       ).toBe(0);
+      expect(
+        db.selectValues(
+          `SELECT DISTINCT c.kind FROM categories c JOIN categories p ON p.id = c.parent_id
+           WHERE p.name = 'Ahorro'`,
+        ),
+      ).toEqual(['ahorro']);
     });
   });
 });

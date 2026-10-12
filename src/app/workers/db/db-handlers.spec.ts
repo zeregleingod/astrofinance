@@ -32,5 +32,8 @@ describe('createDbHandlers', () => {
     await handlers.openDemo(undefined);
     expect(() => handlers.monthReport({ period: "2026-09' OR 1=1 --" })).toThrow(RangeError);
     expect(() => handlers.transactions(null as unknown as { period: string })).toThrow(RangeError);
+    expect(() =>
+      handlers.createCategory({ parentId: 1, name: 'A', kind: 'otro' as 'gasto' }),
+    ).toThrow(RangeError);
   });
 });

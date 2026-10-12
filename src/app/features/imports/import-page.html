@@ -1,0 +1,270 @@
+<header class="page-header">
+  <h2>{{ texts.imports.title }}</h2>
+</header>
+
+@if (db.mode() === 'demo') {
+  <p class="panel" role="status">{{ texts.imports.demoBlocked }}</p>
+} @else {
+  @if (error(); as message) {
+    <p class="panel error" role="alert">
+      <mat-icon fontIcon="error" aria-hidden="true" />
+      {{ message }}
+    </p>
+  }
+
+  @switch (step()) {
+    @case ('elegir') {
+      <section class="panel">
+        <p>{{ texts.imports.intro }}</p>
+        <p class="hint">{{ texts.imports.banks }} {{ banks }}. {{ texts.imports.formats }}</p>
+        <input #file hidden type="file" accept=".xls,.xlsx,.csv" (change)="choose(file)" />
+        <button mat-flat-button type="button" (click)="file.click()">
+          <mat-icon fontIcon="upload_file" aria-hidden="true" />
+          {{ texts.imports.choose }}
+        </button>
+        <p class="hint warning">{{ texts.imports.memoryOnly }}</p>
+      </section>
+    }
+
+    @case ('leyendo') {
+      <div class="panel" role="status">
+        <p>{{ texts.imports.reading }}</p>
+        <mat-progress-bar mode="indeterminate" [attr.aria-label]="texts.imports.reading" />
+      </div>
+    }
+
+    @case ('revisar') {
+      @if (statement(); as current) {
+        <section class="panel" aria-labelledby="statement-title">
+          <h3 id="statement-title">
+            @if (period(); as month) {
+              {{ texts.imports.statementOf }} {{ month | periodLabel }}
+            } @else {
+              {{ texts.imports.statementFrom }} {{ current.dateFrom | isoDate }}
+              {{ texts.imports.to }} {{ current.dateTo | isoDate }}
+            }
+          </h3>
+          <p class="hint">
+            {{ texts.imports.account }}: {{ current.institution }}
+            @if (current.ibanLast4) {
+              ·{{ current.ibanLast4 }}
+            }
+            — {{ texts.imports.file }}: {{ current.fileName }}
+          </p>
+
+          <dl class="summary" [attr.aria-label]="texts.imports.summary">
+            <div>
+              <dt>{{ texts.imports.total }}</dt>
+              <dd>{{ summary().total }}</dd>
+            </div>
+            <div class="highlight">
+              <dt>{{ texts.imports.toSave }}</dt>
+              <dd>{{ summary().toSave }}</dd>
+            </div>
+            <div>
+              <dt>{{ texts.imports.duplicates }}</dt>
+              <dd>{{ summary().duplicates }}</dd>
+            </div>
+            <div>
+              <dt>{{ texts.imports.excluded }}</dt>
+              <dd>{{ summary().excluded }}</dd>
+            </div>
+            <div [class.alert]="summary().invalid > 0">
+              <dt>{{ texts.imports.invalid }}</dt>
+              <dd>{{ summary().invalid }}</dd>
+            </div>
+          </dl>
+
+          @if (current.errors.length > 0) {
+            <p class="hint warning" role="status">
+              {{ texts.imports.unreadableRows }}
+              @for (rowError of current.errors; track rowError.row; let last = $last) {
+                {{ texts.imports.row }} {{ rowError.row }} ({{ rowError.field }}){{
+                  last ? '.' : ','
+                }}
+              }
+            </p>
+          }
+          @if (current.balanceMismatchRows.length > 0) {
+            <p class="hint warning" role="status">
+              {{ texts.imports.balanceMismatch }}
+              {{ current.balanceMismatchRows.join(', ') }}.
+            </p>
+          }
+        </section>
+
+        <div class="table-wrap" role="region" [attr.aria-label]="texts.imports.region" tabindex="0">
+          <table>
+            <caption>
+              {{
+                texts.imports.caption
+              }}
+            </caption>
+            <thead>
+              <tr>
+                <th scope="col" class="col-include">{{ texts.imports.include }}</th>
+                <th scope="col" class="col-date">{{ texts.imports.date }}</th>
+                <th scope="col" class="col-description">{{ texts.imports.description }}</th>
+                <th scope="col" class="col-category">{{ texts.imports.category }}</th>
+                <th scope="col" class="col-amount num">{{ texts.imports.amount }}</th>
+                <th scope="col" class="col-notes">{{ texts.imports.notes }}</th>
+                <th scope="col" class="col-status">{{ texts.imports.status }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (item of rows(); track item.row.movement.dedupeHash; let index = $index) {
+                <tr [class.muted]="!item.row.included">
+                  <td>
+                    <input
+                      #include
+                      type="checkbox"
+                      [checked]="item.row.included"
+                      [disabled]="item.row.duplicate"
+                      [attr.aria-label]="
+                        texts.imports.include + ': ' + item.row.movement.description
+                      "
+                      (change)="edit(index, { included: include.checked })"
+                    />
+                  </td>
+                  <td class="date">{{ item.row.movement.opDate | isoDate }}</td>
+                  <td>
+                    <input
+                      #description
+                      type="text"
+                      maxlength="500"
+                      autocomplete="off"
+                      [value]="item.row.description"
+                      [disabled]="!item.row.included"
+                      [attr.aria-label]="
+                        texts.imports.description + ': ' + item.row.movement.description
+                      "
+                      [attr.aria-invalid]="item.descriptionInvalid"
+                      [attr.aria-describedby]="item.descriptionInvalid ? 'field-help' : null"
+                      (input)="edit(index, { description: description.value })"
+                    />
+                    @if (item.edited) {
+                      <span class="original">
+                        {{ texts.imports.bankDescription }} {{ item.row.movement.description }}
+                      </span>
+                    }
+                  </td>
+                  <td>
+                    <select
+                      #category
+                      [disabled]="!item.row.included"
+                      [attr.aria-label]="
+                        texts.imports.category + ': ' + item.row.movement.description
+                      "
+                      (change)="setCategory(index, category.value)"
+                    >
+                      <option value="" [selected]="item.row.categoryId === null">
+                        {{ texts.imports.noCategory }}
+                      </option>
+                      @for (option of categories(); track option.id) {
+                        <option [value]="option.id" [selected]="item.row.categoryId === option.id">
+                          {{ option.label }}
+                        </option>
+                      }
+                    </select>
+                  </td>
+                  <td>
+                    <input
+                      #amount
+                      class="num"
+                      type="text"
+                      inputmode="decimal"
+                      autocomplete="off"
+                      [value]="item.row.amountText"
+                      [disabled]="!item.row.included"
+                      [attr.aria-label]="
+                        texts.imports.amount + ': ' + item.row.movement.description
+                      "
+                      [attr.aria-invalid]="item.amountInvalid"
+                      [attr.aria-describedby]="item.amountInvalid ? 'field-help' : null"
+                      (input)="edit(index, { amountText: amount.value })"
+                    />
+                  </td>
+                  <td>
+                    <input
+                      #note
+                      type="text"
+                      maxlength="500"
+                      autocomplete="off"
+                      [value]="item.row.note"
+                      [disabled]="!item.row.included"
+                      [attr.aria-label]="texts.imports.notes + ': ' + item.row.movement.description"
+                      [attr.aria-invalid]="item.noteInvalid"
+                      (input)="edit(index, { note: note.value })"
+                    />
+                  </td>
+                  <td>
+                    <span [class]="'badge ' + item.status">{{ item.statusLabel }}</span>
+                    @if (item.edited && item.row.included) {
+                      <button
+                        mat-icon-button
+                        type="button"
+                        class="restore"
+                        [attr.aria-label]="
+                          texts.imports.restore + ': ' + item.row.movement.description
+                        "
+                        [title]="texts.imports.restore"
+                        (click)="restore(index, item.row)"
+                      >
+                        <mat-icon fontIcon="undo" aria-hidden="true" />
+                      </button>
+                    }
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+
+        <footer class="actions">
+          <p class="hint" role="status">
+            @if (summary().invalid > 0) {
+              <span id="field-help" class="alert">
+                {{ texts.imports.fixBeforeSaving }} {{ texts.imports.fieldHelp }}
+              </span>
+            } @else if (summary().toSave === 0) {
+              {{ texts.imports.nothingToSave }}
+            }
+          </p>
+          <button mat-button type="button" [disabled]="saving()" (click)="reset()">
+            {{ texts.imports.cancel }}
+          </button>
+          <button mat-flat-button type="button" [disabled]="!canSave()" (click)="save()">
+            <mat-icon fontIcon="save" aria-hidden="true" />
+            {{ texts.imports.save }} ({{ summary().toSave }})
+          </button>
+        </footer>
+      }
+    }
+
+    @case ('guardado') {
+      @if (result(); as saved) {
+        <section class="panel" role="status">
+          <p class="done">
+            <mat-icon fontIcon="check_circle" aria-hidden="true" />
+            {{ texts.imports.saved }} {{ saved.inserted }}. {{ texts.imports.savedIn }}
+            {{ saved.accountName }}.
+          </p>
+          @if (saved.duplicates > 0) {
+            <p class="hint">{{ texts.imports.alreadySaved }} {{ saved.duplicates }}.</p>
+          }
+          <p class="hint warning">{{ texts.imports.memoryOnly }}</p>
+          <div class="actions">
+            <button mat-button type="button" (click)="reset()">{{ texts.imports.another }}</button>
+            <a
+              mat-flat-button
+              routerLink="/movimientos"
+              [queryParams]="{ mes: saved.periods.at(-1) }"
+            >
+              {{ texts.imports.viewTransactions }}
+            </a>
+          </div>
+        </section>
+      }
+    }
+  }
+}

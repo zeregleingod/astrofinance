@@ -42,8 +42,8 @@ describe('consultas de informes (sobre la demo)', () => {
 
     it('cuenta los traspasos a ahorro una sola vez (sin la pata de entrada)', () => {
       const report = monthReport(db, '2026-09');
-      expect(report.savingsCents).toBe(-20000);
-      expect(report.groups.find((g) => g.name === 'Ahorro')?.totalCents).toBe(-20000);
+      expect(report.savingsCents).toBe(20000);
+      expect(report.groups.find((g) => g.name === 'Ahorro')?.totalCents).toBe(20000);
     });
 
     it('incluye en septiembre los reembolsos imputados que llegan en octubre', () => {

@@ -28,7 +28,7 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 | Cifrado de datos | Decisión del usuario: v1 **sin cifrado en reposo** (todo local). La Fase 10 queda como opcional; reconsiderar antes de añadir Google Drive o si el `.db` exportado se va a compartir. |
 | Moneda / cuentas | EUR única; varias cuentas corrientes y de ahorro (huchas), con traspasos entre ellas (ADR-0005). |
 | Modelo de datos | Sacado del Excel mensual actual: gastos compartidos con reembolsos enlazados, mes de imputación, préstamos con cuotas, presupuestos y cargos previstos (ADR-0005). |
-| Formato Sabadell | Confirmado con una muestra real (`.xls` de mayo de 2025; ver T6.0–T6.3). Pendiente: muestra en CSV si se va a usar ese formato. |
+| Formato Sabadell | Confirmado con dos muestras reales (`.xls` de mayo de 2025 y de enero de 2026, 65 movimientos); ver ADR-0007. Pendiente: muestra en CSV si se va a usar ese formato. |
 | Versiones | Verificar compatibilidad real de Angular 22, Material y SW en T0.1. |
 
 ---
@@ -57,13 +57,13 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 
 > Todo con TDD estricto. Sin dependencias de navegador, SQLite ni Angular.
 
-- [ ] **T1.1 `Money`**: importes en céntimos (enteros), suma/resta/negación, parseo de `"1.234,56"` y `"-12,3"`, formateo es-ES. *(Hecho el formateo: `domain/money/format-cents.ts`.)*
+- [ ] **T1.1 `Money`**: importes en céntimos (enteros), suma/resta/negación, parseo de `"1.234,56"` y `"-12,3"`, formateo es-ES. *(Hechos el formateo, `domain/money/format-cents.ts`, y el parseo, `domain/money/parse-cents.ts`; falta la aritmética.)*
   - Test primero: casos de redondeo, negativos, separadores, entrada inválida, desbordamiento.
   - Hecho cuando: ninguna operación usa `number` decimal.
 - [ ] **T1.2 Modelos y invariantes**: `Transaction` (con `period` de imputación), `Category`, `Account` (corriente/ahorro), `Rule`, `RecurringSeries`, `Transfer`, `Person`, `SharedExpense` + `Reimbursement`, `Loan` + `LoanInstallment`, `Budget` con constructores/validadores (ver ADR-0005). `Category` tiene tipo `ingreso | gasto | neutra`: las neutras (p. ej. transferencias entre cuentas propias) no cuentan como ingreso ni gasto. Un importe positivo en una categoría de gasto (devolución/anulación) se resta del gasto.
 - [ ] **T1.3 Normalizador de descripciones**: mayúsculas, quitar tildes, colapsar espacios; eliminar la tarjeta enmascarada (`5402XXXXXXXX6019`), identificadores variables de operación (p. ej. `P36E5ECBA5`), teléfonos, asteriscos y fechas incrustadas; separar el prefijo de operación (`COMPRA TARJ.`, `ANUL COMPRA TARJ.`, `ADEUDO RECIBO`, `ABONO TRANSFERENCIA`…) del comercio.
   - Test primero: tabla de entradas reales anonimizadas → salida esperada.
-- [ ] **T1.4 Hash de deduplicación**: determinista sobre (cuenta, fecha operativa, importe, concepto **original**, saldo posterior al movimiento, contador de repetición dentro del lote). Se usa el concepto original (con sus identificadores) y no el normalizado, para no fusionar movimientos distintos.
+- [x] **T1.4 Hash de deduplicación** (`domain/imports/imported-statement.ts`, ADR-0007): determinista sobre (cuenta, fecha operativa, importe, concepto **original**, saldo posterior al movimiento, contador de repetición dentro del lote). Se usa el concepto original (con sus identificadores) y no el normalizado, para no fusionar movimientos distintos.
   - Test primero: dos movimientos idénticos legítimos el mismo día no deben colapsar; la reimportación del mismo fichero sí.
 - [ ] **T1.5 Árbol de categorías**: padre/hijo, detección de ciclos, borrado con reasignación, profundidad máxima configurable (2 en v1, modelo genérico).
 - [ ] **T1.6 Motor de reglas**: operadores `contiene`, `empieza`, `termina`, `regex` (validada y con límite de longitud), rango de importe, signo (ingreso/gasto); prioridad; primera coincidencia gana; modo **dry-run** que devuelve un diff (`movimiento → categoría propuesta`) sin aplicar.
@@ -106,7 +106,7 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 ## Fase 3 — Shell de la aplicación y estado
 
 - [ ] **T3.1 Rutas lazy y layout Material** responsive (navegación lateral en escritorio, inferior en móvil), tema claro/oscuro, textos en español centralizados.
-- [ ] **T3.2 `DbService` (fachada)**: signals de solo lectura `status`, `dirty`, `lastSavedAt`, `dataVersion`, `error`. *(Hechos `status`, `mode`, `dataVersion` y `ready` para la demo; faltan `dirty`, `lastSavedAt` y `error`.)*
+- [ ] **T3.2 `DbService` (fachada)**: signals de solo lectura `status`, `dirty`, `lastSavedAt`, `dataVersion`, `error`. *(Hechos `status`, `mode` (`demo` o `local`), `dataVersion` y `ready`; faltan `dirty`, `lastSavedAt` y `error`.)*
   - Test primero: transiciones de estado con un worker falso.
 - [ ] **T3.3 Barra de persistencia global**: botones **Guardar** y **Descartar**, indicador de cambios sin guardar, `beforeunload` y *guard* de navegación cuando `dirty`.
   - Test primero: componente + e2e (editar → recargar sin guardar → aviso).
@@ -118,7 +118,7 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 
 ## Fase 4 — Categorías y reglas
 
-- [ ] **T4.1 CRUD de categorías y subcategorías** (árbol, color, tipo ingreso/gasto); borrar exige reasignar movimientos.
+- [ ] **T4.1 CRUD de categorías y subcategorías** (árbol, color, tipo ingreso/gasto); al borrar, sus movimientos quedan sin categoría previa confirmación (ADR-0008). El tipo es de las subcategorías; las principales solo agrupan y tienen color (ADR-0009). *(Hecho en «Configuración › Categorías», `features/settings`: alta, edición (nombre y color de las principales; nombre y tipo de las subcategorías), recuento de movimientos y borrado; falta mover una subcategoría a otra principal y reordenar.)*
 - [ ] **T4.2 CRUD de reglas**: ordenar por prioridad (arrastrar), activar/desactivar, **probar en vivo** con recuento y ejemplos de coincidencias.
 - [ ] **T4.3 Acción “Autoclasificar”**: dry-run → diálogo con diff agrupado por categoría → **confirmar** → aplicar en una única transacción; por defecto no sobrescribe clasificaciones manuales.
   - Test primero (e2e): crear regla → autoclasificar → cancelar (sin cambios) → repetir y confirmar.
@@ -140,20 +140,20 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 
 ## Fase 6 — Importación bancaria (Banc Sabadell)
 
-- [ ] **T6.0 *Fixtures* reales**: la muestra `.xls` de mayo de 2025 (16 movimientos) pasa a `e2e/fixtures/`, **tras anonimizar IBAN, titular y tarjeta** (el fichero original los contiene en claro). Documentar columnas, formatos y quirks. Pendiente: muestra en CSV (si se usa) y un mes más largo con otros tipos de operación.
-- [ ] **T6.1 Lectura segura de ficheros** en worker dedicado: soporta `.xls` (BIFF antiguo, formato real del banco), `.xlsx` y CSV; límite de tamaño y filas, tipo detectado por contenido (no por extensión), sin evaluar fórmulas, errores controlados.
+- [x] **T6.0 *Fixtures***: *(hecho con datos ficticios: `src/testing/sabadell-sheet.ts` y `e2e/fixtures/sabadell-enero-2026.xls`, generado por `tools/make-sabadell-fixture.mjs`; el extracto real no entra en el repo.)* Plan original: la muestra `.xls` de mayo de 2025 (16 movimientos) pasa a `e2e/fixtures/`, **tras anonimizar IBAN, titular y tarjeta** (el fichero original los contiene en claro). Documentar columnas, formatos y quirks. Pendiente: muestra en CSV (si se usa) y un mes más largo con otros tipos de operación.
+- [x] **T6.1 Lectura segura de ficheros** en worker dedicado (`workers/import.worker.ts`): soporta `.xls` (BIFF antiguo, formato real del banco), `.xlsx` y CSV; límite de tamaño y filas, tipo detectado por contenido (no por extensión), sin evaluar fórmulas, errores controlados.
   - Test primero: fichero vacío, enorme, binario disfrazado, con fórmulas, con celdas combinadas (el preámbulo del `.xls` real las tiene), codificación errónea.
-- [ ] **T6.2 `BankProfile` + perfil Sabadell** (puro, en `domain`): mapea filas crudas a movimientos.
+- [x] **T6.2 `BankProfile` + perfil Sabadell** (puro, en `domain/imports`; registro `BANK_PROFILES` para añadir más bancos): mapea filas crudas a movimientos.
   - Formato observado: un preámbulo de ~8 filas (título, fecha de consulta, cuenta, divisa, titular, periodo) y una tabla con cabecera `F. Operativa | Concepto | F. Valor | Importe | Saldo | Referencia 1 | Referencia 2`; orden descendente por fecha; importes con signo (gastos negativos); `Saldo` = saldo tras el movimiento.
   - Reglas del perfil: localizar la fila de cabecera **buscando los nombres de columna** (no por posición fija); aceptar fechas como texto `dd/mm/aaaa` o como serial de Excel, e importes numéricos o en texto es-ES; leer del preámbulo solo la divisa (debe ser EUR) y el periodo (validar que las filas caen dentro); del IBAN conservar solo los últimos 4 dígitos y **descartar titular e IBAN completo**.
   - Test primero: contra el *fixture* real; cabecera movida de fila; columnas ausentes; filas con datos faltantes producen errores por fila y no abortan el lote; test explícito de que ni el titular ni el IBAN completo llegan al resultado.
-- [ ] **T6.3 Deduplicación, integridad y resumen del lote**: nuevos / duplicados (en BD y dentro del lote) / con error.
+- [ ] **T6.3 Deduplicación, integridad y resumen del lote**: nuevos / duplicados (en BD y dentro del lote) / con error. *(Hechos la deduplicación, el resumen y la comprobación de saldos dentro del fichero; falta la continuidad entre importaciones.)*
   - **Comprobación de saldos**: ordenados cronológicamente, cada `Saldo` debe ser el anterior + `Importe` (la muestra real cuadra al céntimo). Si no cuadra, avisar con la fila afectada (señal de fila mal leída o movimiento ausente).
   - **Continuidad entre importaciones**: el saldo inicial implícito del fichero debe coincidir con el último saldo guardado de la cuenta; si no, avisar de posible hueco entre exportaciones.
   - Test primero: reimportar el mismo fichero (0 nuevos), ficheros con periodos solapados, fila alterada que rompe la cadena de saldos, hueco entre dos meses.
-- [ ] **T6.4 Pantalla de revisión (staging)**: tabla previa con categoría propuesta por reglas, edición manual y exclusión de filas; **no se escribe nada hasta confirmar**.
-- [ ] **T6.5 Confirmar lote**: inserción en una transacción única vinculada a `import_batch`; opción de **revertir el lote completo**.
-- [ ] **T6.6 E2E**: importar fixture → revisar → confirmar → guardar → recargar → datos presentes; reimportar el mismo fichero → 0 nuevos.
+- [x] **T6.4 Pantalla de revisión (staging)** (`features/imports`): tabla previa con edición manual (concepto, importe, categoría, observaciones) y exclusión de filas; **no se escribe nada hasta confirmar**. *(La categoría propuesta por reglas llegará con la Fase 4.)*
+- [ ] **T6.5 Confirmar lote**: inserción en una transacción única vinculada a `import_batch`; opción de **revertir el lote completo**. *(Hecha la confirmación; falta revertir.)*
+- [ ] **T6.6 E2E**: importar fixture → revisar → confirmar → guardar → recargar → datos presentes; reimportar el mismo fichero → 0 nuevos. *(Hecho `e2e/import.spec.ts` salvo «recargar → datos presentes», que depende de T2.7–T2.8.)*
 - [ ] **T6.7 Exportación a Excel/CSV** (SheetJS) con **neutralización de inyección de fórmulas** (celdas que empiezan por `=`, `+`, `-`, `@`).
 
 ---

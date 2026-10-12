@@ -57,6 +57,51 @@ describe('migrate', () => {
     expect(tables()).toEqual(['a']);
   });
 
+  describe('migraciones que reconstruyen tablas', () => {
+    const parent: Migration = {
+      version: 1,
+      name: 'padre-e-hija',
+      sql: `CREATE TABLE p (id INTEGER PRIMARY KEY, n TEXT NOT NULL) STRICT;
+            CREATE TABLE c (id INTEGER PRIMARY KEY, p_id INTEGER NOT NULL REFERENCES p (id)) STRICT;
+            INSERT INTO p VALUES (1, 'a'); INSERT INTO c VALUES (1, 1);`,
+    };
+    const rebuild = (copy: string): Migration => ({
+      version: 2,
+      name: 'reconstruye-p',
+      rebuildsTables: true,
+      sql: `CREATE TABLE p_new (id INTEGER PRIMARY KEY, n TEXT) STRICT;
+            ${copy}
+            DROP TABLE p; ALTER TABLE p_new RENAME TO p;`,
+    });
+
+    beforeEach(() => db.run('PRAGMA foreign_keys = ON'));
+
+    it('reconstruye una tabla referenciada y deja las claves ajenas activas', () => {
+      migrate(db, [parent, rebuild('INSERT INTO p_new SELECT id, n FROM p;')]);
+
+      expect(db.value('PRAGMA user_version')).toBe(2);
+      expect(db.value('PRAGMA foreign_keys')).toBe(1);
+      expect(() => db.run('DELETE FROM p')).toThrow(/FOREIGN KEY/i);
+      db.run('INSERT INTO p (id) VALUES (2)');
+    });
+
+    it('se deshace si deja alguna clave ajena rota', () => {
+      migrate(db, [parent]);
+
+      expect(() => migrate(db, [parent, rebuild('')])).toThrow(MigrationError);
+      expect(db.value('PRAGMA user_version')).toBe(1);
+      expect(db.value('PRAGMA foreign_keys')).toBe(1);
+      expect(db.value('SELECT n FROM p')).toBe('a');
+    });
+
+    it('no activa las claves ajenas si estaban desactivadas', () => {
+      db.run('PRAGMA foreign_keys = OFF');
+      migrate(db, [parent, rebuild('INSERT INTO p_new SELECT id, n FROM p;')]);
+
+      expect(db.value('PRAGMA foreign_keys')).toBe(0);
+    });
+  });
+
   it('rechaza listas de migraciones desordenadas o con huecos', () => {
     expect(() => migrate(db, [m2, m1])).toThrow(MigrationError);
     expect(() => migrate(db, [m2])).toThrow(MigrationError);

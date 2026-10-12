@@ -409,7 +409,6 @@ class DemoBuilder {
       if (m === 2) this.tx(main, d(21), -1000, 'Bizum enviado - Entradas concierto', 'Ocio');
       if (m === 1) this.tx(main, d(13), -2240, 'Tienda de manualidades Demo', 'Manualidades');
       if (m === 2) this.tx(main, d(1), -4900, 'Academia online Demo - Curso', 'Estudios');
-      if (m !== 1) this.tx(main, d(7), -3000, 'Yes Be More - Cuota', 'Yes Be More');
 
       if (m === 0) {
         this.tx(main, d(16), -8000, 'Tienda de ropa Demo', 'Ropa');
@@ -459,7 +458,8 @@ class DemoBuilder {
     DEMO_EXTRA_CATEGORIES.forEach(([group, name], i) =>
       this.db.run(
         `INSERT INTO categories (parent_id, name, kind, sort_order)
-         SELECT id, ?, kind, ? FROM categories WHERE parent_id IS NULL AND name = ?`,
+         SELECT p.id, ?, (SELECT kind FROM categories s WHERE s.parent_id = p.id LIMIT 1), ?
+         FROM categories p WHERE p.parent_id IS NULL AND p.name = ?`,
         [name, 100 + i, group],
       ),
     );

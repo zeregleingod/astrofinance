@@ -43,6 +43,9 @@ __screenshots__/
 .DS_Store
 Thumbs.db
 
+# Extractos bancarios reales (nunca se versionan; los fixtures van anonimizados)
+/private
+
 # Playwright
 /playwright-report
 /test-results

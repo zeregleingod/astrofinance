@@ -6,11 +6,11 @@ import { MatListModule } from '@angular/material/list';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { TEXTS } from '@core/i18n/texts';
-import { buildNavItems } from '@core/navigation/nav-items';
+import { buildNavItems, groupNavItems } from '@core/navigation/nav-items';
 import { ThemeService } from '@core/theme/theme-service';
 import { DbService } from '@data/db/db-service';
 
-/** Barra lateral: marca, una entrada por sección, acceso a la demo y el modo oscuro. */
+/** Barra lateral: marca, una entrada por sección (agrupadas en apartados), acceso a la demo y el modo oscuro. */
 @Component({
   selector: 'app-sidebar',
   imports: [
@@ -28,29 +28,32 @@ import { DbService } from '@data/db/db-service';
       <h1 class="brand-name">{{ texts.app.name }}</h1>
     </header>
     <nav [attr.aria-label]="texts.nav.label">
-      <p class="section-label" aria-hidden="true">{{ texts.nav.section }}</p>
-      <mat-nav-list>
-        @for (item of items; track item.path) {
-          <a
-            mat-list-item
-            [routerLink]="item.path"
-            routerLinkActive
-            #active="routerLinkActive"
-            [routerLinkActiveOptions]="{ exact: item.path === '/' }"
-            ariaCurrentWhenActive="page"
-            [activated]="active.isActive"
-            (click)="navigate.emit()"
-          >
-            @if (item.icon) {
-              <mat-icon matListItemIcon aria-hidden="true">{{ item.icon }}</mat-icon>
-            }
-            <span matListItemTitle>{{ item.label }}</span>
-          </a>
-        }
-      </mat-nav-list>
+      @for (section of sections; track section.label) {
+        <p class="section-label" aria-hidden="true">{{ section.label ?? texts.nav.section }}</p>
+        <mat-nav-list [attr.aria-label]="section.label ?? texts.nav.section">
+          @for (item of section.items; track item.path) {
+            <a
+              mat-list-item
+              [routerLink]="item.path"
+              routerLinkActive
+              #active="routerLinkActive"
+              [routerLinkActiveOptions]="{ exact: item.path === '/' }"
+              ariaCurrentWhenActive="page"
+              [activated]="active.isActive"
+              (click)="navigate.emit()"
+            >
+              @if (item.icon) {
+                <mat-icon matListItemIcon aria-hidden="true">{{ item.icon }}</mat-icon>
+              }
+              <span matListItemTitle>{{ item.label }}</span>
+            </a>
+          }
+        </mat-nav-list>
+      }
     </nav>
     <footer class="footer">
-      @if (db.mode() !== 'demo') {
+      <!-- Abrir la demo descarta la BD abierta: no se ofrece si ya hay algo del usuario en ella. -->
+      @if (db.mode() !== 'demo' && !db.hasUserData()) {
         <a mat-stroked-button class="demo-link" routerLink="/demo" (click)="navigate.emit()">
           <mat-icon aria-hidden="true">science</mat-icon>
           {{ texts.demo.open }}
@@ -94,6 +97,10 @@ import { DbService } from '@data/db/db-service';
       letter-spacing: 0.08em;
       text-transform: uppercase;
       color: var(--mat-sys-on-surface-variant);
+    }
+
+    mat-nav-list + .section-label {
+      margin-top: 20px;
     }
 
     mat-nav-list {
@@ -146,7 +153,7 @@ import { DbService } from '@data/db/db-service';
 })
 export class Sidebar {
   protected readonly texts = TEXTS;
-  protected readonly items = buildNavItems(inject(Router).config);
+  protected readonly sections = groupNavItems(buildNavItems(inject(Router).config));
   protected readonly theme = inject(ThemeService);
   protected readonly db = inject(DbService);
 

@@ -1,2 +1,5 @@
-/** Las `neutra`s (traspasos a ahorro, entre cuentas propias) no son ingreso ni gasto. */
-export type CategoryKind = 'ingreso' | 'gasto' | 'neutra';
+/**
+ * `ahorro`: dinero que se aparta (traspasos a una cuenta de ahorro); no es ingreso ni gasto.
+ * Hasta la migración 003 se llamaba `neutra`.
+ */
+export type CategoryKind = 'ingreso' | 'gasto' | 'ahorro';

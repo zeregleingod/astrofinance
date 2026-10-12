@@ -35,3 +35,18 @@ export function formatIsoDate(iso: string): string {
   if (!match) throw new RangeError('Fecha no válida (AAAA-MM-DD).');
   return `${match[3]}/${match[2]}/${match[1]}`;
 }
+
+/** `AAAA-MM-DD` de un día que existe en el calendario. */
+export function isIsoDate(value: unknown): value is string {
+  if (typeof value !== 'string') return false;
+  const match = ISO_DATE.exec(value);
+  return match !== null && isoDate(Number(match[1]), Number(match[2]), Number(match[3])) === value;
+}
+
+/** Fecha ISO a partir de sus partes, o `null` si el día no existe (p. ej. 31 de febrero). */
+export function isoDate(year: number, month: number, day: number): string | null {
+  if (year < 1000 || year > 9999) return null;
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
+  return date.toISOString().slice(0, 10);
+}

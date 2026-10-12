@@ -65,6 +65,8 @@ test('cada movimiento ocupa una sola línea', async ({ page }) => {
   await openNav(page);
   await page.getByRole('link', { name: 'Movimientos' }).click();
   await expect(page.getByRole('table')).toBeVisible();
+  // La tabla aparece antes que sus filas: se espera a que estén para medirlas.
+  await expect(page.locator('tbody tr').nth(10)).toBeVisible();
 
   const heights = await page
     .locator('thead tr, tbody tr')

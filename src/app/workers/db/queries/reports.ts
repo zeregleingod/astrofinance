@@ -28,7 +28,7 @@ export function monthReport(db: SqlDb, period: string): MonthReport {
       id: num(r, 'id'),
       parentId: numOrNull(r, 'parent_id'),
       name: str(r, 'name'),
-      kind: str(r, 'kind') as CategoryKind,
+      kind: strOrNull(r, 'kind') as CategoryKind | null,
       color: strOrNull(r, 'color'),
       totalCents: num(r, 'total_cents'),
       count: num(r, 'tx_count'),

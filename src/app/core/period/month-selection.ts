@@ -19,9 +19,11 @@ export function injectMonthSelection(requested: Signal<string | undefined>) {
 
   const available = computed(() => (periods.hasValue() ? periods.value() : []));
   const period = computed(() => resolvePeriod(requested(), available()));
+  /** La BD está abierta pero todavía no tiene ningún movimiento. */
+  const empty = computed(() => periods.hasValue() && periods.value().length === 0);
 
   const select = (mes: string) =>
     router.navigate([], { relativeTo: route, queryParams: { mes }, queryParamsHandling: 'merge' });
 
-  return { available, period, select };
+  return { available, period, empty, select };
 }

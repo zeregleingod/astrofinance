@@ -1,0 +1,363 @@
+:host {
+  display: block;
+}
+
+.page-header {
+  margin-bottom: 24px;
+
+  h2 {
+    margin: 0;
+    font: var(--mat-sys-headline-small);
+    font-weight: 600;
+  }
+}
+
+.panel {
+  max-width: 880px;
+  margin: 0 0 24px;
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--mat-sys-surface-container-lowest);
+
+  h3 {
+    margin: 0 0 4px;
+    font: var(--mat-sys-title-large);
+    font-weight: 600;
+  }
+
+  p {
+    margin: 12px 0 0;
+  }
+
+  h3 + p {
+    margin-top: 0;
+  }
+}
+
+.hint {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+}
+
+.warning {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+}
+
+.error,
+.done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.error {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+// Región viva siempre presente: sin mensaje no ocupa sitio.
+.done:empty {
+  display: none;
+}
+
+.alert {
+  color: var(--mat-sys-error);
+  font-weight: 500;
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  margin-top: 16px;
+}
+
+.field {
+  display: flex;
+  flex: 0 1 auto;
+  flex-direction: column;
+  gap: 4px;
+  font: var(--mat-sys-label-large);
+  color: var(--mat-sys-on-surface-variant);
+
+  &.name {
+    flex: 1 1 180px;
+  }
+}
+
+// Campos de texto, desplegables y selector de color comparten borde y foco.
+input,
+select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 40px;
+  padding: 6px 8px;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: 8px;
+  background: var(--mat-sys-surface);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 1px;
+  }
+
+  // El error no depende solo del color: se explica debajo del campo.
+  &[aria-invalid='true'] {
+    border-color: var(--mat-sys-error);
+    border-width: 2px;
+  }
+}
+
+// El selector de color es un cuadrado.
+input[type='color'] {
+  flex: none;
+  width: 44px;
+  min-height: 0;
+  height: 40px;
+  padding: 3px;
+  cursor: pointer;
+}
+
+.list-title {
+  margin: 0;
+  font: var(--mat-sys-title-medium);
+  font-weight: 600;
+
+  // Recibe el foco tras eliminar una categoría; no es un control.
+  &:focus {
+    outline: none;
+  }
+}
+
+.list-hint {
+  margin: 2px 0 12px;
+}
+
+.table-wrap {
+  // El mismo ancho que el panel de arriba: sus 880px de contenido más el relleno lateral.
+  max-width: 928px;
+  overflow-x: auto;
+  border-radius: 16px;
+  background: var(--mat-sys-surface-container-lowest);
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+}
+
+// El nombre se queda con el ancho que sobra y, si es largo, salta de línea: nunca se recorta.
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.col-kind {
+  width: 128px;
+}
+
+.col-count {
+  width: 112px;
+}
+
+.col-actions {
+  width: 112px;
+  text-align: right;
+}
+
+th,
+td {
+  padding: 4px 12px;
+  text-align: left;
+  vertical-align: middle;
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  font: var(--mat-sys-body-medium);
+}
+
+th:first-child {
+  padding-left: 20px;
+}
+
+thead th {
+  padding-block: 12px;
+  font: var(--mat-sys-label-large);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// En pantallas estrechas la cabecera usa la abreviatura; el texto completo sigue para lectores.
+.short {
+  display: none;
+}
+
+tbody:last-child tr:last-child > * {
+  border-bottom: none;
+}
+
+.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+// La fila de la categoría principal encabeza su bloque.
+.group-row .name {
+  font-weight: 600;
+}
+
+.name-cell {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 36px;
+}
+
+// Las subcategorías se alinean con el nombre de su categoría, tras el punto de color.
+.sub .name-cell {
+  padding-left: 20px;
+}
+
+.dot {
+  flex: none;
+  width: 10px;
+  height: 10px;
+}
+
+// Sin color propio: el atributo `fill` no existe y se usa el neutro del tema.
+.dot circle:not([fill]) {
+  fill: var(--mat-sys-outline);
+}
+
+.name {
+  overflow-wrap: anywhere;
+}
+
+.kind {
+  color: var(--mat-sys-on-surface-variant);
+}
+
+// Con movimientos, el número va en el color de la marca; sin ninguno, en el de aviso, para
+// detectar las que sobran. El número ya lo dice: el color solo lo refuerza.
+.count {
+  display: inline-block;
+  min-width: 12px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  text-align: center;
+  background: var(--mat-sys-primary-container);
+  color: var(--mat-sys-on-primary-container);
+
+  &.unused {
+    background: var(--mat-sys-tertiary-container);
+    color: var(--mat-sys-on-tertiary-container);
+  }
+}
+
+.actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.tool {
+  --mat-icon-button-state-layer-size: 32px;
+  --mat-icon-button-icon-size: 18px;
+
+  padding: 7px;
+}
+
+// Edición en la propia fila: los campos ocupan la celda sin cambiar la altura de la tabla.
+.row-editor {
+  display: flex;
+  flex: 1;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+
+  input[type='text'] {
+    flex: 1;
+    width: auto;
+    min-width: 0;
+    max-width: 360px;
+    min-height: 34px;
+  }
+
+  input[type='color'] {
+    width: 36px;
+    height: 34px;
+  }
+
+  .alert {
+    flex-basis: 100%;
+    margin: 0 0 4px;
+    font: var(--mat-sys-body-small);
+  }
+}
+
+td.kind select {
+  min-height: 34px;
+}
+
+// En pantallas estrechas la tabla cabe sin desplazarse.
+@media (max-width: 599px) {
+  table {
+    table-layout: fixed;
+  }
+
+  thead th {
+    font: var(--mat-sys-label-medium);
+  }
+
+  .long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .short {
+    display: inline;
+  }
+
+  .col-kind {
+    width: 76px;
+  }
+
+  .col-count {
+    width: 44px;
+  }
+
+  .col-actions {
+    width: 92px;
+  }
+
+  .tool {
+    --mat-icon-button-state-layer-size: 28px;
+
+    padding: 5px;
+  }
+
+  th,
+  td {
+    padding-inline: 6px;
+  }
+
+  th:first-child {
+    padding-left: 12px;
+  }
+
+  td:last-child,
+  th:last-child {
+    padding-inline: 2px 6px;
+  }
+
+  .sub .name-cell {
+    padding-left: 12px;
+  }
+}

@@ -14,8 +14,25 @@
   color: var(--mat-sys-primary);
 }
 
+// La barra y el aviso de demo se quedan arriba; lo que se desplaza es el contenido, que ocupa
+// justo el alto que queda. Así una página puede llegar hasta el final de la ventana.
+mat-sidenav-content {
+  display: flex;
+  flex-direction: column;
+}
+
 main {
+  display: flex;
+  flex: 1 1 0;
+  flex-direction: column;
+  min-height: 0;
+  overflow: auto;
   padding: 24px;
+}
+
+// Las páginas conservan su alto aunque no quepan: entonces se desplaza el contenido.
+main > * {
+  flex-shrink: 0;
 }
 
 @media (max-width: 839.98px) {

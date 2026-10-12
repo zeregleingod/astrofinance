@@ -49,13 +49,13 @@ class DemoBuilder {
     const alex = this.insert('INSERT INTO people (name) VALUES (?)', ['Alex']);
 
     const rules = {
-      supermarket: this.rule('Supermercados', 10, 'contiene', 'Supermercado', 'Comida'),
-      fuel: this.rule('Gasolineras', 20, 'contiene', 'Gasolinera', 'Transporte'),
+      supermarket: this.rule('Supermercados', 10, 'contiene', 'SUPERMERCADO', 'Comida'),
+      fuel: this.rule('Gasolineras', 20, 'contiene', 'GASOLINERA', 'Transporte'),
       streaming: this.rule(
         'Streaming',
         30,
         'empieza',
-        'Streaming Demo',
+        'STREAMING DEMO',
         'Plataformas y suscripciones',
       ),
     };

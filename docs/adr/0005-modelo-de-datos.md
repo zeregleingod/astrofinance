@@ -102,7 +102,6 @@ erDiagram
 - El traspaso a la cuenta conjunta para pagar la hipoteca se puede registrar como gasto (si la
   conjunta no se sigue) o como `transfers` (si se da de alta como cuenta).
 - Las cuotas de los préstamos se suponen mensuales; otra periodicidad necesitaría una migración.
-- La plantilla de categorías se publica con la app (es código): solo lleva categorías
-  genéricas, sin las particulares del Excel de origen.
+- La plantilla de categorías se publica con la app (es código).
 - `recurring_id` deja de estar en `transactions`: el vínculo movimiento ↔ serie vive en
   `recurring_occurrences` (una sola fuente de verdad).

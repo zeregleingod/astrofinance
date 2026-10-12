@@ -1,4 +1,5 @@
 import { InjectionToken, Service, computed, inject, signal } from '@angular/core';
+import type { RestoredDatabase } from '@domain/backup/database-file';
 import type { CategoryGroup, CategoryUpdate, NewCategory } from '@domain/categories/category-tree';
 import type {
   CategoryOption,
@@ -7,12 +8,16 @@ import type {
 } from '@domain/imports/import-batch';
 import type { MonthReport } from '@domain/reports/month-report';
 import type { TransactionRow } from '@domain/reports/transaction-row';
+import type { NewRule, RuleChange, RuleRow, RuleUpdate } from '@domain/rules/rule';
 import type { DbApi } from '@workers/db/db-api';
 import type { RpcEndpoint } from '@workers/rpc/protocol';
 import { RpcClient } from '../rpc/rpc-client';
 
 export type DbStatus = 'cerrada' | 'abriendo' | 'lista' | 'error';
-/** `demo`: datos ficticios. `local`: los datos del usuario (por ahora solo en memoria). */
+/**
+ * `demo`: datos ficticios. `local`: los datos del usuario, que viven en memoria y se conservan
+ * descargando una copia (ADR-0010).
+ */
 export type DbMode = 'demo' | 'local';
 
 export interface DbWorker extends RpcEndpoint {
@@ -28,6 +33,8 @@ export const DB_WORKER_FACTORY = new InjectionToken<() => DbWorker>('DB_WORKER_F
 
 /** Cargar SQLite WASM y la demo puede tardar en móviles modestos. */
 const OPEN_TIMEOUT_MS = 30_000;
+/** Comprobar o serializar una BD grande y pasarla entre hilos tampoco es inmediato. */
+const FILE_TIMEOUT_MS = 60_000;
 
 /**
  * Fachada de la base de datos (T3.2). Toda la BD vive en un worker; aquí solo hay estado
@@ -67,6 +74,28 @@ export class DbService {
    */
   openLocal(): Promise<void> {
     return this.open('local');
+  }
+
+  /**
+   * Sustituye la BD abierta (también la demo) por la de un fichero `.db` (T2.11), que pasa a
+   * ser la del usuario. Si el fichero no vale rechaza con un `BackupError` (ver
+   * `backupErrorCode`) y los datos que hubiera siguen como estaban.
+   */
+  async restore(bytes: Uint8Array): Promise<RestoredDatabase> {
+    // El worker valida el fichero en una BD aparte; hace falta tener uno en marcha.
+    if (!this.ready()) await this.openLocal();
+    const restored = await this.call((c) =>
+      c.call('openFile', { bytes }, { timeoutMs: FILE_TIMEOUT_MS }),
+    );
+    this.modeSignal.set('local');
+    this.userDataSignal.set(true);
+    this.versionSignal.update((v) => v + 1);
+    return restored;
+  }
+
+  /** El contenido de la BD abierta como fichero `.db` (T2.12). */
+  exportFile(): Promise<Uint8Array<ArrayBuffer>> {
+    return this.call((c) => c.call('exportFile', undefined, { timeoutMs: FILE_TIMEOUT_MS }));
   }
 
   private open(mode: DbMode): Promise<void> {
@@ -126,6 +155,13 @@ export class DbService {
     return this.call((c) => c.call('transactions', { period }, { signal }));
   }
 
+  /** Todos los movimientos, del más reciente al más antiguo. */
+  allTransactions(signal?: AbortSignal): Promise<readonly TransactionRow[]> {
+    return this.call((c) =>
+      c.call('allTransactions', undefined, { signal, timeoutMs: OPEN_TIMEOUT_MS }),
+    );
+  }
+
   categoryOptions(signal?: AbortSignal): Promise<readonly CategoryOption[]> {
     return this.call((c) => c.call('categoryOptions', undefined, { signal }));
   }
@@ -154,6 +190,44 @@ export class DbService {
     const freed = await this.call((c) => c.call('deleteCategory', { id }));
     this.dataChanged();
     return freed;
+  }
+
+  /** Las reglas de clasificación, en el orden en que se aplican. */
+  rules(signal?: AbortSignal): Promise<readonly RuleRow[]> {
+    return this.call((c) => c.call('rules', undefined, { signal }));
+  }
+
+  async createRule(rule: NewRule): Promise<number> {
+    const id = await this.call((c) => c.call('createRule', rule));
+    this.dataChanged();
+    return id;
+  }
+
+  async updateRule(update: RuleUpdate): Promise<void> {
+    await this.call((c) => c.call('updateRule', update));
+    this.dataChanged();
+  }
+
+  /** Elimina la regla; los movimientos que clasificó conservan su categoría. */
+  async deleteRule(id: number): Promise<void> {
+    await this.call((c) => c.call('deleteRule', { id }));
+    this.dataChanged();
+  }
+
+  /** Los movimientos que cambiarían de categoría al aplicar las reglas; no toca nada. */
+  previewRules(signal?: AbortSignal): Promise<readonly RuleChange[]> {
+    return this.call((c) =>
+      c.call('previewRules', undefined, { signal, timeoutMs: OPEN_TIMEOUT_MS }),
+    );
+  }
+
+  /** Aplica las reglas a los movimientos existentes y devuelve cuántos han cambiado. */
+  async applyRules(): Promise<number> {
+    const changed = await this.call((c) =>
+      c.call('applyRules', undefined, { timeoutMs: OPEN_TIMEOUT_MS }),
+    );
+    if (changed > 0) this.dataChanged();
+    return changed;
   }
 
   existingHashes(hashes: readonly string[], signal?: AbortSignal): Promise<readonly string[]> {

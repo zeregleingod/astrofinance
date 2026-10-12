@@ -1,0 +1,318 @@
+<header class="page-header">
+  <h2>{{ texts.categoryRules.title }}</h2>
+</header>
+
+@if (!db.ready()) {
+  @if (db.status() === 'error') {
+    <p class="panel error" role="alert">
+      <mat-icon fontIcon="error" aria-hidden="true" />
+      {{ texts.categoryRules.loadError }}
+    </p>
+  } @else {
+    <p class="panel" role="status">{{ texts.categoryRules.loading }}</p>
+  }
+} @else {
+  <section class="panel" aria-labelledby="new-rule-title">
+    <h3 id="new-rule-title">{{ texts.categoryRules.newTitle }}</h3>
+    <p class="hint">{{ texts.categoryRules.intro }}</p>
+
+    <form class="fields" [formRoot]="ruleForm">
+      <label class="field">
+        <span>{{ texts.categoryRules.operator }}</span>
+        <select [formField]="ruleForm.operator">
+          @for (operator of operators; track operator) {
+            <option [value]="operator">{{ texts.categoryRules.operators[operator] }}</option>
+          }
+        </select>
+      </label>
+      <label class="field pattern">
+        <span>{{ texts.categoryRules.pattern }}</span>
+        <input
+          type="text"
+          autocomplete="off"
+          spellcheck="false"
+          [class.upper]="isUpper(ruleForm.operator().value())"
+          [formField]="ruleForm.pattern"
+          [attr.aria-invalid]="showPatternError()"
+          [attr.aria-describedby]="showPatternError() ? 'pattern-error' : null"
+        />
+      </label>
+      <label class="field category">
+        <span>{{ texts.categoryRules.category }}</span>
+        <select
+          [formField]="ruleForm.categoryId"
+          [attr.aria-invalid]="showCategoryError()"
+          [attr.aria-describedby]="showCategoryError() ? 'category-error' : null"
+        >
+          <option value="">{{ texts.categoryRules.chooseCategory }}</option>
+          @for (category of categories(); track category.id) {
+            <option [value]="category.id">{{ category.label }}</option>
+          }
+        </select>
+      </label>
+      <button mat-flat-button type="submit" [disabled]="ruleForm().submitting()">
+        <mat-icon fontIcon="add" aria-hidden="true" />
+        {{ texts.categoryRules.add }}
+      </button>
+    </form>
+
+    @if (showPatternError()) {
+      <p id="pattern-error" class="alert">
+        @for (problem of ruleForm.pattern().errors(); track problem.kind) {
+          {{ problem.message }}
+        }
+      </p>
+    }
+    @if (showCategoryError()) {
+      <p id="category-error" class="alert">{{ texts.categoryRules.categoryRequired }}</p>
+    }
+    @if (error(); as message) {
+      <p class="alert" role="alert">{{ message }}</p>
+    }
+    <p class="done" role="status">
+      @if (notice(); as message) {
+        <mat-icon fontIcon="check_circle" aria-hidden="true" />
+        {{ message }}
+      }
+    </p>
+    @if (db.mode() === 'local') {
+      <p class="hint warning">{{ texts.imports.memoryOnly }}</p>
+    }
+  </section>
+
+  <section>
+    <div class="list-header">
+      <div>
+        <h3 id="rule-list-title" class="list-title" tabindex="-1">
+          {{ texts.categoryRules.list }}
+        </h3>
+        <p id="apply-hint" class="hint list-hint">{{ texts.categoryRules.applyHint }}</p>
+      </div>
+      <button
+        mat-stroked-button
+        type="button"
+        id="apply-rules"
+        aria-describedby="apply-hint"
+        [disabled]="rules().length === 0 || previewing() || preview() !== null"
+        (click)="showPreview()"
+      >
+        <mat-icon fontIcon="auto_fix_high" aria-hidden="true" />
+        {{ texts.categoryRules.apply }}
+      </button>
+    </div>
+
+    @if (previewing()) {
+      <div class="panel" role="status">
+        <p>{{ texts.categoryRules.previewing }}</p>
+        <mat-progress-bar mode="indeterminate" [attr.aria-label]="texts.categoryRules.previewing" />
+      </div>
+    }
+
+    @if (preview(); as changes) {
+      <section class="preview" aria-labelledby="preview-title">
+        <h3 id="preview-title" class="list-title" tabindex="-1">
+          {{ texts.categoryRules.previewTitle }}
+        </h3>
+        <p class="hint list-hint">
+          {{ texts.categoryRules.previewCount }} {{ changes.length }}.
+          {{ texts.categoryRules.previewHint }}
+        </p>
+        <div
+          class="table-wrap preview-table"
+          role="region"
+          aria-labelledby="preview-title"
+          tabindex="0"
+        >
+          <table aria-labelledby="preview-title">
+            <thead>
+              <tr>
+                <th scope="col">{{ texts.categoryRules.date }}</th>
+                <th scope="col">{{ texts.categoryRules.description }}</th>
+                <th scope="col" class="num">{{ texts.categoryRules.amount }}</th>
+                <th scope="col">{{ texts.categoryRules.currentCategory }}</th>
+                <th scope="col">{{ texts.categoryRules.newCategory }}</th>
+                <th scope="col">{{ texts.categoryRules.rule }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (change of changes; track change.transactionId) {
+                <tr>
+                  <td class="date">{{ change.date | isoDate }}</td>
+                  <th scope="row" class="wrap">{{ change.description }}</th>
+                  <td class="num">{{ change.amountCents | cents }}</td>
+                  <td class="muted">
+                    {{ change.currentCategory ?? texts.categoryRules.noCategory }}
+                  </td>
+                  <td class="new-category">{{ change.newCategory }}</td>
+                  <td class="muted wrap">
+                    {{ texts.categoryRules.operators[change.ruleOperator] }}
+                    <code>{{ change.rulePattern }}</code>
+                  </td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="preview-actions">
+          <button mat-button type="button" [disabled]="applying()" (click)="cancelPreview()">
+            {{ texts.categoryRules.cancel }}
+          </button>
+          <button mat-flat-button type="button" [disabled]="applying()" (click)="confirmPreview()">
+            <mat-icon fontIcon="check" aria-hidden="true" />
+            {{ texts.categoryRules.confirm }} ({{ changes.length }})
+          </button>
+        </div>
+      </section>
+    }
+
+    @if (rules().length === 0) {
+      <p class="panel hint">{{ texts.categoryRules.empty }}</p>
+    } @else {
+      <div class="table-wrap" role="region" aria-labelledby="rule-list-title" tabindex="0">
+        <table class="rules" aria-labelledby="rule-list-title">
+          <thead>
+            <tr>
+              <th scope="col" class="col-operator">{{ texts.categoryRules.operator }}</th>
+              <th scope="col">{{ texts.categoryRules.pattern }}</th>
+              <th scope="col" class="col-category">{{ texts.categoryRules.category }}</th>
+              <th scope="col" class="col-count num">{{ texts.categoryRules.movementsColumn }}</th>
+              <th scope="col" class="col-actions">{{ texts.categoryRules.actions }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (rule of rules(); track rule.id) {
+              @if (isEditing(rule)) {
+                <!--
+                  El formulario vive en la celda del texto; los desplegables y los botones, en
+                  sus celdas, se asocian a él con el atributo `form`.
+                -->
+                <tr class="editing">
+                  <td>
+                    <select
+                      form="rule-editor"
+                      [formField]="rowForm.operator"
+                      (keydown.escape)="cancelEdit()"
+                      [attr.aria-label]="texts.categoryRules.operator + ': ' + label(rule)"
+                    >
+                      @for (operator of operators; track operator) {
+                        <option [value]="operator">
+                          {{ texts.categoryRules.operators[operator] }}
+                        </option>
+                      }
+                    </select>
+                  </td>
+                  <th scope="row">
+                    <form
+                      id="rule-editor"
+                      class="row-editor"
+                      [formRoot]="rowForm"
+                      (keydown.escape)="cancelEdit()"
+                    >
+                      <input
+                        type="text"
+                        autocomplete="off"
+                        spellcheck="false"
+                        [class.upper]="isUpper(rowForm.operator().value())"
+                        [formField]="rowForm.pattern"
+                        [attr.aria-label]="texts.categoryRules.pattern + ': ' + label(rule)"
+                        [attr.aria-invalid]="showRowError()"
+                        [attr.aria-describedby]="showRowError() ? 'row-error' : null"
+                      />
+                      @if (showRowError()) {
+                        <p id="row-error" class="alert">
+                          @for (problem of rowForm.pattern().errors(); track problem.kind) {
+                            {{ problem.message }}
+                          }
+                        </p>
+                      }
+                    </form>
+                  </th>
+                  <td>
+                    <select
+                      form="rule-editor"
+                      [formField]="rowForm.categoryId"
+                      (keydown.escape)="cancelEdit()"
+                      [attr.aria-label]="texts.categoryRules.category + ': ' + label(rule)"
+                    >
+                      @for (category of categories(); track category.id) {
+                        <option [value]="category.id">{{ category.label }}</option>
+                      }
+                    </select>
+                  </td>
+                  <td class="num">
+                    <span class="count" [class.unused]="rule.transactionCount === 0">{{
+                      rule.transactionCount
+                    }}</span>
+                  </td>
+                  <td>
+                    <div class="actions">
+                      <button
+                        mat-icon-button
+                        type="submit"
+                        form="rule-editor"
+                        class="tool"
+                        [attr.aria-label]="texts.categoryRules.save"
+                        [title]="texts.categoryRules.save"
+                        [disabled]="rowForm().submitting()"
+                      >
+                        <mat-icon fontIcon="check" aria-hidden="true" />
+                      </button>
+                      <button
+                        mat-icon-button
+                        type="button"
+                        class="tool"
+                        [attr.aria-label]="texts.categoryRules.cancelEdit"
+                        [title]="texts.categoryRules.cancelEdit"
+                        (click)="cancelEdit()"
+                      >
+                        <mat-icon fontIcon="close" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              } @else {
+                <tr>
+                  <td class="operator">{{ texts.categoryRules.operators[rule.operator] }}</td>
+                  <th scope="row" class="wrap">
+                    <code>{{ rule.pattern }}</code>
+                  </th>
+                  <td class="category wrap">{{ rule.categoryLabel }}</td>
+                  <td class="num">
+                    <span class="count" [class.unused]="rule.transactionCount === 0">{{
+                      rule.transactionCount
+                    }}</span>
+                  </td>
+                  <td>
+                    <div class="actions">
+                      <button
+                        mat-icon-button
+                        type="button"
+                        class="tool"
+                        [id]="'edit-rule-' + rule.id"
+                        [attr.aria-label]="texts.categoryRules.edit + ': ' + label(rule)"
+                        [title]="texts.categoryRules.edit"
+                        (click)="edit(rule)"
+                      >
+                        <mat-icon fontIcon="edit" aria-hidden="true" />
+                      </button>
+                      <button
+                        mat-icon-button
+                        type="button"
+                        class="tool"
+                        [attr.aria-label]="texts.categoryRules.delete + ': ' + label(rule)"
+                        [title]="texts.categoryRules.delete"
+                        (click)="remove(rule)"
+                      >
+                        <mat-icon fontIcon="delete" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+}

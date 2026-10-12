@@ -3,7 +3,7 @@ import { migrate } from '../migrate';
 import { MIGRATIONS } from '../migrations';
 import { loadDemoData } from '../seeds/demo-data';
 import { wrapDatabase, type SqlDb } from '../sql-db';
-import { listPeriods, monthReport, monthTransactions } from './reports';
+import { allTransactions, listPeriods, monthReport, monthTransactions } from './reports';
 
 describe('consultas de informes (sobre la demo)', () => {
   let sqlite3: Sqlite3Static;
@@ -66,6 +66,18 @@ describe('consultas de informes (sobre la demo)', () => {
          WHERE period = '2026-08' AND id NOT IN (SELECT incoming_tx_id FROM transfers)`,
       );
       expect(monthReport(db, '2026-08').balanceCents).toBe(expected);
+    });
+  });
+
+  describe('allTransactions', () => {
+    it('devuelve los movimientos de todos los meses, del más reciente al más antiguo', () => {
+      const rows = allTransactions(db);
+      const byMonth = listPeriods(db).flatMap((period) => monthTransactions(db, period));
+
+      expect(rows).toHaveLength(byMonth.length);
+      expect(new Set(rows.map((r) => r.period))).toEqual(new Set(listPeriods(db)));
+      const dates = rows.map((r) => r.opDate);
+      expect(dates).toEqual([...dates].sort().reverse());
     });
   });
 

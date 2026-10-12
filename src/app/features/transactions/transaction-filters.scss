@@ -1,0 +1,71 @@
+:host {
+  display: block;
+  margin-bottom: 16px;
+}
+
+// Los campos van uno tras otro y saltan de fila al llenarla.
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  padding: 16px;
+  border-radius: 16px;
+  background: var(--mat-sys-surface-container-lowest);
+}
+
+mat-form-field {
+  flex: 0 1 168px;
+  min-width: 0;
+}
+
+// El último filtro y los botones no se separan: los botones quedan siempre a su derecha.
+.last,
+.buttons {
+  display: flex;
+  align-items: center;
+}
+
+.last {
+  gap: 12px;
+}
+
+.buttons {
+  flex: none;
+  gap: 8px;
+}
+
+.problems {
+  flex-basis: 100%;
+  color: var(--mat-sys-error);
+  font-weight: 500;
+
+  &:empty {
+    display: none;
+  }
+
+  p {
+    margin: 0;
+  }
+}
+
+// En pantallas estrechas, dos campos por fila y los botones debajo si no caben al lado.
+@media (max-width: 599px) {
+  mat-form-field {
+    flex: 1 1 140px;
+  }
+
+  .last {
+    flex: 1 1 100%;
+    flex-wrap: wrap;
+  }
+
+  // El campo conserva un ancho en el que se lee su nombre entero.
+  .last mat-form-field {
+    min-width: 168px;
+  }
+
+  .buttons {
+    margin-left: auto;
+  }
+}

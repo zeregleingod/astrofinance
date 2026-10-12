@@ -1,5 +1,14 @@
+// La página ocupa el alto que queda en la ventana y la tabla se lleva lo que sobra.
 :host {
-  display: block;
+  display: flex;
+  flex: 1 1 0 !important;
+  flex-direction: column;
+  min-height: 0;
+}
+
+// Lo de encima de la tabla no encoge.
+:host > * {
+  flex-shrink: 0;
 }
 
 .page-header {
@@ -28,7 +37,13 @@
 }
 
 .table-wrap {
-  overflow-x: auto;
+  // Referencia de lo posicionado dentro (los textos solo para lectores de pantalla): si no, se
+  // saldrían del recuadro y alargarían la página.
+  position: relative;
+  flex: 1 1 0;
+  // En ventanas bajas la tabla conserva un alto útil y es la página la que se desplaza.
+  min-height: 240px;
+  overflow: auto;
   border-radius: 16px;
   background: var(--mat-sys-surface-container-lowest);
 
@@ -43,7 +58,16 @@ table {
   width: 100%;
   min-width: 1200px;
   table-layout: fixed;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+// La cabecera se queda a la vista al desplazar las filas.
+thead th {
+  position: sticky;
+  top: 0;
+  z-index: 1;
+  background: var(--mat-sys-surface-container-lowest);
 }
 
 // Columnas de contenido corto: ancho fijo para que nunca se recorten.
@@ -247,4 +271,8 @@ tbody tr:last-child td {
   font: var(--mat-sys-label-small);
   background: var(--mat-sys-secondary-container);
   color: var(--mat-sys-on-secondary-container);
+}
+
+.more {
+  margin: 16px;
 }

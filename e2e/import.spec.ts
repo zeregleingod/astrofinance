@@ -42,7 +42,11 @@ test('importar un extracto: revisar, editar, guardar y verlo en movimientos', as
   await page.getByRole('link', { name: 'Ver los movimientos' }).click();
   await expect(page).toHaveURL(/\/movimientos\?mes=2026-01$/);
   const table = page.getByRole('table');
-  await expect(table).toContainText(`Movimientos de enero de 2026 (${TOTAL - 1})`);
+  // Se llega filtrando por las fechas del mes importado.
+  await expect(table).toContainText(`Movimientos (${TOTAL - 1} de ${TOTAL - 1})`);
+  await expect(page.getByRole('form', { name: 'Filtros' }).getByLabel('Desde')).toHaveValue(
+    '01/01/2026',
+  );
   await expect(table.getByRole('row', { name: /Nómina/ })).toContainText('1.850,00 €');
   const light = table.getByRole('row', { name: /ADEUDO RECIBO LUZ DEMO/ });
   await expect(light).toContainText('-70,00 €');

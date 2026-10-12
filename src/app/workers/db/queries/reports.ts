@@ -58,6 +58,16 @@ export function monthReport(db: SqlDb, period: string): MonthReport {
 }
 
 export function monthTransactions(db: SqlDb, period: string): TransactionRow[] {
+  return transactionRows(db, 'WHERE t.period = ?', [period]);
+}
+
+/** Todos los movimientos, del más reciente al más antiguo. */
+export function allTransactions(db: SqlDb): TransactionRow[] {
+  return transactionRows(db, '', []);
+}
+
+/** `where` es siempre un literal de este fichero; los valores van en `bind`. */
+function transactionRows(db: SqlDb, where: string, bind: readonly string[]): TransactionRow[] {
   return db
     .rows(
       `SELECT t.id, t.op_date, coalesce(t.booked_date, t.op_date) AS booked_date,
@@ -75,9 +85,9 @@ export function monthTransactions(db: SqlDb, period: string): TransactionRow[] {
        JOIN accounts a ON a.id = t.account_id
        LEFT JOIN categories c ON c.id = t.category_id
        LEFT JOIN categories p ON p.id = c.parent_id
-       WHERE t.period = ?
+       ${where}
        ORDER BY t.op_date DESC, t.id DESC`,
-      [period],
+      bind,
     )
     .map((r) => ({
       id: num(r, 'id'),

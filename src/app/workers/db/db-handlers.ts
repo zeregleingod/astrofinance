@@ -1,6 +1,7 @@
 import type { Database, Sqlite3Static } from '@sqlite.org/sqlite-wasm';
 import { isPeriod } from '@domain/dates/period';
 import type { RpcHandlers } from '../rpc/protocol';
+import { exportDatabase, openDatabaseFile } from './backup';
 import type { DbApi } from './db-api';
 import { migrate } from './migrate';
 import { MIGRATIONS } from './migrations';
@@ -20,7 +21,18 @@ import {
   hashesParam,
   importBatchParam,
 } from './queries/imports';
-import { listPeriods, monthReport, monthTransactions } from './queries/reports';
+import { allTransactions, listPeriods, monthReport, monthTransactions } from './queries/reports';
+import {
+  applyRules,
+  createRule,
+  deleteRule,
+  listRules,
+  newRuleParam,
+  previewRules,
+  ruleIdParam,
+  ruleUpdateParam,
+  updateRule,
+} from './queries/rules';
 import { categoryTemplateStatements } from './seeds/category-template';
 import { loadDemoData } from './seeds/demo-data';
 import { wrapDatabase, type SqlDb } from './sql-db';
@@ -36,10 +48,11 @@ export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcH
     return undefined;
   };
 
-  const requireDb = () => {
+  const requireCurrent = () => {
     if (!current) throw new Error('No hay ninguna base de datos abierta.');
-    return current.db;
+    return current;
   };
+  const requireDb = () => requireCurrent().db;
 
   /** BD nueva en memoria, migrada y con los datos iniciales que cargue `seed`. */
   const open = async (seed: (db: SqlDb) => void): Promise<undefined> => {
@@ -63,15 +76,33 @@ export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcH
           for (const { sql, bind } of categoryTemplateStatements()) db.run(sql, bind);
         }),
       ),
+    openFile: async (params) => {
+      const bytes = bytesParam(params);
+      sqlite ??= loadSqlite();
+      // La BD abierta no se cierra hasta que la del fichero ha pasado todas las comprobaciones.
+      const raw = openDatabaseFile(await sqlite, bytes);
+      close();
+      const db = wrapDatabase(raw);
+      current = { raw, db };
+      return { transactions: Number(db.value('SELECT count(*) FROM transactions')) };
+    },
+    exportFile: async () => exportDatabase(await (sqlite ??= loadSqlite()), requireCurrent().raw),
     close,
     periods: () => listPeriods(requireDb()),
     monthReport: (params) => monthReport(requireDb(), periodParam(params)),
     transactions: (params) => monthTransactions(requireDb(), periodParam(params)),
+    allTransactions: () => allTransactions(requireDb()),
     categoryOptions: () => categoryOptions(requireDb()),
     categoryTree: () => categoryTree(requireDb()),
     createCategory: (params) => createCategory(requireDb(), newCategoryParam(params)),
     updateCategory: (params) => updateCategory(requireDb(), categoryUpdateParam(params)),
     deleteCategory: (params) => deleteCategory(requireDb(), categoryIdParam(params)),
+    rules: () => listRules(requireDb()),
+    createRule: (params) => createRule(requireDb(), newRuleParam(params)),
+    updateRule: (params) => updateRule(requireDb(), ruleUpdateParam(params)),
+    deleteRule: (params) => deleteRule(requireDb(), ruleIdParam(params)),
+    previewRules: () => previewRules(requireDb()),
+    applyRules: () => applyRules(requireDb()),
     existingHashes: (params) => existingDedupeHashes(requireDb(), hashesParam(params)),
     commitImport: (params) => commitImport(requireDb(), importBatchParam(params)),
   };
@@ -84,4 +115,16 @@ function periodParam(params: unknown): string {
       : undefined;
   if (!isPeriod(period)) throw new RangeError('Periodo no válido (AAAA-MM).');
   return period;
+}
+
+function bytesParam(params: unknown): Uint8Array {
+  const bytes: unknown =
+    typeof params === 'object' && params !== null
+      ? (params as { bytes?: unknown }).bytes
+      : undefined;
+  // `instanceof` no sirve si el array viene de otro contexto (otro hilo, un iframe).
+  if (Object.prototype.toString.call(bytes) !== '[object Uint8Array]') {
+    throw new RangeError('Fichero no válido.');
+  }
+  return bytes as Uint8Array;
 }

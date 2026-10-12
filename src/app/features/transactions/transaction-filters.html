@@ -1,0 +1,142 @@
+<form class="filters" [formRoot]="filterForm" [attr.aria-label]="texts.transactions.filters.title">
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>{{ texts.transactions.filters.year }}</mat-label>
+    <select matNativeControl [formField]="filterForm.year">
+      <option value="">{{ texts.transactions.filters.anyMasculine }}</option>
+      @for (year of options().years; track year) {
+        <option [value]="year">{{ year }}</option>
+      }
+    </select>
+  </mat-form-field>
+
+  <!-- Las fechas se eligen en el calendario o se escriben a mano como dd/mm/aaaa. -->
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>{{ texts.transactions.filters.from }}</mat-label>
+    <input
+      #dateInput
+      matInput
+      autocomplete="off"
+      [matDatepicker]="fromPicker"
+      [value]="fromDate()"
+      [placeholder]="texts.transactions.filters.datePlaceholder"
+      [attr.aria-invalid]="filterForm.from().invalid()"
+      [attr.aria-describedby]="filterForm.from().invalid() ? 'filter-problems' : null"
+      (dateInput)="setDate('from', $event)"
+      (dateChange)="setDate('from', $event)"
+    />
+    <mat-datepicker-toggle matIconSuffix [for]="fromPicker" />
+    <mat-datepicker #fromPicker />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>{{ texts.transactions.filters.to }}</mat-label>
+    <input
+      #dateInput
+      matInput
+      autocomplete="off"
+      [matDatepicker]="toPicker"
+      [value]="toDate()"
+      [placeholder]="texts.transactions.filters.datePlaceholder"
+      [attr.aria-invalid]="filterForm.to().invalid()"
+      [attr.aria-describedby]="filterForm.to().invalid() ? 'filter-problems' : null"
+      (dateInput)="setDate('to', $event)"
+      (dateChange)="setDate('to', $event)"
+    />
+    <mat-datepicker-toggle matIconSuffix [for]="toPicker" />
+    <mat-datepicker #toPicker />
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>{{ texts.transactions.filters.tag }}</mat-label>
+    <select matNativeControl [formField]="filterForm.tag">
+      <option value="">{{ texts.transactions.filters.anyFeminine }}</option>
+      @for (tag of tags; track tag.value) {
+        <option [value]="tag.value">{{ tag.label }}</option>
+      }
+    </select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>{{ texts.transactions.filters.category }}</mat-label>
+    <select matNativeControl [formField]="filterForm.category">
+      <option value="">{{ texts.transactions.filters.anyFeminine }}</option>
+      @for (category of options().categories; track category) {
+        <option [value]="categoryValue(category)">{{ category }}</option>
+      }
+      @if (options().uncategorized) {
+        <option [value]="uncategorized">{{ texts.dashboard.uncategorized }}</option>
+      }
+    </select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>{{ texts.transactions.filters.subcategory }}</mat-label>
+    <select matNativeControl [formField]="filterForm.subcategory">
+      <option value="">{{ texts.transactions.filters.anyFeminine }}</option>
+      @for (subcategory of subcategories(); track subcategory.value) {
+        <option [value]="subcategory.value">{{ subcategory.label }}</option>
+      }
+    </select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>{{ texts.transactions.filters.account }}</mat-label>
+    <select matNativeControl [formField]="filterForm.account">
+      <option value="">{{ texts.transactions.filters.anyFeminine }}</option>
+      @for (account of options().accounts; track account) {
+        <option [value]="account">{{ account }}</option>
+      }
+    </select>
+  </mat-form-field>
+
+  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+    <mat-label>{{ texts.transactions.filters.minAmount }}</mat-label>
+    <input
+      matInput
+      type="text"
+      inputmode="decimal"
+      autocomplete="off"
+      [formField]="filterForm.minAmount"
+      [attr.aria-invalid]="filterForm.minAmount().invalid()"
+      [attr.aria-describedby]="filterForm.minAmount().invalid() ? 'filter-problems' : null"
+    />
+  </mat-form-field>
+
+  <!-- Los botones siguen al último filtro, en su misma fila. -->
+  <div class="last">
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>{{ texts.transactions.filters.maxAmount }}</mat-label>
+      <input
+        matInput
+        type="text"
+        inputmode="decimal"
+        autocomplete="off"
+        [formField]="filterForm.maxAmount"
+        [attr.aria-invalid]="filterForm.maxAmount().invalid()"
+        [attr.aria-describedby]="filterForm.maxAmount().invalid() ? 'filter-problems' : null"
+      />
+    </mat-form-field>
+
+    <div class="buttons">
+      <button
+        mat-button
+        type="button"
+        [attr.aria-label]="texts.transactions.filters.clearLabel"
+        (click)="clear()"
+      >
+        {{ texts.transactions.filters.clear }}
+      </button>
+      <button mat-flat-button type="submit">
+        <mat-icon fontIcon="filter_alt" aria-hidden="true" />
+        {{ texts.transactions.filters.apply }}
+      </button>
+    </div>
+  </div>
+
+  <!-- Región viva siempre presente: los errores se anuncian al aparecer. -->
+  <div id="filter-problems" class="problems" role="alert">
+    @for (message of problems(); track message) {
+      <p>{{ message }}</p>
+    }
+  </div>
+</form>

@@ -7,6 +7,7 @@ import {
   computed,
   inject,
   input,
+  linkedSignal,
   resource,
   signal,
 } from '@angular/core';
@@ -15,8 +16,15 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { TEXTS } from '@core/i18n/texts';
-import { injectMonthSelection } from '@core/period/month-selection';
 import { DbService } from '@data/db/db-service';
+import {
+  applyTransactionFilter,
+  isFiltering,
+  monthFilter,
+  transactionFilterOptions,
+  type TransactionFilter,
+} from '@domain/reports/transaction-filter';
+import type { TransactionRow } from '@domain/reports/transaction-row';
 import {
   filterTransactions,
   nextSort,
@@ -29,8 +37,7 @@ import {
 import { EmptyState } from '@shared/empty-state/empty-state';
 import { CentsPipe } from '@shared/format/cents-pipe';
 import { IsoDatePipe } from '@shared/format/iso-date-pipe';
-import { PeriodLabelPipe } from '@shared/format/period-label-pipe';
-import { MonthNav } from '@shared/month-nav/month-nav';
+import { TransactionFilters } from './transaction-filters';
 
 interface Column {
   readonly key: TransactionSortKey;
@@ -48,7 +55,10 @@ const LABELS: TableLabels = {
   uncategorized: TEXTS.dashboard.uncategorized,
 };
 
-/** Lista de los movimientos imputados a un mes, con búsqueda y orden por columna. */
+/**
+ * Lista de todos los movimientos, con filtros que se aplican al pulsar «Filtrar», búsqueda al
+ * escribir y orden por columna.
+ */
 @Component({
   selector: 'app-transactions-page',
   imports: [
@@ -61,8 +71,7 @@ const LABELS: TableLabels = {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
-    MonthNav,
-    PeriodLabelPipe,
+    TransactionFilters,
   ],
   templateUrl: './transactions-page.html',
   styleUrl: './transactions-page.scss',
@@ -73,12 +82,16 @@ export class TransactionsPage {
   private readonly announcer = inject(LiveAnnouncer);
   private readonly injector = inject(Injector);
 
-  /** `?mes=AAAA-MM`. */
+  /** `?mes=AAAA-MM`: llegar con un mes equivale a filtrar por sus fechas. */
   readonly mes = input<string>();
 
-  protected readonly selection = injectMonthSelection(this.mes);
+  /** Filas que se pintan de entrada y cada vez que se pide ver más. */
+  readonly pageSize = signal(200);
 
-  /** En el orden elegido por el usuario; se conserva al cambiar de mes. */
+  /** El filtro aplicado; el formulario de filtros lo cambia al pulsar «Filtrar». */
+  protected readonly filter = linkedSignal<TransactionFilter>(() => monthFilter(this.mes()));
+
+  /** En el orden elegido por el usuario; se conserva al filtrar. */
   protected readonly columns = signal<readonly Column[]>([
     { key: 'bookedDate', label: t.bookedDate },
     { key: 'opDate', label: t.originalDate },
@@ -95,30 +108,61 @@ export class TransactionsPage {
   protected readonly sort = signal<TransactionSort>({ key: 'bookedDate', direction: 'desc' });
 
   private readonly transactions = resource({
-    params: () => {
-      const period = this.selection.period();
-      return this.db.ready() && period ? { period, version: this.db.dataVersion() } : undefined;
-    },
-    loader: ({ params, abortSignal }) => this.db.transactions(params.period, abortSignal),
+    params: () => (this.db.ready() ? { version: this.db.dataVersion() } : undefined),
+    loader: ({ abortSignal }) => this.db.allTransactions(abortSignal),
   });
 
-  protected readonly total = computed(() =>
-    this.transactions.hasValue() ? this.transactions.value().length : 0,
+  /** Conserva la lista anterior mientras se recarga tras un cambio, para que no parpadee. */
+  private readonly all = linkedSignal<
+    readonly TransactionRow[] | undefined,
+    readonly TransactionRow[] | undefined
+  >({
+    source: () => (this.transactions.hasValue() ? this.transactions.value() : undefined),
+    computation: (value, previous) => value ?? previous?.value,
+  });
+
+  protected readonly loaded = computed(() => this.all() !== undefined);
+  protected readonly total = computed(() => this.all()?.length ?? 0);
+  protected readonly options = computed(() => transactionFilterOptions(this.all() ?? []));
+
+  /** Los que cumplen los filtros y la búsqueda, ya ordenados. */
+  private readonly matching = computed(() => {
+    const filtered = applyTransactionFilter(this.all() ?? [], this.filter());
+    const visible = filterTransactions(filtered, this.query(), LABELS);
+    return sortTransactions(visible, this.sort(), LABELS);
+  });
+
+  /** Cuántas filas se pintan; vuelve al principio al cambiar los filtros, la búsqueda o el orden. */
+  private readonly limit = linkedSignal<readonly TransactionRow[], number>({
+    source: () => this.matching(),
+    computation: () => this.pageSize(),
+  });
+
+  protected readonly rows = computed(() =>
+    this.matching()
+      .slice(0, this.limit())
+      .map((row) => ({ ...row, tags: transactionTags(row, LABELS) })),
   );
 
-  protected readonly rows = computed(() => {
-    const all = this.transactions.hasValue() ? this.transactions.value() : [];
-    const visible = filterTransactions(all, this.query(), LABELS);
-    return sortTransactions(visible, this.sort(), LABELS).map((row) => ({
-      ...row,
-      tags: transactionTags(row, LABELS),
-    }));
-  });
+  /** Movimientos que cumplen los filtros pero aún no se han pintado. */
+  protected readonly remaining = computed(() => this.matching().length - this.rows().length);
 
-  /** «40» o, con búsqueda, «12 de 40». */
+  /** «40» o, con filtros o búsqueda, «12 de 40». */
   protected readonly count = computed(() =>
-    this.query() ? `${this.rows().length} ${t.of} ${this.total()}` : String(this.total()),
+    this.query() || isFiltering(this.filter())
+      ? `${this.matching().length} ${t.of} ${this.total()}`
+      : String(this.total()),
   );
+
+  /** Aplica los filtros elegidos y anuncia cuántos movimientos quedan. */
+  protected applyFilter(filter: TransactionFilter): void {
+    this.filter.set(filter);
+    void this.announcer.announce(`${t.shown} ${this.matching().length}`);
+  }
+
+  protected showMore(): void {
+    this.limit.update((limit) => limit + this.pageSize());
+  }
 
   protected sortBy(key: TransactionSortKey): void {
     this.sort.update((current) => nextSort(current, key));

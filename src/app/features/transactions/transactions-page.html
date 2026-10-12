@@ -1,16 +1,15 @@
 <header class="page-header">
   <h2>{{ texts.transactions.title }}</h2>
-  @if (selection.period(); as period) {
-    <app-month-nav
-      [periods]="selection.available()"
-      [period]="period"
-      (periodChange)="selection.select($event)"
-    />
-  }
 </header>
 
-@if (db.ready() && !selection.empty()) {
-  @if (selection.period(); as period) {
+@if (db.ready() && !(loaded() && total() === 0)) {
+  @if (loaded()) {
+    <app-transaction-filters
+      [options]="options()"
+      [filter]="filter()"
+      (filterChange)="applyFilter($event)"
+    />
+
     <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
       <mat-label>{{ texts.transactions.search }}</mat-label>
       <mat-icon matPrefix fontIcon="search" aria-hidden="true" />
@@ -36,6 +35,7 @@
       }
     </mat-form-field>
 
+    <!-- La tabla llega hasta el final de la ventana y se desplaza por dentro, con sus barras. -->
     <div
       class="table-wrap"
       role="region"
@@ -46,9 +46,6 @@
         <caption>
           {{
             texts.transactions.caption
-          }}
-          {{
-            period | periodLabel
           }}
           ({{
             count()
@@ -164,6 +161,11 @@
           }
         </tbody>
       </table>
+      @if (remaining() > 0) {
+        <button mat-stroked-button type="button" class="more" (click)="showMore()">
+          {{ texts.transactions.showMore }} ({{ texts.transactions.remaining }} {{ remaining() }})
+        </button>
+      }
     </div>
     <p id="reorder-hint" class="visually-hidden">{{ texts.transactions.reorderHint }}</p>
   }

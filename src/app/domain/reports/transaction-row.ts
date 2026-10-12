@@ -1,4 +1,4 @@
-/** Movimiento listo para mostrarse en la lista mensual. */
+/** Movimiento listo para mostrarse en la lista de movimientos. */
 export interface TransactionRow {
   readonly id: number;
   /** Fecha original del movimiento (la del banco o la de alta). */

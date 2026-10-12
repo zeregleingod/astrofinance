@@ -66,7 +66,7 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 - [x] **T1.4 Hash de deduplicación** (`domain/imports/imported-statement.ts`, ADR-0007): determinista sobre (cuenta, fecha operativa, importe, concepto **original**, saldo posterior al movimiento, contador de repetición dentro del lote). Se usa el concepto original (con sus identificadores) y no el normalizado, para no fusionar movimientos distintos.
   - Test primero: dos movimientos idénticos legítimos el mismo día no deben colapsar; la reimportación del mismo fichero sí.
 - [ ] **T1.5 Árbol de categorías**: padre/hijo, detección de ciclos, borrado con reasignación, profundidad máxima configurable (2 en v1, modelo genérico).
-- [ ] **T1.6 Motor de reglas**: operadores `contiene`, `empieza`, `termina`, `regex` (validada y con límite de longitud), rango de importe, signo (ingreso/gasto); prioridad; primera coincidencia gana; modo **dry-run** que devuelve un diff (`movimiento → categoría propuesta`) sin aplicar.
+- [x] **T1.6 Motor de reglas** (`domain/rules/rule.ts`, ADR-0011): operadores `contiene`, `exacto`, `empieza`, `termina`, `regex` (validada y con límite de longitud), rango de importe, signo (ingreso/gasto); prioridad; primera coincidencia gana; modo **dry-run** que devuelve un diff (`movimiento → categoría propuesta`) sin aplicar.
   - Test primero: conflictos de prioridad, regla deshabilitada, no pisar clasificaciones manuales, regex inválida/patológica rechazada.
 - [ ] **T1.7 Agregaciones de referencia**: totales por mes, categoría y subcategoría en memoria (oráculo para contrastar el SQL de T2.6).
 - [ ] **T1.8 Detector de recurrencias y suscripciones**: agrupa por comercio normalizado, intervalos ≈ semanal/mensual/trimestral/anual, tolerancia de importe, puntuación de confianza. Ignora los pares compra + anulación que suman 0 (la muestra real incluye cargos de 1 € anulados al momento).
@@ -96,9 +96,9 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 - [ ] **T2.9 Descartar cambios**: recarga desde el último guardado y limpia `dirty`.
 - [ ] **T2.10 Instancia única por origen**: `navigator.locks` (Web Locks) para impedir dos pestañas con copias de trabajo divergentes.
   - Test primero (e2e): segunda pestaña muestra aviso y queda en solo lectura/bloqueada.
-- [ ] **T2.11 Importar `.db` externo**: validar cabecera `SQLite format 3\0`, tamaño máximo, abrir en una BD **aislada**, `PRAGMA integrity_check`, `foreign_key_check`, tablas esperadas, `user_version` (migrar si es menor, rechazar si es mayor); reemplazar la copia de trabajo solo si todo pasa; comparar `db_uuid`/`revision` y avisar si el fichero es más antiguo o divergente.
+- [x] **T2.11 Importar `.db` externo** (`workers/db/backup.ts`, «Configuración › Copia de seguridad», ADR-0010): validar cabecera `SQLite format 3\0`, tamaño máximo, abrir en una BD **aislada**, `PRAGMA integrity_check`, `foreign_key_check`, tablas esperadas, `user_version` (migrar si es menor, rechazar si es mayor); reemplazar la copia de trabajo solo si todo pasa; comparar `db_uuid`/`revision` y avisar si el fichero es más antiguo o divergente. *(Hecho salvo la comparación de `db_uuid`/`revision`, que llegará con T2.8: hasta entonces `revision` no cambia. El esquema se exige idéntico al de la app, no solo las tablas.)*
   - Test primero: fichero no SQLite, truncado, con esquema ajeno, versión futura, versión antigua migrable, misma BD con `revision` menor.
-- [ ] **T2.12 Exportar `.db`**: descarga con nombre fechado; File System Access API con detección de características y *fallback* a descarga clásica (móvil/Safari/Firefox).
+- [x] **T2.12 Exportar `.db`**: descarga con nombre fechado; File System Access API con detección de características y *fallback* a descarga clásica (móvil/Safari/Firefox). *(Hecho: `data/files/file-saver.ts`.)*
 - [ ] **T2.13 Persistencia de almacenamiento**: `navigator.storage.persist()` y estimación de cuota; estado expuesto a la UI.
 
 ---
@@ -119,8 +119,8 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 ## Fase 4 — Categorías y reglas
 
 - [ ] **T4.1 CRUD de categorías y subcategorías** (árbol, color, tipo ingreso/gasto); al borrar, sus movimientos quedan sin categoría previa confirmación (ADR-0008). El tipo es de las subcategorías; las principales solo agrupan y tienen color (ADR-0009). *(Hecho en «Configuración › Categorías», `features/settings`: alta, edición (nombre y color de las principales; nombre y tipo de las subcategorías), recuento de movimientos y borrado; falta mover una subcategoría a otra principal y reordenar.)*
-- [ ] **T4.2 CRUD de reglas**: ordenar por prioridad (arrastrar), activar/desactivar, **probar en vivo** con recuento y ejemplos de coincidencias.
-- [ ] **T4.3 Acción “Autoclasificar”**: dry-run → diálogo con diff agrupado por categoría → **confirmar** → aplicar en una única transacción; por defecto no sobrescribe clasificaciones manuales.
+- [ ] **T4.2 CRUD de reglas**: ordenar por prioridad (arrastrar), activar/desactivar, **probar en vivo** con recuento y ejemplos de coincidencias. *(Hecho en «Configuración › Reglas de categoría», `features/settings/category-rules-page`: alta, edición en la fila y borrado, con el recuento de movimientos que ha clasificado cada regla (ADR-0011); falta ordenar, activar/desactivar y probar en vivo.)*
+- [x] **T4.3 Acción “Autoclasificar”**: dry-run → diálogo con diff agrupado por categoría → **confirmar** → aplicar en una única transacción; por defecto no sobrescribe clasificaciones manuales. *(Hecho como «Aplicar a movimientos existentes»: los cambios se enseñan en una tabla en la propia página, uno por movimiento, y nunca se pisan las clasificaciones manuales.)*
   - Test primero (e2e): crear regla → autoclasificar → cancelar (sin cambios) → repetir y confirmar.
 - [ ] **T4.4 Atajo “crear regla desde este movimiento”**.
 
@@ -128,7 +128,7 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 
 ## Fase 5 — Movimientos
 
-- [ ] **T5.1 Listado** con búsqueda, filtros (fecha, categoría, importe, sin categorizar), ordenación y *virtual scroll*.
+- [ ] **T5.1 Listado** con búsqueda, filtros (fecha, categoría, importe, sin categorizar), ordenación y *virtual scroll*. *(Hechos la búsqueda, la ordenación y los filtros —año, fechas, etiqueta, categoría, subcategoría, cuenta e importe—, sobre todos los movimientos y no por meses (ADR-0012); en lugar de virtual scroll, la tabla se pinta por tandas de 200.)*
 - [ ] **T5.2 Alta/edición/borrado manual** con validación (`Money`, fecha).
 - [ ] **T5.3 Edición masiva** (asignar categoría a una selección).
 - [ ] **T5.4 E2E del flujo manual**: crear → categorizar → guardar → recargar → los datos persisten.

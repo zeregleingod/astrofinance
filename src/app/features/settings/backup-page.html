@@ -1,0 +1,60 @@
+<header class="page-header">
+  <h2>{{ texts.backup.title }}</h2>
+</header>
+
+@if (db.mode() !== 'demo') {
+  <p class="hint warning">{{ texts.backup.memoryOnly }}</p>
+}
+
+@if (error(); as message) {
+  <p class="panel error" role="alert">
+    <mat-icon fontIcon="error" aria-hidden="true" />
+    {{ message }}
+  </p>
+}
+
+<div role="status">
+  @if (busy(); as task) {
+    @let label = task === 'cargando' ? texts.backup.restoring : texts.backup.exporting;
+    <div class="panel">
+      <p>{{ label }}</p>
+      <mat-progress-bar mode="indeterminate" [attr.aria-label]="label" />
+    </div>
+  } @else if (notice(); as done) {
+    <p class="panel done">
+      <mat-icon fontIcon="check_circle" aria-hidden="true" />
+      <span>{{ done.message }}</span>
+      @if (done.restored) {
+        <a mat-button routerLink="/movimientos">{{ texts.backup.viewTransactions }}</a>
+      }
+    </p>
+  }
+</div>
+
+<section class="panel" aria-labelledby="export-title">
+  <h3 id="export-title">{{ texts.backup.exportTitle }}</h3>
+  <p class="hint">{{ texts.backup.exportHint }}</p>
+  <button
+    mat-flat-button
+    type="button"
+    [disabled]="busy() !== null || nothingToExport() !== null"
+    [attr.aria-describedby]="nothingToExport() ? 'export-blocked' : null"
+    (click)="download()"
+  >
+    <mat-icon fontIcon="download" aria-hidden="true" />
+    {{ texts.backup.export }}
+  </button>
+  @if (nothingToExport(); as reason) {
+    <p id="export-blocked" class="hint">{{ reason }}</p>
+  }
+</section>
+
+<section class="panel" aria-labelledby="restore-title">
+  <h3 id="restore-title">{{ texts.backup.restoreTitle }}</h3>
+  <p class="hint">{{ texts.backup.restoreHint }}</p>
+  <input #file hidden type="file" accept=".db" (change)="choose(file)" />
+  <button mat-stroked-button type="button" [disabled]="busy() !== null" (click)="file.click()">
+    <mat-icon fontIcon="upload" aria-hidden="true" />
+    {{ texts.backup.restore }}
+  </button>
+</section>

@@ -99,6 +99,77 @@ describe('DbService', () => {
     });
   });
 
+  it('exporta la BD y la vuelve a cargar como datos del usuario', async () => {
+    const { db } = setup();
+    await db.openDemo();
+    const bytes = await db.exportFile();
+    expect(new TextDecoder().decode(bytes.slice(0, 15))).toBe('SQLite format 3');
+
+    db.close();
+    const version = db.dataVersion();
+    const restored = await db.restore(bytes);
+
+    expect(restored.transactions).toBeGreaterThan(0);
+    expect(db.mode()).toBe('local');
+    expect(db.hasUserData()).toBe(true);
+    expect(db.dataVersion()).toBeGreaterThan(version);
+    expect(await db.periods()).toEqual(['2026-07', '2026-08', '2026-09']);
+  });
+
+  it('cargar una copia saca de la demo', async () => {
+    const { db } = setup();
+    await db.openDemo();
+    await db.restore(await db.exportFile());
+    expect(db.mode()).toBe('local');
+  });
+
+  it('un fichero que no vale deja los datos como estaban', async () => {
+    const { db } = setup();
+    await db.openLocal();
+    await db.createCategory({ parentId: null, name: 'Mascotas', color: null });
+    const version = db.dataVersion();
+
+    await expect(db.restore(new TextEncoder().encode('no soy una BD'))).rejects.toMatchObject({
+      name: 'BackupError',
+      message: 'no-es-sqlite',
+    });
+
+    expect(db.dataVersion()).toBe(version);
+    expect((await db.categoryTree()).at(-1)?.name).toBe('Mascotas');
+  });
+
+  it('crea reglas, enseña lo que cambiarían y las aplica al confirmar', async () => {
+    const { db } = setup();
+    await db.openDemo();
+    const [target] = await db.categoryOptions();
+    if (!target) throw new Error('Sin categorías en la demo');
+    const version = db.dataVersion();
+
+    const id = await db.createRule({ operator: 'regex', pattern: '.', categoryId: target.id });
+    await db.updateRule({ id, operator: 'regex', pattern: '^.', categoryId: target.id });
+    expect((await db.rules()).at(-1)).toMatchObject({
+      id,
+      pattern: '^.',
+      categoryLabel: target.label,
+    });
+    await expect(
+      db.createRule({ operator: 'regex', pattern: '^.', categoryId: target.id }),
+    ).rejects.toMatchObject({ name: 'RuleError', message: 'regla-repetida' });
+    expect(db.dataVersion()).toBe(version + 2);
+
+    const changes = await db.previewRules();
+    expect(changes.length).toBeGreaterThan(0);
+    expect(db.dataVersion()).toBe(version + 2);
+
+    expect(await db.applyRules()).toBe(changes.length);
+    expect(db.dataVersion()).toBe(version + 3);
+    expect(await db.applyRules()).toBe(0);
+    expect(db.dataVersion()).toBe(version + 3);
+
+    await db.deleteRule(id);
+    expect((await db.rules()).map((rule) => rule.id)).not.toContain(id);
+  });
+
   it('no crea dos workers si se pide abrir la demo dos veces a la vez', async () => {
     const { db, created } = setup();
     await Promise.all([db.openDemo(), db.openDemo()]);

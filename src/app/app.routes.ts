@@ -39,6 +39,19 @@ export const routes: Routes = [
         loadComponent: () =>
           import('@features/settings/categories-page').then((m) => m.CategoriesPage),
       },
+      {
+        path: 'reglas-de-categoria',
+        title: TEXTS.categoryRules.title,
+        data: { icon: 'rule' },
+        loadComponent: () =>
+          import('@features/settings/category-rules-page').then((m) => m.CategoryRulesPage),
+      },
+      {
+        path: 'copia-de-seguridad',
+        title: TEXTS.backup.title,
+        data: { icon: 'database' },
+        loadComponent: () => import('@features/settings/backup-page').then((m) => m.BackupPage),
+      },
     ],
   },
   // Abre la BD de demo (en memoria, nunca se guarda) y redirige al Resumen.

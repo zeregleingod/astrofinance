@@ -112,7 +112,9 @@
   align-items: center;
   gap: 10px;
 
+  // Flex por lo mismo que el título de la categoría (ver `.group-header h3`).
   h4 {
+    display: flex;
     flex: 1;
     margin: 0;
     font: var(--mat-sys-title-small);
@@ -128,12 +130,15 @@
   position: relative;
   isolation: isolate;
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: 12px;
   padding: 12px 20px 8px;
 
+  // En flex, el título mide lo que su botón: en línea, el hueco de los descendentes lo
+  // alargaría por abajo y el nombre quedaría más alto que el importe.
   h3 {
+    display: flex;
     margin: 0;
     font: var(--mat-sys-title-medium);
     font-weight: 600;

@@ -1,5 +1,10 @@
 import type { RestoredDatabase } from '@domain/backup/database-file';
-import type { CategoryGroup, CategoryUpdate, NewCategory } from '@domain/categories/category-tree';
+import type {
+  CategoryGroup,
+  CategoryOrder,
+  CategoryUpdate,
+  NewCategory,
+} from '@domain/categories/category-tree';
 import type {
   CategoryOption,
   ImportBatchInput,
@@ -7,6 +12,7 @@ import type {
 } from '@domain/imports/import-batch';
 import type { MonthReport } from '@domain/reports/month-report';
 import type { TransactionRow } from '@domain/reports/transaction-row';
+import type { YearReport } from '@domain/reports/year-report';
 import type { NewRule, RuleChange, RuleRow, RuleUpdate } from '@domain/rules/rule';
 
 /** Contrato RPC del worker de base de datos. */
@@ -25,6 +31,8 @@ export interface DbApi {
   close: { params: undefined; result: undefined };
   periods: { params: undefined; result: readonly string[] };
   monthReport: { params: { period: string }; result: MonthReport };
+  /** Hoja anual: el total de cada categoría en cada mes del año. */
+  yearReport: { params: { year: number }; result: YearReport };
   transactions: { params: { period: string }; result: readonly TransactionRow[] };
   /** Todos los movimientos, del más reciente al más antiguo. */
   allTransactions: { params: undefined; result: readonly TransactionRow[] };
@@ -35,6 +43,8 @@ export interface DbApi {
   updateCategory: { params: CategoryUpdate; result: undefined };
   /** Elimina la categoría (y sus subcategorías); devuelve los movimientos que quedan sin categoría. */
   deleteCategory: { params: { id: number }; result: number };
+  /** Ordena las principales, o las subcategorías de una principal, como indica la lista. */
+  reorderCategories: { params: CategoryOrder; result: undefined };
   /** Las reglas de clasificación, en el orden en que se aplican. */
   rules: { params: undefined; result: readonly RuleRow[] };
   /** Da de alta una regla y devuelve su id. */

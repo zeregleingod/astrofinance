@@ -29,6 +29,20 @@ export function resolvePeriod(
   return available.at(-1);
 }
 
+/** Los años que tienen algún periodo, sin repetir y en orden. */
+export function periodYears(periods: readonly string[]): number[] {
+  return [...new Set(periods.map((period) => periodParts(period).year))].sort((a, b) => a - b);
+}
+
+/** El año pedido (`AAAA`) si hay datos de él; si no, el más reciente disponible. */
+export function resolveYear(
+  requested: string | undefined,
+  available: readonly number[],
+): number | undefined {
+  const year = requested !== undefined && /^\d{4}$/.test(requested) ? Number(requested) : NaN;
+  return available.includes(year) ? year : available.at(-1);
+}
+
 /** `AAAA-MM-DD` → `dd/mm/aaaa`. */
 export function formatIsoDate(iso: string): string {
   const match = ISO_DATE.exec(iso);

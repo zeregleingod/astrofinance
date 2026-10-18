@@ -56,6 +56,12 @@ export const CATEGORY_TEMPLATE: readonly TemplateGroup[] = [
     children: [['Comunidad de vecinos'], ['Luz']],
   },
   {
+    name: 'Transporte',
+    kind: 'gasto',
+    color: '#F59E0B',
+    children: [['Transporte público'], ['Financiación coche'], ['Coche'], ['Moto'], ['Gasolina']],
+  },
+  {
     name: 'Variables',
     kind: 'gasto',
     color: '#9C3A00',

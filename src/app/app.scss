@@ -7,6 +7,10 @@
   height: 100%;
 }
 
+.toolbar-demo {
+  margin-left: auto;
+}
+
 .toolbar-title {
   margin: 0;
   font: var(--mat-sys-title-large);
@@ -14,8 +18,8 @@
   color: var(--mat-sys-primary);
 }
 
-// La barra y el aviso de demo se quedan arriba; lo que se desplaza es el contenido, que ocupa
-// justo el alto que queda. Así una página puede llegar hasta el final de la ventana.
+// La barra del móvil se queda arriba; lo que se desplaza es el contenido, que ocupa justo el
+// alto que queda. Así una página puede llegar hasta el final de la ventana.
 mat-sidenav-content {
   display: flex;
   flex-direction: column;

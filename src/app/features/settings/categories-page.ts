@@ -1,3 +1,4 @@
+import { CdkDrag, CdkDragHandle, CdkDropList, type CdkDragDrop } from '@angular/cdk/drag-drop';
 import { NgTemplateOutlet } from '@angular/common';
 import {
   Component,
@@ -31,6 +32,7 @@ import {
   categoryErrorCode,
   categoryNameError,
   groupTransactionCount,
+  moveItem,
   nextCategoryColor,
   type CategoryGroup,
 } from '@domain/categories/category-tree';
@@ -53,6 +55,9 @@ interface CategoryRow {
   readonly subcategoryCount: number;
   /** Nombres que no puede tomar: los de sus hermanas. */
   readonly siblingNames: readonly string[];
+  /** Posición entre sus hermanas, desde 0, y cuántas son: solo se ordena entre ellas. */
+  readonly position: number;
+  readonly siblingCount: number;
 }
 
 interface CategoryCard {
@@ -95,7 +100,16 @@ const NO_COLOR = '#9e9e9e';
  */
 @Component({
   selector: 'app-categories-page',
-  imports: [FormField, FormRoot, MatButtonModule, MatIconModule, NgTemplateOutlet],
+  imports: [
+    CdkDrag,
+    CdkDragHandle,
+    CdkDropList,
+    FormField,
+    FormRoot,
+    MatButtonModule,
+    MatIconModule,
+    NgTemplateOutlet,
+  ],
   templateUrl: './categories-page.html',
   styleUrl: './categories-page.scss',
 })
@@ -265,6 +279,68 @@ export class CategoriesPage {
       });
   }
 
+  /** Sube (`-1`) o baja (`1`) una fila entre sus hermanas; el foco se queda en la flecha. */
+  protected async move(row: CategoryRow, step: -1 | 1): Promise<void> {
+    if (!(await this.reorder(row, row.position + step))) return;
+    const [same, other] = step < 0 ? ['up', 'down'] : ['down', 'up'];
+    this.afterRender(() => {
+      const find = (dir: string | undefined) =>
+        this.host.nativeElement.querySelector<HTMLButtonElement>(`#${dir}-${row.id}`);
+      const button = find(same);
+      (button && !button.disabled ? button : find(other))?.focus();
+    });
+  }
+
+  /** Se ha soltado una categoría principal en otra posición. */
+  protected dropGroup(event: CdkDragDrop<unknown>): void {
+    const row = this.cards()[event.previousIndex]?.row;
+    if (row) void this.reorder(row, event.currentIndex);
+  }
+
+  /** Se ha soltado una subcategoría: la lista de cada categoría es aparte, no sale de ella. */
+  protected dropSubcategory(card: CategoryCard, event: CdkDragDrop<unknown>): void {
+    const row = card.rows[event.previousIndex];
+    if (row) void this.reorder(row, event.currentIndex);
+  }
+
+  /**
+   * Lleva la fila a la posición `to` entre sus hermanas. La lista cambia en el acto, para que
+   * la fila no vuelva a su sitio mientras se guarda; si no se puede guardar, se recarga.
+   */
+  private async reorder(row: CategoryRow, to: number): Promise<boolean> {
+    const parentId = row.group?.id ?? null;
+    const groups = this.groups();
+    const siblings =
+      parentId === null ? groups : (groups.find((g) => g.id === parentId)?.subcategories ?? []);
+    const ids = moveItem(
+      siblings.map((sibling) => sibling.id),
+      row.position,
+      to,
+    );
+    if (ids.indexOf(row.id) === row.position) return false;
+
+    this.groups.set(
+      parentId === null
+        ? inOrder(groups, ids)
+        : groups.map((g) =>
+            g.id === parentId ? { ...g, subcategories: inOrder(g.subcategories, ids) } : g,
+          ),
+    );
+    this.error.set(null);
+    this.notice.set(null);
+    try {
+      await this.db.reorderCategories({ parentId, ids });
+    } catch (error) {
+      const code = categoryErrorCode(error);
+      this.error.set(code ? t.errors[code] : t.reorderError);
+      this.tree.reload();
+      return false;
+    }
+    const position = `${t.position} ${ids.indexOf(row.id) + 1} ${t.positionOf} ${ids.length}`;
+    this.notice.set(`${t.moved} ${row.label}, ${position}`);
+    return true;
+  }
+
   private openEditor(model: RowModel, editor: RowEditor): void {
     this.editor.set(editor);
     this.rowForm().reset(model);
@@ -352,7 +428,7 @@ export class CategoriesPage {
 }
 
 function toCards(groups: readonly CategoryGroup[]): CategoryCard[] {
-  return groups.map((group) => ({
+  return groups.map((group, position) => ({
     group,
     row: {
       id: group.id,
@@ -364,8 +440,10 @@ function toCards(groups: readonly CategoryGroup[]): CategoryCard[] {
       count: groupTransactionCount(group),
       subcategoryCount: group.subcategories.length,
       siblingNames: namesExcept(groups, group.id),
+      position,
+      siblingCount: groups.length,
     },
-    rows: group.subcategories.map((subcategory) => ({
+    rows: group.subcategories.map((subcategory, index) => ({
       id: subcategory.id,
       name: subcategory.name,
       label: `${group.name} › ${subcategory.name}`,
@@ -375,8 +453,18 @@ function toCards(groups: readonly CategoryGroup[]): CategoryCard[] {
       count: subcategory.transactionCount,
       subcategoryCount: 0,
       siblingNames: namesExcept(group.subcategories, subcategory.id),
+      position: index,
+      siblingCount: group.subcategories.length,
     })),
   }));
+}
+
+/** Los elementos de `items` en el orden de `ids`. */
+function inOrder<T extends { readonly id: number }>(
+  items: readonly T[],
+  ids: readonly number[],
+): T[] {
+  return ids.flatMap((id) => items.filter((item) => item.id === id));
 }
 
 function namesExcept(items: readonly { id: number; name: string }[], id: number): string[] {

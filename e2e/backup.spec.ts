@@ -13,7 +13,7 @@ async function openNav(page: Page) {
 
 async function importStatement(page: Page) {
   await page.goto('/importar');
-  await page.locator('input[type="file"]').setInputFiles(STATEMENT);
+  await page.locator('main input[type="file"]').setInputFiles(STATEMENT);
   await page.getByRole('button', { name: `Guardar (${TOTAL})` }).click();
   await expect(page.getByText(`Movimientos guardados: ${TOTAL}.`)).toBeVisible();
 }
@@ -48,10 +48,12 @@ test('descargar una copia, recargar la página y volver a cargarla', async ({ pa
   // Al recargar se pierde lo que había en memoria: no queda nada que descargar.
   await page.reload();
   await expect(page.getByRole('button', { name: 'Descargar copia' })).toBeDisabled();
-  await expect(page.getByText('Todavía no hay datos tuyos que guardar.')).toBeVisible();
+  await expect(
+    page.getByRole('main').getByText('Todavía no hay datos tuyos que guardar.'),
+  ).toBeVisible();
 
   await page
-    .locator('input[type="file"]')
+    .locator('main input[type="file"]')
     .setInputFiles({ name: 'mi-copia.db', mimeType: 'application/vnd.sqlite3', buffer: copy });
   await expect(
     page.getByRole('status').filter({ hasText: 'Copia cargada: mi-copia.db.' }),
@@ -70,7 +72,7 @@ test('cargar una copia sobre datos propios pide confirmación', async ({ page })
   const copy = await readFile(await (await downloading).path());
 
   const load = page.getByRole('button', { name: 'Cargar copia…' });
-  const input = page.locator('input[type="file"]');
+  const input = page.locator('main input[type="file"]');
   const file = { name: 'mi-copia.db', mimeType: 'application/vnd.sqlite3', buffer: copy };
 
   await input.setInputFiles(file);
@@ -93,14 +95,16 @@ test('un fichero que no es una copia se rechaza y no toca los datos', async ({ p
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await openBackup(page);
   await expect(page.getByRole('button', { name: 'Descargar copia' })).toBeDisabled();
-  await expect(page.getByText('En el modo demo no hay datos tuyos que guardar.')).toBeVisible();
+  await expect(
+    page.getByRole('main').getByText('En el modo demo no hay datos tuyos que guardar.'),
+  ).toBeVisible();
 
-  await page.locator('input[type="file"]').setInputFiles(STATEMENT);
+  await page.locator('main input[type="file"]').setInputFiles(STATEMENT);
   await expect(page.getByRole('alert')).toContainText(
     'El fichero no es una copia de AstroFinance. Tus datos siguen como estaban.',
   );
 
   await openNav(page);
-  await page.getByRole('link', { name: 'Resumen' }).click();
+  await page.getByRole('link', { name: 'Resumen', exact: true }).click();
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
 });

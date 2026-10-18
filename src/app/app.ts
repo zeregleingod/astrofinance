@@ -9,6 +9,7 @@ import { RouterOutlet } from '@angular/router';
 import { DemoBanner } from '@core/layout/demo-banner';
 import { Sidebar } from '@core/layout/sidebar';
 import { TEXTS } from '@core/i18n/texts';
+import { BackupQuickActions } from '@features/settings/backup-quick-actions';
 import { map } from 'rxjs';
 
 /** Por debajo de este ancho la barra lateral pasa a ser un panel desplegable. */
@@ -18,6 +19,7 @@ const COMPACT_QUERY = '(max-width: 839.98px)';
   selector: 'app-root',
   imports: [
     RouterOutlet,
+    BackupQuickActions,
     DemoBanner,
     Sidebar,
     MatButtonModule,
@@ -33,7 +35,9 @@ const COMPACT_QUERY = '(max-width: 839.98px)';
         [opened]="!compact()"
         [fixedInViewport]="compact()"
       >
-        <app-sidebar (navigate)="compact() && sidenav.close()" />
+        <app-sidebar (navigate)="compact() && sidenav.close()">
+          <app-backup-quick-actions />
+        </app-sidebar>
       </mat-sidenav>
       <mat-sidenav-content>
         @if (compact()) {
@@ -47,9 +51,9 @@ const COMPACT_QUERY = '(max-width: 839.98px)';
               <mat-icon aria-hidden="true">menu</mat-icon>
             </button>
             <h1 class="toolbar-title">{{ texts.app.name }}</h1>
+            <app-demo-banner class="toolbar-demo" compact />
           </mat-toolbar>
         }
-        <app-demo-banner />
         <main>
           <router-outlet />
         </main>

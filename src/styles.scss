@@ -73,6 +73,33 @@ html {
 :root {
   --af-positive: light-dark(#1b6b3a, #7fd99a);
   --af-negative: light-dark(#b3261e, #ffb4ab);
+  // Ancho de las tablas y paneles de las páginas: el de la hoja del Resumen anual.
+  --af-table-width: 1400px;
+  // Fondo de la fila de una tabla bajo el cursor.
+  --af-row-hover: color-mix(
+    in srgb,
+    var(--mat-sys-primary) 6%,
+    var(--mat-sys-surface-container-lowest)
+  );
+}
+
+// Cabecera de todas las páginas: el título y, a la derecha, el selector de mes o año si lo hay.
+// Con el alto del selector siempre reservado, el título y el contenido no saltan al cambiar de
+// página.
+.page-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  margin-bottom: 24px;
+
+  h2 {
+    margin: 0;
+    font: var(--mat-sys-headline-small);
+    font-weight: 600;
+  }
 }
 
 body {

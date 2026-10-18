@@ -2,19 +2,14 @@
   display: block;
 }
 
-.page-header {
+.header-actions {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 24px;
+  gap: 8px;
+}
 
-  h2 {
-    margin: 0;
-    font: var(--mat-sys-headline-small);
-    font-weight: 600;
-  }
+.fold-all {
+  background: var(--mat-sys-surface-container-lowest);
 }
 
 .kpis {
@@ -61,9 +56,18 @@
 
 .groups {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  // Tres tarjetas por fila; en pantallas estrechas, dos y luego una.
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   align-items: start;
+
+  @media (width < 1200px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (width < 760px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 
 .group {
@@ -71,25 +75,58 @@
   background: var(--mat-sys-surface-container-lowest);
   overflow: hidden;
 
-  ul {
-    margin: 0;
-    padding: 8px 20px 16px;
-    list-style: none;
+  padding-bottom: 12px;
+
+  &.collapsed {
+    padding-bottom: 0;
+  }
+}
+
+// Cada subcategoría: su nombre y subtotal y, debajo, sus movimientos.
+.line {
+  padding: 8px 20px 0;
+
+  & + & {
+    margin-top: 4px;
+    border-top: 1px solid var(--mat-sys-outline-variant);
   }
 
-  li {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    padding: 6px 0;
+  app-movement-list {
+    display: block;
+    margin: 4px 0 4px 20px;
 
-    &.empty {
-      color: var(--mat-sys-on-surface-variant);
+    // `display: block` taparía el `display: none` con el que el navegador oculta `[hidden]`.
+    &[hidden] {
+      display: none;
     }
+  }
+
+  &.empty {
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.line-header {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+
+  h4 {
+    flex: 1;
+    margin: 0;
+    font: var(--mat-sys-title-small);
+    font-weight: 500;
+  }
+
+  .amount {
+    font-weight: 600;
   }
 }
 
 .group-header {
+  position: relative;
+  isolation: isolate;
   display: flex;
   align-items: baseline;
   justify-content: space-between;
@@ -107,6 +144,73 @@
   }
 }
 
+// Plegar y desplegar: el botón ocupa toda la cabecera (también el importe), pero solo el
+// nombre es su texto. El chevron apunta abajo cuando el bloque está desplegado.
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+
+  &::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+  }
+
+  &:focus-visible {
+    outline: none;
+
+    &::after {
+      outline: 2px solid var(--mat-sys-primary);
+      outline-offset: -2px;
+      border-radius: 4px;
+    }
+  }
+}
+
+.chevron {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  font-size: 20px;
+  color: var(--mat-sys-on-surface-variant);
+  transform: rotate(90deg);
+  transition: transform 150ms ease;
+
+  [aria-expanded='false'] > & {
+    transform: none;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    transition: none;
+  }
+}
+
+.group-header h3 .toggle {
+  margin-left: -4px;
+}
+
+// Fondo de la cabecera: el color de la categoría atenuado, en tono pastel.
+.tint {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  width: 100%;
+  height: 100%;
+
+  rect {
+    fill-opacity: 0.22;
+  }
+}
+
 .bar {
   display: block;
   width: 100%;
@@ -121,12 +225,9 @@
 
 // Sin color propio: el atributo `fill` no existe y se usa el neutro del tema.
 .bar rect:not([fill]),
+.tint rect:not([fill]),
 .dot circle:not([fill]) {
   fill: var(--mat-sys-outline-variant);
-}
-
-.name {
-  flex: 1;
 }
 
 .amount {

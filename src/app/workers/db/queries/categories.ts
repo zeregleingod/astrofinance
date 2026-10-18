@@ -5,7 +5,9 @@ import {
   buildCategoryTree,
   categoryNameError,
   isCategoryColor,
+  isReorderOf,
   type CategoryGroup,
+  type CategoryOrder,
   type CategoryUpdate,
   type NewCategory,
 } from '@domain/categories/category-tree';
@@ -135,6 +137,24 @@ export function deleteCategory(db: SqlDb, id: number): number {
   });
 }
 
+/**
+ * Ordena las hermanas de un nivel tal como llegan en `ids`. Deben ser todas y solo ellas: una
+ * subcategoría no puede pasar a otra principal. Si la lista no cuadra (p. ej. ha cambiado
+ * mientras tanto), lanza `CategoryError` sin tocar nada.
+ */
+export function reorderCategories(db: SqlDb, order: CategoryOrder): undefined {
+  return db.transaction(() => {
+    const current = db
+      .rows('SELECT id FROM categories WHERE parent_id IS ? AND archived = 0', [order.parentId])
+      .map((row) => Number(row['id']));
+    if (!isReorderOf(order.ids, current)) throw new CategoryError('orden-desfasado');
+    order.ids.forEach((id, index) => {
+      db.run('UPDATE categories SET sort_order = ? WHERE id = ?', [index + 1, id]);
+    });
+    return undefined;
+  });
+}
+
 /** Solo hay dos niveles: una subcategoría cuelga siempre de una categoría principal. */
 function requireGroup(db: SqlDb, id: number): void {
   const found = db.value(
@@ -178,6 +198,17 @@ export function categoryUpdateParam(params: unknown): CategoryUpdate {
   return fields['kind'] === undefined
     ? { id, name, color: color(fields) }
     : { id, name, kind: kind(fields) };
+}
+
+export function categoryOrderParam(params: unknown): CategoryOrder {
+  const fields = record(params);
+  const parentId = fields['parentId'] ?? null;
+  const ids = fields['ids'];
+  if (!Array.isArray(ids)) throw invalid('ids');
+  return {
+    parentId: parentId === null ? null : positiveId(parentId, 'parentId'),
+    ids: ids.map((id: unknown) => positiveId(id, 'ids')),
+  };
 }
 
 export function categoryIdParam(params: unknown): number {

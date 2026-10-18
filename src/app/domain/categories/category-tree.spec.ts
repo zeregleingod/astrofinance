@@ -6,6 +6,8 @@ import {
   categoryNameError,
   groupTransactionCount,
   isCategoryColor,
+  isReorderOf,
+  moveItem,
   nextCategoryColor,
   type CategoryRecord,
 } from './category-tree';
@@ -126,5 +128,35 @@ describe('categoryErrorCode', () => {
       null,
     );
     expect(categoryErrorCode('nombre-vacio')).toBeNull();
+  });
+});
+
+describe('moveItem', () => {
+  it('lleva un elemento a otra posición sin tocar la lista original', () => {
+    const ids = [1, 2, 3, 4];
+    expect(moveItem(ids, 0, 2)).toEqual([2, 3, 1, 4]);
+    expect(moveItem(ids, 3, 0)).toEqual([4, 1, 2, 3]);
+    expect(moveItem(ids, 1, 1)).toEqual([1, 2, 3, 4]);
+    expect(ids).toEqual([1, 2, 3, 4]);
+  });
+
+  it('ajusta los índices fuera de la lista a sus extremos', () => {
+    expect(moveItem([1, 2, 3], 0, 9)).toEqual([2, 3, 1]);
+    expect(moveItem([1, 2, 3], 2, -1)).toEqual([3, 1, 2]);
+    expect(moveItem([1, 2, 3], 7, 0)).toEqual([1, 2, 3]);
+  });
+});
+
+describe('isReorderOf', () => {
+  it('acepta los mismos ids en otro orden', () => {
+    expect(isReorderOf([3, 1, 2], [1, 2, 3])).toBe(true);
+    expect(isReorderOf([], [])).toBe(true);
+  });
+
+  it('rechaza que falte, sobre o se repita alguno', () => {
+    expect(isReorderOf([1, 2], [1, 2, 3])).toBe(false);
+    expect(isReorderOf([1, 2, 3, 4], [1, 2, 3])).toBe(false);
+    expect(isReorderOf([1, 1, 2], [1, 2, 3])).toBe(false);
+    expect(isReorderOf([1, 2, 9], [1, 2, 3])).toBe(false);
   });
 });

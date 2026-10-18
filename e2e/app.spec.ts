@@ -13,7 +13,10 @@ test('la barra lateral lista las secciones y marca la activa', async ({ page }) 
   if (await openMenu.isVisible()) {
     await openMenu.click();
   }
-  await expect(nav.getByRole('link', { name: 'Resumen' })).toHaveAttribute('aria-current', 'page');
+  await expect(nav.getByRole('link', { name: 'Resumen', exact: true })).toHaveAttribute(
+    'aria-current',
+    'page',
+  );
 });
 
 test('la CSP no permite unsafe-inline ni unsafe-eval en scripts', async ({ page }) => {
@@ -40,19 +43,19 @@ test('la CSP no permite unsafe-inline ni unsafe-eval en scripts', async ({ page 
   }
 });
 
-test('el interruptor de modo oscuro cambia el tema en caliente y se recuerda', async ({ page }) => {
+test('el botón de modo oscuro cambia el tema en caliente y se recuerda', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
   await page.goto('/');
   const openMenu = page.getByRole('button', { name: 'Abrir menú' });
   if (await openMenu.isVisible()) {
     await openMenu.click();
   }
-  const toggle = page.getByRole('switch', { name: 'Modo oscuro' });
-  await expect(toggle).toHaveAttribute('aria-checked', 'false');
+  const toggle = page.getByRole('button', { name: 'Modo oscuro' });
+  await expect(toggle).toHaveAttribute('aria-pressed', 'false');
 
   await toggle.click();
 
-  await expect(toggle).toHaveAttribute('aria-checked', 'true');
+  await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('html')).toHaveClass(/theme-dark/);
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/theme-dark/);

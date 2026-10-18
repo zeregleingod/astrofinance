@@ -12,7 +12,8 @@ test('la barra lateral ofrece ver la demo y la abre', async ({ page }) => {
   await openNav(page);
   await page.getByRole('link', { name: 'Ver la demo' }).click();
 
-  await expect(page.getByRole('status').filter({ hasText: 'Modo demo' })).toBeVisible();
+  // En móvil, mientras se cierra el menú, se ven a la vez su aviso y el de la barra superior.
+  await expect(page.getByRole('status').filter({ hasText: 'Modo demo' }).first()).toBeVisible();
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
 });
 
@@ -115,10 +116,20 @@ test('cada movimiento ocupa una sola línea', async ({ page }) => {
   expect(Math.max(...heights)).toBeLessThan(56);
 });
 
+test('el aviso de la demo no ocupa sitio sobre las páginas', async ({ page, isMobile }) => {
+  await page.goto('/demo');
+  await expect(page.getByRole('status').filter({ hasText: 'Modo demo' })).toBeVisible();
+  const main = await page.locator('main').boundingBox();
+  // En escritorio la página empieza arriba del todo; en móvil, bajo la barra de siempre.
+  const toolbar = isMobile ? ((await page.locator('mat-toolbar').boundingBox())?.height ?? 0) : 0;
+  expect(main?.y).toBe(toolbar);
+});
+
 test('salir de la demo descarta los datos', async ({ page }) => {
   await page.goto('/demo');
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
 
+  await openNav(page);
   await page.getByRole('button', { name: 'Salir de la demo' }).click();
 
   await expect(page.getByText('Modo demo')).toHaveCount(0);

@@ -11,21 +11,6 @@
   flex-shrink: 0;
 }
 
-.page-header {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  margin-bottom: 24px;
-
-  h2 {
-    margin: 0;
-    font: var(--mat-sys-headline-small);
-    font-weight: 600;
-  }
-}
-
 .search {
   width: min(100%, 420px);
   margin-bottom: 16px;
@@ -63,6 +48,11 @@ table {
 }
 
 // La cabecera se queda a la vista al desplazar las filas.
+// La fila bajo el cursor se resalta, como en el resto de tablas.
+tbody tr:hover > * {
+  background: var(--af-row-hover);
+}
+
 thead th {
   position: sticky;
   top: 0;

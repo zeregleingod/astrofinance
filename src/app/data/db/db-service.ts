@@ -1,6 +1,11 @@
 import { InjectionToken, Service, computed, inject, signal } from '@angular/core';
 import type { RestoredDatabase } from '@domain/backup/database-file';
-import type { CategoryGroup, CategoryUpdate, NewCategory } from '@domain/categories/category-tree';
+import type {
+  CategoryGroup,
+  CategoryOrder,
+  CategoryUpdate,
+  NewCategory,
+} from '@domain/categories/category-tree';
 import type {
   CategoryOption,
   ImportBatchInput,
@@ -8,6 +13,7 @@ import type {
 } from '@domain/imports/import-batch';
 import type { MonthReport } from '@domain/reports/month-report';
 import type { TransactionRow } from '@domain/reports/transaction-row';
+import type { YearReport } from '@domain/reports/year-report';
 import type { NewRule, RuleChange, RuleRow, RuleUpdate } from '@domain/rules/rule';
 import type { DbApi } from '@workers/db/db-api';
 import type { RpcEndpoint } from '@workers/rpc/protocol';
@@ -151,6 +157,10 @@ export class DbService {
     return this.call((c) => c.call('monthReport', { period }, { signal }));
   }
 
+  yearReport(year: number, signal?: AbortSignal): Promise<YearReport> {
+    return this.call((c) => c.call('yearReport', { year }, { signal }));
+  }
+
   transactions(period: string, signal?: AbortSignal): Promise<readonly TransactionRow[]> {
     return this.call((c) => c.call('transactions', { period }, { signal }));
   }
@@ -190,6 +200,12 @@ export class DbService {
     const freed = await this.call((c) => c.call('deleteCategory', { id }));
     this.dataChanged();
     return freed;
+  }
+
+  /** Cambia el orden de las principales, o de las subcategorías de una, en todas las vistas. */
+  async reorderCategories(order: CategoryOrder): Promise<void> {
+    await this.call((c) => c.call('reorderCategories', order));
+    this.dataChanged();
   }
 
   /** Las reglas de clasificación, en el orden en que se aplican. */

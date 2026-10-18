@@ -30,7 +30,7 @@ async function addRule(page: Page, operator: string, pattern: string, category: 
 
 test('crear reglas, ver los cambios, cancelar y después confirmar', async ({ page }) => {
   await page.goto('/importar');
-  await page.locator('input[type="file"]').setInputFiles(STATEMENT);
+  await page.locator('main input[type="file"]').setInputFiles(STATEMENT);
   await page.getByRole('button', { name: `Guardar (${TOTAL})` }).click();
   await expect(page.getByText(`Movimientos guardados: ${TOTAL}.`)).toBeVisible();
 

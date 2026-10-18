@@ -1,6 +1,6 @@
 # ADR-0005: Modelo de datos (esquema inicial)
 
-- **Estado:** aceptado
+- **Estado:** aceptado; el reparto de los reembolsos lo amplía el ADR-0013
 - **Fecha:** 2026-10-08
 
 ## Contexto

@@ -81,6 +81,14 @@ describe('datos de demo', () => {
     expect(db.value('SELECT sum(pending_cents) FROM shared_expense_status')).toBe(9210 + 3929);
   });
 
+  it('reparte un Bizum de septiembre a una subcategoría, sin enlazarlo a ningún gasto', () => {
+    expect(
+      db.rows(
+        `SELECT c.name, r.amount_cents FROM reimbursements r JOIN categories c ON c.id = r.category_id`,
+      ),
+    ).toEqual([{ name: 'Comida', amount_cents: 1163 }]);
+  });
+
   it('imputa a septiembre los reembolsos que llegan en octubre', () => {
     expect(
       db.rows(

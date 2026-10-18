@@ -61,12 +61,22 @@ export type CategoryUpdate =
   | { readonly id: number; readonly name: string; readonly color: string | null }
   | { readonly id: number; readonly name: string; readonly kind: CategoryKind };
 
+/**
+ * Nuevo orden de las hermanas de un nivel: las principales (`parentId: null`) o las
+ * subcategorías de una misma principal. `ids` lleva todas, de la primera a la última.
+ */
+export interface CategoryOrder {
+  readonly parentId: number | null;
+  readonly ids: readonly number[];
+}
+
 const NAME_ERROR_CODES = ['nombre-vacio', 'nombre-largo', 'nombre-repetido'] as const;
 
 export const CATEGORY_ERROR_CODES = [
   ...NAME_ERROR_CODES,
   'principal-inexistente',
   'categoria-inexistente',
+  'orden-desfasado',
 ] as const;
 
 export type CategoryNameErrorCode = (typeof NAME_ERROR_CODES)[number];
@@ -143,6 +153,25 @@ export function groupTransactionCount(group: CategoryGroup): number {
   return group.subcategories.reduce(
     (total, subcategory) => total + subcategory.transactionCount,
     group.transactionCount,
+  );
+}
+
+/** Copia de `items` con el elemento de `from` en `to`; los índices se ajustan a la lista. */
+export function moveItem<T>(items: readonly T[], from: number, to: number): T[] {
+  const result = [...items];
+  if (from < 0 || from >= items.length) return result;
+  const [item] = result.splice(from, 1) as [T];
+  result.splice(Math.min(Math.max(to, 0), result.length), 0, item);
+  return result;
+}
+
+/** `ids` tiene exactamente los mismos elementos que `current`, cada uno una vez. */
+export function isReorderOf(ids: readonly number[], current: readonly number[]): boolean {
+  const pending = new Set(current);
+  return (
+    ids.length === current.length &&
+    pending.size === current.length &&
+    ids.every((id) => pending.delete(id))
   );
 }
 

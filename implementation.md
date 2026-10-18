@@ -118,7 +118,7 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 
 ## Fase 4 — Categorías y reglas
 
-- [ ] **T4.1 CRUD de categorías y subcategorías** (árbol, color, tipo ingreso/gasto); al borrar, sus movimientos quedan sin categoría previa confirmación (ADR-0008). El tipo es de las subcategorías; las principales solo agrupan y tienen color (ADR-0009). *(Hecho en «Configuración › Categorías», `features/settings`: alta, edición (nombre y color de las principales; nombre y tipo de las subcategorías), recuento de movimientos y borrado; falta mover una subcategoría a otra principal y reordenar.)*
+- [ ] **T4.1 CRUD de categorías y subcategorías** (árbol, color, tipo ingreso/gasto); al borrar, sus movimientos quedan sin categoría previa confirmación (ADR-0008). El tipo es de las subcategorías; las principales solo agrupan y tienen color (ADR-0009). *(Hecho en «Configuración › Categorías», `features/settings`: alta, edición (nombre y color de las principales; nombre y tipo de las subcategorías), recuento de movimientos y borrado; reordenar las principales entre sí y las subcategorías dentro de su principal, arrastrando o con las flechas, y los resúmenes siguen ese orden (ADR-0014); falta mover una subcategoría a otra principal.)*
 - [ ] **T4.2 CRUD de reglas**: ordenar por prioridad (arrastrar), activar/desactivar, **probar en vivo** con recuento y ejemplos de coincidencias. *(Hecho en «Configuración › Reglas de categoría», `features/settings/category-rules-page`: alta, edición en la fila y borrado, con el recuento de movimientos que ha clasificado cada regla (ADR-0011); falta ordenar, activar/desactivar y probar en vivo.)*
 - [x] **T4.3 Acción “Autoclasificar”**: dry-run → diálogo con diff agrupado por categoría → **confirmar** → aplicar en una única transacción; por defecto no sobrescribe clasificaciones manuales. *(Hecho como «Aplicar a movimientos existentes»: los cambios se enseñan en una tabla en la propia página, uno por movimiento, y nunca se pisan las clasificaciones manuales.)*
   - Test primero (e2e): crear regla → autoclasificar → cancelar (sin cambios) → repetir y confirmar.
@@ -132,7 +132,7 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 - [ ] **T5.2 Alta/edición/borrado manual** con validación (`Money`, fecha).
 - [ ] **T5.3 Edición masiva** (asignar categoría a una selección).
 - [ ] **T5.4 E2E del flujo manual**: crear → categorizar → guardar → recargar → los datos persisten.
-- [ ] **T5.5 Gastos compartidos y reembolsos**: marcar un gasto como compartido (persona + parte esperada), enlazar un ingreso a uno o varios gastos, ver lo pendiente de cobrar por persona; al enlazar, proponer el periodo del gasto como mes de imputación.
+- [ ] **T5.5 Gastos compartidos y reembolsos** (ADR-0013): marcar un gasto como compartido (persona + parte esperada, en % o importe), repartir un ingreso entre uno o varios gastos y subcategorías de gasto, ver lo pendiente de cobrar por persona; cada reembolso aparece bajo su gasto y los resúmenes enseñan aparte lo devuelto. *(Hechos el modelo —migración 005— y los informes: cada parte cuenta en la categoría y el mes de su destino y `reimbursedCents` separa lo devuelto. Falta la interfaz.)*
   - Test primero: un Bizum que cubre dos gastos; reembolso parcial; borrar el Bizum deja el gasto pendiente.
 - [ ] **T5.6 Traspasos entre cuentas**: crear o emparejar las dos patas de un traspaso; saldo por cuenta (incluidas las huchas de ahorro).
 
@@ -175,12 +175,13 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 > Librería de gráficos ligera y 100 % local (propuesta: Chart.js con un envoltorio propio). Registrar como ADR.
 
 - [ ] **T8.1 Selector de mes/rango y KPIs**: ingresos, gastos, balance, tasa de ahorro.
-- [ ] **T8.2 Desglose por categoría y subcategoría** (*drill-down*) con gráfico y tabla accesible.
+- [ ] **T8.2 Desglose por categoría y subcategoría** (*drill-down*) con gráfico y tabla accesible. *(Hecho el desglose en tarjetas del Resumen: cada subcategoría lista sus movimientos del mes —fecha, concepto e importe— con lo devuelto resaltado bajo su gasto. Falta el gráfico.)*
 - [ ] **T8.3 Tendencia de 12 meses** y comparación con el mes anterior.
 - [ ] **T8.4 Vista mensual individual** con movimientos y navegación mes a mes. *(Base hecha para la demo: Resumen por bloques y Movimientos con `?mes=AAAA-MM`.)*
 - [ ] **T8.5 Rendimiento**: *benchmark* con ≥ 50 000 movimientos; las consultas del dashboard no bloquean la UI (todo en el worker).
 - [ ] **T8.6 Accesibilidad**: resumen textual de gráficos, no depender solo del color, contraste AA, navegación por teclado.
 - [ ] **T8.7 Presupuesto frente a real** por categoría y mes, con copia del presupuesto al mes siguiente.
+- [x] **T8.8 Resumen anual** (`/anual?anio=AAAA`): la hoja anual de la hoja de cálculo, con una fila por subcategoría agrupada bajo su categoría, una columna por mes y el total del año; pie con los gastos totales y el balance sin el ahorro apartado (ingresos menos gastos); compacta, para verse entera en una pantalla de 1080 px. Cada mes cuadra con su Resumen mensual (mismas reglas de signo y de traspasos).
 
 ---
 

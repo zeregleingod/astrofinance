@@ -431,7 +431,7 @@ describe('Migración 001: esquema inicial', () => {
       }
     });
 
-    it('carga los seis grupos del Excel con sus subcategorías', () => {
+    it('carga los grupos de la plantilla con sus subcategorías', () => {
       expect(
         db.selectValues('SELECT name FROM categories WHERE parent_id IS NULL ORDER BY sort_order'),
       ).toEqual([
@@ -440,9 +440,10 @@ describe('Migración 001: esquema inicial', () => {
         'Hipoteca y vivienda',
         'Préstamos y financiaciones',
         'Suministros',
+        'Transporte',
         'Variables',
       ]);
-      expect(Number(value('SELECT count(*) FROM categories WHERE parent_id IS NOT NULL'))).toBe(23);
+      expect(Number(value('SELECT count(*) FROM categories WHERE parent_id IS NOT NULL'))).toBe(28);
     });
 
     it('el tipo es de las subcategorías: los grupos no tienen', () => {

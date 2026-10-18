@@ -3,22 +3,27 @@ import { Component, inject, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { MatSlideToggleModule } from '@angular/material/slide-toggle';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { TEXTS } from '@core/i18n/texts';
+import { DemoBanner } from '@core/layout/demo-banner';
 import { buildNavItems, groupNavItems } from '@core/navigation/nav-items';
 import { ThemeService } from '@core/theme/theme-service';
 import { DbService } from '@data/db/db-service';
 
-/** Barra lateral: marca, una entrada por sección (agrupadas en apartados), acceso a la demo y el modo oscuro. */
+/**
+ * Barra lateral: marca, accesos rápidos (los que se proyecten y el modo oscuro), una entrada por
+ * sección (agrupadas en apartados) y acceso a la demo (o su aviso, dentro de ella).
+ */
 @Component({
   selector: 'app-sidebar',
   imports: [
+    DemoBanner,
     NgOptimizedImage,
     MatButtonModule,
     MatIconModule,
     MatListModule,
-    MatSlideToggleModule,
+    MatTooltipModule,
     RouterLink,
     RouterLinkActive,
   ],
@@ -27,6 +32,19 @@ import { DbService } from '@data/db/db-service';
       <img ngSrc="logo.svg" width="36" height="36" alt="" priority />
       <h1 class="brand-name">{{ texts.app.name }}</h1>
     </header>
+    <div class="quick-actions" role="group" [attr.aria-label]="texts.quickActions.label">
+      <ng-content />
+      <button
+        mat-icon-button
+        type="button"
+        [attr.aria-label]="texts.theme.dark"
+        [attr.aria-pressed]="theme.isDark()"
+        [matTooltip]="texts.theme.dark"
+        (click)="theme.toggle()"
+      >
+        <mat-icon [fontIcon]="theme.isDark() ? 'dark_mode' : 'light_mode'" aria-hidden="true" />
+      </button>
+    </div>
     <nav [attr.aria-label]="texts.nav.label">
       @for (section of sections; track section.label) {
         <p class="section-label" aria-hidden="true">{{ section.label ?? texts.nav.section }}</p>
@@ -52,19 +70,18 @@ import { DbService } from '@data/db/db-service';
       }
     </nav>
     <footer class="footer">
-      <!-- Abrir la demo descarta la BD abierta: no se ofrece si ya hay algo del usuario en ella. -->
-      @if (db.mode() !== 'demo' && !db.hasUserData()) {
+      <!--
+        Dentro de la demo, su aviso y la salida. Fuera, abrirla descarta la BD abierta: no se
+        ofrece si ya hay algo del usuario en ella.
+      -->
+      @if (db.mode() === 'demo') {
+        <app-demo-banner (exited)="navigate.emit()" />
+      } @else if (!db.hasUserData()) {
         <a mat-stroked-button class="demo-link" routerLink="/demo" (click)="navigate.emit()">
           <mat-icon aria-hidden="true">science</mat-icon>
           {{ texts.demo.open }}
         </a>
       }
-      <mat-slide-toggle labelPosition="before" [checked]="theme.isDark()" (change)="theme.toggle()">
-        <span class="toggle-label">
-          <mat-icon aria-hidden="true">dark_mode</mat-icon>
-          {{ texts.theme.dark }}
-        </span>
-      </mat-slide-toggle>
     </footer>
   `,
   styles: `
@@ -80,7 +97,14 @@ import { DbService } from '@data/db/db-service';
       display: flex;
       align-items: center;
       gap: 12px;
-      padding: 0 8px 24px;
+      padding: 0 8px 16px;
+    }
+
+    .quick-actions {
+      display: flex;
+      gap: 4px;
+      padding: 0 4px 16px;
+      color: var(--mat-sys-on-surface-variant);
     }
 
     .brand-name {
@@ -136,18 +160,6 @@ import { DbService } from '@data/db/db-service';
 
     .demo-link {
       width: 100%;
-      margin-bottom: 16px;
-    }
-
-    mat-slide-toggle {
-      width: 100%;
-    }
-
-    .toggle-label {
-      display: inline-flex;
-      align-items: center;
-      gap: 12px;
-      color: var(--mat-sys-on-surface-variant);
     }
   `,
 })

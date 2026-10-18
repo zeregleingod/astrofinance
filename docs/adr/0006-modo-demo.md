@@ -12,12 +12,10 @@ del usuario.
 ## Decisión
 
 - **Ruta `/demo`.** `demoGuard` abre una BD **nueva en memoria** en el worker de BD y redirige al
-  Resumen. Mientras está abierta, una franja fija (`DemoBanner`, `role="status"`) avisa de que los
-  datos son ficticios y no se guardan, con el botón «Salir de la demo». Salir o recargar la
-  página descarta todo; la demo nunca toca OPFS.
+  Resumen. Mientras está abierta, el pie de la barra lateral (en el sitio de «Ver la demo») avisa de que los datos son ficticios y no se guardan (`DemoBanner`, `role="status"`), con el botón «Salir de la demo»; en móvil, con la barra plegada, una etiqueta «Demo» en la barra superior. El aviso no ocupa sitio sobre las páginas. Salir o recargar la página descarta todo; la demo nunca toca OPFS.
 - **Datos** en `workers/db/seeds/demo-data.ts`: anónimos (persona «Alex», bancos y comercios
   «Demo»), tres meses (julio a septiembre de 2026), todos los bloques de la plantilla y los casos
-  del ADR-0005. Las categorías extra (Agua, Internet y móvil, Mascotas, Transporte) solo se crean
+  del ADR-0005. Las categorías extra (Agua, Internet y móvil, Mascotas) solo se crean
   en la BD de demo. Un test falla si aparece algún nombre real del Excel.
 - **Vertical mínima** para poder verla, adelantando partes del plan:
   - T2.2: RPC tipado con ids, tiempo de espera y cancelación por `AbortSignal`.

@@ -15,7 +15,6 @@ export const DEMO_EXTRA_CATEGORIES = [
   ['Suministros', 'Agua'],
   ['Suministros', 'Internet y móvil'],
   ['Variables', 'Mascotas'],
-  ['Variables', 'Transporte'],
 ] as const;
 
 export function loadDemoData(db: SqlDb): void {
@@ -50,7 +49,7 @@ class DemoBuilder {
 
     const rules = {
       supermarket: this.rule('Supermercados', 10, 'contiene', 'SUPERMERCADO', 'Comida'),
-      fuel: this.rule('Gasolineras', 20, 'contiene', 'GASOLINERA', 'Transporte'),
+      fuel: this.rule('Gasolineras', 20, 'contiene', 'GASOLINERA', 'Gasolina'),
       streaming: this.rule(
         'Streaming',
         30,
@@ -376,6 +375,15 @@ class DemoBuilder {
         ]);
       }
       this.tx(main, d(25), -1250, 'Frutería La Huerta', 'Comida');
+      if (m === 2) {
+        // Lo del mercado y la fruta no se reparte ticket a ticket: Alex devuelve su mitad a
+        // la subcategoría.
+        this.reimburseToCategory(
+          this.tx(main, d(26), 1163, 'Bizum recibido - Alex - Mercado y fruta', 'Comida'),
+          'Comida',
+          1163,
+        );
+      }
 
       this.tx(main, d(23), -791, 'Farmacia Centro', 'Cuidado personal');
       if (m === 0) this.tx(main, d(11), -2500, 'Peluquería Demo', 'Cuidado personal');
@@ -431,8 +439,8 @@ class DemoBuilder {
       this.tx(main, d(10), -1515, 'Tienda de animales Demo - Pienso', 'Mascotas');
       if (m === 1) this.tx(main, d(3), -14000, 'Clínica veterinaria Demo', 'Mascotas');
 
-      this.tx(main, d(6), -5500, 'Gasolinera Demo', 'Transporte', { ruleId: rules.fuel });
-      if (m !== 1) this.tx(main, d(18), -650, 'Parking Centro', 'Transporte');
+      this.tx(main, d(6), -5500, 'Gasolinera Demo', 'Gasolina', { ruleId: rules.fuel });
+      if (m !== 1) this.tx(main, d(18), -650, 'Parking Centro', 'Coche');
 
       // --- Presupuesto del mes ---
       for (const [category, cents] of [
@@ -440,7 +448,7 @@ class DemoBuilder {
         ['Restaurantes', 8000],
         ['Ocio', 5000],
         ['Ropa', 6000],
-        ['Transporte', 8000],
+        ['Gasolina', 8000],
         ['Cuidado personal', 6000],
       ] as const) {
         this.db.run('INSERT INTO budgets (category_id, period, amount_cents) VALUES (?, ?, ?)', [
@@ -629,6 +637,13 @@ class DemoBuilder {
         [expense, reimbursement, cents],
       );
     }
+  }
+
+  private reimburseToCategory(reimbursement: number, category: string, cents: number): void {
+    this.db.run(
+      'INSERT INTO reimbursements (category_id, reimbursement_tx_id, amount_cents) VALUES (?, ?, ?)',
+      [this.category(category), reimbursement, cents],
+    );
   }
 
   private installment(loan: number, number: number, due: string, cents: number, tx: number): void {

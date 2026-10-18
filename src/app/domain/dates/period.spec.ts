@@ -4,7 +4,9 @@ import {
   isPeriod,
   isoDate,
   periodParts,
+  periodYears,
   resolvePeriod,
+  resolveYear,
   shiftPeriod,
 } from './period';
 
@@ -54,6 +56,19 @@ describe('periodos (AAAA-MM)', () => {
     expect(resolvePeriod('2025-01', available)).toBe('2026-09');
     expect(resolvePeriod(undefined, available)).toBe('2026-09');
     expect(resolvePeriod('2026-08', [])).toBeUndefined();
+  });
+
+  it('da los años con datos, sin repetir y en orden', () => {
+    expect(periodYears(['2025-11', '2025-12', '2026-01', '2026-09'])).toEqual([2025, 2026]);
+    expect(periodYears([])).toEqual([]);
+  });
+
+  it('usa el año pedido si tiene datos y si no el más reciente', () => {
+    expect(resolveYear('2025', [2025, 2026])).toBe(2025);
+    expect(resolveYear('2024', [2025, 2026])).toBe(2026);
+    expect(resolveYear('dos mil', [2025, 2026])).toBe(2026);
+    expect(resolveYear(undefined, [2025, 2026])).toBe(2026);
+    expect(resolveYear('2025', [])).toBeUndefined();
   });
 });
 

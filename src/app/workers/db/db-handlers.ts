@@ -7,11 +7,13 @@ import { migrate } from './migrate';
 import { MIGRATIONS } from './migrations';
 import {
   categoryIdParam,
+  categoryOrderParam,
   categoryUpdateParam,
   categoryTree,
   createCategory,
   deleteCategory,
   newCategoryParam,
+  reorderCategories,
   updateCategory,
 } from './queries/categories';
 import {
@@ -21,7 +23,13 @@ import {
   hashesParam,
   importBatchParam,
 } from './queries/imports';
-import { allTransactions, listPeriods, monthReport, monthTransactions } from './queries/reports';
+import {
+  allTransactions,
+  listPeriods,
+  monthReport,
+  monthTransactions,
+  yearReport,
+} from './queries/reports';
 import {
   applyRules,
   createRule,
@@ -90,6 +98,7 @@ export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcH
     close,
     periods: () => listPeriods(requireDb()),
     monthReport: (params) => monthReport(requireDb(), periodParam(params)),
+    yearReport: (params) => yearReport(requireDb(), yearParam(params)),
     transactions: (params) => monthTransactions(requireDb(), periodParam(params)),
     allTransactions: () => allTransactions(requireDb()),
     categoryOptions: () => categoryOptions(requireDb()),
@@ -97,6 +106,7 @@ export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcH
     createCategory: (params) => createCategory(requireDb(), newCategoryParam(params)),
     updateCategory: (params) => updateCategory(requireDb(), categoryUpdateParam(params)),
     deleteCategory: (params) => deleteCategory(requireDb(), categoryIdParam(params)),
+    reorderCategories: (params) => reorderCategories(requireDb(), categoryOrderParam(params)),
     rules: () => listRules(requireDb()),
     createRule: (params) => createRule(requireDb(), newRuleParam(params)),
     updateRule: (params) => updateRule(requireDb(), ruleUpdateParam(params)),
@@ -115,6 +125,15 @@ function periodParam(params: unknown): string {
       : undefined;
   if (!isPeriod(period)) throw new RangeError('Periodo no válido (AAAA-MM).');
   return period;
+}
+
+function yearParam(params: unknown): number {
+  const year: unknown =
+    typeof params === 'object' && params !== null ? (params as { year?: unknown }).year : undefined;
+  if (typeof year !== 'number' || !Number.isInteger(year) || year < 1000 || year > 9999) {
+    throw new RangeError('Año no válido (AAAA).');
+  }
+  return year;
 }
 
 function bytesParam(params: unknown): Uint8Array {

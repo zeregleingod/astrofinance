@@ -37,4 +37,16 @@ describe('DemoBanner', () => {
     expect(navigate).toHaveBeenCalledWith('/');
     expect(element.querySelector('[role="status"]')).toBeNull();
   });
+
+  it('en versión compacta es solo una etiqueta, sin botón', async () => {
+    const { fixture, element, db } = await setup();
+    fixture.componentRef.setInput('compact', true);
+    await db.openDemo();
+    await fixture.whenStable();
+
+    const tag = element.querySelector('[role="status"]');
+    expect(tag?.textContent).toContain('Demo');
+    expect(tag?.textContent).toContain('Modo demo: datos ficticios que no se guardan.');
+    expect(element.querySelector('button')).toBeNull();
+  });
 });

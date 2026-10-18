@@ -13,6 +13,11 @@ describe('formatCents', () => {
     expect(formatCents(cents)).toBe(expected.replace(' €', ' €'));
   });
 
+  it('sin el símbolo del euro, para las tablas donde ya lo dice el título', () => {
+    expect(formatCents(-34782, { currency: false })).toBe('-347,82');
+    expect(formatCents(697303, { currency: false })).toBe('6.973,03');
+  });
+
   it('rechaza importes que no son céntimos enteros seguros', () => {
     expect(() => formatCents(12.5)).toThrow(RangeError);
     expect(() => formatCents(Number.NaN)).toThrow(RangeError);

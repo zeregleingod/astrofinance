@@ -10,7 +10,9 @@ import {
   categoryUpdateParam,
   createCategory,
   deleteCategory,
+  categoryOrderParam,
   newCategoryParam,
+  reorderCategories,
   updateCategory,
 } from './categories';
 import { categoryOptions } from './imports';
@@ -290,6 +292,66 @@ describe('consultas de categorías', () => {
     });
   });
 
+  describe('orden', () => {
+    const groupIds = () => categoryTree(db).map((g) => g.id);
+    const subIds = (name: string) => group(name).subcategories.map((s) => s.id);
+
+    it('reordena las categorías principales y las nuevas van al final', () => {
+      const reversed = [...groupIds()].reverse();
+      reorderCategories(db, { parentId: null, ids: reversed });
+      expect(groupIds()).toEqual(reversed);
+
+      createCategory(db, { parentId: null, name: 'Mascotas', color: null });
+      expect(categoryTree(db).at(-1)?.name).toBe('Mascotas');
+    });
+
+    it('reordena las subcategorías dentro de su principal sin tocar las demás', () => {
+      const [first, second] = categoryTree(db);
+      if (!first || !second) throw new Error('Plantilla sin dos categorías');
+      const others = subIds(second.name);
+      const reversed = [...subIds(first.name)].reverse();
+
+      reorderCategories(db, { parentId: first.id, ids: reversed });
+
+      expect(subIds(first.name)).toEqual(reversed);
+      expect(subIds(second.name)).toEqual(others);
+      expect(groupIds()[0]).toBe(first.id);
+    });
+
+    it('una subcategoría no puede salir de su principal ni quedarse fuera del orden', () => {
+      const [first, second] = categoryTree(db);
+      if (!first || !second) throw new Error('Plantilla sin dos categorías');
+      const own = subIds(first.name);
+      const foreign = subIds(second.name)[0] ?? 0;
+      const before = categoryTree(db);
+
+      for (const ids of [
+        [...own, foreign],
+        own.slice(1),
+        [...own.slice(1), own[1] ?? 0],
+        [first.id, ...own.slice(1)],
+      ]) {
+        expect(errorCode(() => reorderCategories(db, { parentId: first.id, ids }))).toBe(
+          'orden-desfasado',
+        );
+      }
+      expect(errorCode(() => reorderCategories(db, { parentId: null, ids: own }))).toBe(
+        'orden-desfasado',
+      );
+      expect(categoryTree(db)).toEqual(before);
+    });
+
+    it('el orden se ve en las opciones de categoría', () => {
+      const [first, second] = categoryTree(db);
+      if (!first || !second) throw new Error('Plantilla sin dos categorías');
+      reorderCategories(db, {
+        parentId: null,
+        ids: [second.id, first.id, ...groupIds().slice(2)],
+      });
+      expect(categoryOptions(db)[0]?.label.startsWith(`${second.name} › `)).toBe(true);
+    });
+  });
+
   it('eliminar una categoría que no existe es un error', () => {
     expect(errorCode(() => deleteCategory(db, 999_999))).toBe('categoria-inexistente');
   });
@@ -340,6 +402,23 @@ describe('consultas de categorías', () => {
         kind: 'ahorro',
       });
       expect(categoryIdParam({ id: 3 })).toBe(3);
+    });
+
+    it('acepta órdenes bien formados', () => {
+      expect(categoryOrderParam({ parentId: null, ids: [3, 1, 2] })).toEqual({
+        parentId: null,
+        ids: [3, 1, 2],
+      });
+      expect(categoryOrderParam({ parentId: 4, ids: [] })).toEqual({ parentId: 4, ids: [] });
+    });
+
+    it.each([
+      ['no es un objeto', null],
+      ['sin lista', { parentId: null }],
+      ['con ids no válidos', { parentId: null, ids: [1, '2'] }],
+      ['con una principal no válida', { parentId: 0, ids: [1] }],
+    ])('rechaza un orden %s', (_name, params) => {
+      expect(() => categoryOrderParam(params)).toThrow(RangeError);
     });
 
     it.each([null, {}, { id: '3' }, { id: 0 }, { id: 1.5 }])('rechaza el id de %j', (params) => {

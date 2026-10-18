@@ -1,0 +1,255 @@
+:host {
+  display: block;
+  // Ancho de la columna de categoría: lo mide la página para fijar la de subcategoría a su lado.
+  --group-width: 9rem;
+  --line-width: 11rem;
+}
+
+// La hoja: tan ancha como su contenido y, si no cabe, se desplaza en horizontal con las
+// columnas de categoría fijas a la izquierda.
+.sheet {
+  width: fit-content;
+  max-width: 100%;
+  overflow-x: auto;
+  border-radius: 16px;
+  background: var(--mat-sys-surface-container-lowest);
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+}
+
+table {
+  border-collapse: separate;
+  border-spacing: 0;
+  font: var(--mat-sys-body-medium);
+  font-variant-numeric: tabular-nums;
+}
+
+// Compacta en vertical: con la demo, la hoja entera cabe en una pantalla de 1080 px.
+th,
+td {
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+td {
+  text-align: right;
+  // Los ceros, atenuados: lo que importa salta a la vista como en la hoja de cálculo.
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.positive {
+  color: var(--af-positive);
+}
+
+.negative {
+  color: var(--af-negative);
+}
+
+// Columnas fijas: necesitan fondo opaco para tapar lo que pasa por debajo.
+.group-col,
+.line-col {
+  position: sticky;
+  z-index: 1;
+  text-align: left;
+  background: var(--mat-sys-surface-container-lowest);
+}
+
+// Los nombres se ven enteros y en una línea: las columnas toman el ancho del más largo.
+.group-col {
+  left: 0;
+}
+
+.line-col {
+  left: var(--group-width);
+  min-width: var(--line-width);
+  font-weight: 400;
+  box-shadow: 1px 0 0 var(--mat-sys-outline-variant);
+}
+
+thead th {
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font: var(--mat-sys-label-large);
+  font-weight: 600;
+  text-align: right;
+  color: var(--mat-sys-on-surface-variant);
+  border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+  &.group-col,
+  &.line-col {
+    text-align: left;
+  }
+
+  &.month {
+    text-transform: capitalize;
+  }
+
+  a {
+    color: var(--mat-sys-primary);
+    text-decoration: none;
+    border-radius: 4px;
+
+    &:hover {
+      text-decoration: underline;
+    }
+
+    &:focus-visible {
+      outline: 2px solid var(--mat-sys-primary);
+      outline-offset: 2px;
+    }
+  }
+}
+
+// Cada categoría es un bloque con su color: la celda que lo abarca va teñida y con una banda.
+// Entre una categoría y la siguiente, una línea, como entre las subcategorías del resumen.
+tbody {
+  & + tbody tr.first > * {
+    border-top: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  tr:hover > td,
+  tr:hover > .line-col {
+    background: var(--af-row-hover);
+  }
+
+  th[scope='rowgroup'] {
+    vertical-align: middle;
+    padding: 2px 12px 2px 16px;
+  }
+
+  tr.empty .line-col {
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  // Ingresos y ahorro: el tinte de la categoría llega hasta el total. Cada celda es su propio
+  // contexto de apilamiento para que el tinte quede entre su fondo y su texto.
+  tr.tinted > td {
+    position: relative;
+    z-index: 0;
+  }
+
+  tr.tinted > :is(td, .line-col) > .tint {
+    z-index: -1;
+  }
+}
+
+.tint,
+.band {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+}
+
+.tint {
+  width: 100%;
+
+  rect {
+    fill-opacity: 0.2;
+  }
+}
+
+.band {
+  width: 6px;
+}
+
+// Sin color propio: el atributo `fill` no existe y se usa el neutro del tema.
+.tint rect:not([fill]),
+.band rect:not([fill]) {
+  fill: var(--mat-sys-outline);
+}
+
+.dot circle:not([fill]) {
+  fill: var(--mat-sys-outline-variant);
+}
+
+.group-name,
+.group-total {
+  position: relative;
+}
+
+.group-name {
+  display: block;
+  font: var(--mat-sys-title-small);
+  font-weight: 600;
+  color: var(--mat-sys-on-surface);
+}
+
+.group-total {
+  display: block;
+  margin-top: 2px;
+  font: var(--mat-sys-label-medium);
+  font-variant-numeric: tabular-nums;
+  color: var(--mat-sys-on-surface-variant);
+
+  &.positive {
+    color: var(--af-positive);
+  }
+
+  &.negative {
+    color: var(--af-negative);
+  }
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  margin-right: 8px;
+  vertical-align: 0;
+}
+
+// El total del año, separado y en negrita, como la columna final de la hoja.
+.total {
+  font-weight: 600;
+  border-left: 1px solid var(--mat-sys-outline-variant);
+}
+
+tfoot {
+  th,
+  td {
+    padding-top: 4px;
+    padding-bottom: 4px;
+    font-weight: 600;
+  }
+
+  tr:first-child > * {
+    border-top: 2px solid var(--mat-sys-outline-variant);
+  }
+
+  th {
+    color: var(--mat-sys-on-surface);
+  }
+
+  // Los gastos totales, en rojo: el texto, no el fondo.
+  tr.expense > * {
+    color: var(--af-negative);
+  }
+
+  tr.highlight > * {
+    background: var(--mat-sys-primary-container);
+    color: var(--mat-sys-on-primary-container);
+  }
+
+  tr.highlight > th {
+    border-radius: 0 0 0 16px;
+  }
+}
+
+// En pantallas estrechas solo queda fija la subcategoría: las dos juntas no dejarían sitio.
+@media (max-width: 720px) {
+  :host {
+    --line-width: 9.5rem;
+  }
+
+  tbody .group-col {
+    position: relative;
+    left: auto;
+  }
+
+  .line-col {
+    left: 0;
+  }
+}

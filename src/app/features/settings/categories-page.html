@@ -60,9 +60,18 @@
 
   <section>
     <h3 id="category-list-title" class="list-title" tabindex="-1">{{ texts.categories.list }}</h3>
-    <p class="hint list-hint">{{ texts.categories.kindHint }}</p>
+    <p class="hint list-hint">{{ texts.categories.kindHint }} {{ texts.categories.orderHint }}</p>
     <div class="table-wrap" role="region" aria-labelledby="category-list-title" tabindex="0">
-      <table aria-labelledby="category-list-title">
+      <!--
+        Las principales se arrastran entre sí (cada una con su bloque) y las subcategorías dentro
+        de su bloque: cada uno es una lista aparte, así que no pueden pasar a otra categoría.
+      -->
+      <table
+        aria-labelledby="category-list-title"
+        cdkDropList
+        cdkDropListLockAxis="y"
+        (cdkDropListDropped)="dropGroup($event)"
+      >
         <thead>
           <tr>
             <th scope="col">{{ texts.categories.name }}</th>
@@ -76,10 +85,19 @@
         </thead>
         <!-- Un bloque por categoría principal: su fila y, debajo, las de sus subcategorías. -->
         @for (card of cards(); track card.group.id) {
-          <tbody class="group">
+          <tbody
+            class="group"
+            cdkDrag
+            cdkDragLockAxis="y"
+            cdkDragPreviewContainer="parent"
+            cdkDropList
+            cdkDropListLockAxis="y"
+            (cdkDropListDropped)="dropSubcategory(card, $event)"
+          >
             <tr class="group-row">
               <th scope="row">
                 <div class="name-cell">
+                  <ng-container [ngTemplateOutlet]="dragHandle" />
                   @if (isEditing(card.row)) {
                     <ng-container
                       [ngTemplateOutlet]="nameEditor"
@@ -125,15 +143,19 @@
               </td>
             </tr>
             @for (row of card.rows; track row.id) {
-              <tr class="sub">
+              <tr class="sub" cdkDrag cdkDragLockAxis="y" cdkDragPreviewContainer="parent">
                 @if (isEditing(row)) {
                   <th scope="row">
-                    <div class="name-cell"><ng-container [ngTemplateOutlet]="nameEditor" /></div>
+                    <div class="name-cell">
+                      <ng-container [ngTemplateOutlet]="dragHandle" />
+                      <ng-container [ngTemplateOutlet]="nameEditor" />
+                    </div>
                   </th>
                   <td class="kind"><ng-container [ngTemplateOutlet]="kindEditor" /></td>
                 } @else {
                   <th scope="row">
                     <div class="name-cell">
+                      <ng-container [ngTemplateOutlet]="dragHandle" />
                       <span class="name">{{ row.name }}</span>
                     </div>
                   </th>
@@ -240,7 +262,41 @@
   </button>
 </ng-template>
 
+<!--
+  Asa para arrastrar con el ratón o el dedo. Los lectores de pantalla y el teclado usan las
+  flechas de la columna de acciones, que también sirven sin arrastrar.
+-->
+<ng-template #dragHandle>
+  <span class="drag-handle" cdkDragHandle aria-hidden="true" [title]="texts.categories.dragHint">
+    <mat-icon fontIcon="drag_indicator" />
+  </span>
+</ng-template>
+
 <ng-template #rowActions let-row>
+  <button
+    mat-icon-button
+    type="button"
+    class="tool"
+    [id]="'up-' + row.id"
+    [attr.aria-label]="texts.categories.moveUp + ': ' + row.label"
+    [title]="texts.categories.moveUp"
+    [disabled]="row.position === 0"
+    (click)="move(row, -1)"
+  >
+    <mat-icon fontIcon="arrow_upward" aria-hidden="true" />
+  </button>
+  <button
+    mat-icon-button
+    type="button"
+    class="tool"
+    [id]="'down-' + row.id"
+    [attr.aria-label]="texts.categories.moveDown + ': ' + row.label"
+    [title]="texts.categories.moveDown"
+    [disabled]="row.position === row.siblingCount - 1"
+    (click)="move(row, 1)"
+  >
+    <mat-icon fontIcon="arrow_downward" aria-hidden="true" />
+  </button>
   <button
     mat-icon-button
     type="button"

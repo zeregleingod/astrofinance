@@ -1,0 +1,105 @@
+import { type Page } from '@playwright/test';
+import { expect, test } from './fixtures';
+
+const pages = [
+  'Resumen',
+  'Resumen anual',
+  'Movimientos',
+  'Importar extracto',
+  'Categorías',
+  'Reglas de categoría',
+  'Copia de seguridad',
+];
+
+test.beforeEach(async ({ page, isMobile }) => {
+  test.skip(isMobile, 'Solo aplica a escritorio');
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await page.goto('/demo');
+  await expect(page.getByText('septiembre de 2026')).toBeVisible();
+});
+
+async function open(page: Page, name: string) {
+  await page.getByRole('link', { name, exact: true }).click();
+  await expect(page).toHaveTitle(`${name} · AstroFinance`);
+}
+
+test('todas las páginas tienen la cabecera del mismo tamaño y en el mismo sitio', async ({
+  page,
+}) => {
+  const boxes = [];
+  for (const name of pages) {
+    await open(page, name);
+    const box = await page.locator('main .page-header').boundingBox();
+    const title = await page.locator('main h2').boundingBox();
+    boxes.push({ name, height: box?.height, top: box?.y, titleTop: title?.y });
+  }
+  const [first] = boxes;
+  for (const box of boxes) {
+    expect(box, box.name).toEqual({ ...first, name: box.name });
+  }
+});
+
+test('las tablas y paneles de configuración son tan anchos como la del resumen anual', async ({
+  page,
+}) => {
+  const width = await page.evaluate(() =>
+    parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--af-table-width')),
+  );
+  // La hoja anual se ajusta a su contenido: el ancho común es el suyo con los datos de la demo.
+  await open(page, 'Resumen anual');
+  const yearly = await page.locator('main table').boundingBox();
+  expect(Math.abs((yearly?.width ?? 0) - width)).toBeLessThanOrEqual(8);
+
+  for (const name of ['Categorías', 'Reglas de categoría']) {
+    await open(page, name);
+    const table = page.locator('main table').first();
+    await expect(table).toBeVisible();
+    const box = await table.boundingBox();
+    expect(Math.round(box?.width ?? 0), name).toBe(width);
+  }
+
+  await open(page, 'Copia de seguridad');
+  const panels = page.locator('main section.panel');
+  await expect(panels).toHaveCount(2);
+  for (const panel of await panels.all()) {
+    const box = await panel.boundingBox();
+    expect(Math.round(box?.width ?? 0)).toBe(width);
+  }
+});
+
+test('todas las tablas resaltan la fila bajo el cursor, como el resumen anual', async ({
+  page,
+}) => {
+  const tables = [
+    // En el Resumen, cada movimiento de las tarjetas.
+    { name: 'Resumen', cell: 'main app-movement-list li' },
+    { name: 'Resumen anual', cell: 'main tbody tr td' },
+    { name: 'Movimientos', cell: 'main tbody tr td' },
+    { name: 'Categorías', cell: 'main tbody tr td' },
+    { name: 'Reglas de categoría', cell: 'main tbody tr td' },
+  ];
+  const colors = new Set<string>();
+  for (const { name, cell } of tables) {
+    await open(page, name);
+    const target = page.locator(cell).nth(1);
+    await expect(target).toBeVisible();
+    await page.mouse.move(0, 0);
+    const before = await target.evaluate((el) => getComputedStyle(el).backgroundColor);
+    await target.hover();
+    const after = await target.evaluate((el) => getComputedStyle(el).backgroundColor);
+    expect(after, name).not.toBe(before);
+    colors.add(after);
+  }
+  expect(colors.size).toBe(1);
+});
+
+test('el resumen muestra tres tarjetas por fila', async ({ page }) => {
+  const groups = page.locator('main .group');
+  await expect(groups.nth(3)).toBeVisible();
+  const tops = await groups.evaluateAll((els) =>
+    els.slice(0, 4).map((el) => Math.round(el.getBoundingClientRect().top)),
+  );
+  expect(tops[1]).toBe(tops[0]);
+  expect(tops[2]).toBe(tops[0]);
+  expect(tops[3]).toBeGreaterThan(tops[0] ?? 0);
+});

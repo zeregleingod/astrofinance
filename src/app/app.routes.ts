@@ -15,6 +15,12 @@ export const routes: Routes = [
     loadComponent: () => import('@features/dashboard/dashboard-page').then((m) => m.DashboardPage),
   },
   {
+    path: 'anual',
+    title: TEXTS.yearly.title,
+    data: { icon: 'calendar_view_month' },
+    loadComponent: () => import('@features/yearly/yearly-page').then((m) => m.YearlyPage),
+  },
+  {
     path: 'movimientos',
     title: TEXTS.transactions.title,
     data: { icon: 'receipt_long' },

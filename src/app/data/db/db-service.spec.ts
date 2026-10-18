@@ -99,6 +99,21 @@ describe('DbService', () => {
     });
   });
 
+  it('reordena categorías y avisa del cambio', async () => {
+    const { db } = setup();
+    await db.openDemo();
+    const version = db.dataVersion();
+    const ids = (await db.categoryTree()).map((group) => group.id).reverse();
+
+    await db.reorderCategories({ parentId: null, ids });
+
+    expect((await db.categoryTree()).map((group) => group.id)).toEqual(ids);
+    expect(db.dataVersion()).toBe(version + 1);
+    await expect(db.reorderCategories({ parentId: null, ids: ids.slice(1) })).rejects.toMatchObject(
+      { name: 'CategoryError', message: 'orden-desfasado' },
+    );
+  });
+
   it('exporta la BD y la vuelve a cargar como datos del usuario', async () => {
     const { db } = setup();
     await db.openDemo();

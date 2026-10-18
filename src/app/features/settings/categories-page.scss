@@ -2,18 +2,9 @@
   display: block;
 }
 
-.page-header {
-  margin-bottom: 24px;
-
-  h2 {
-    margin: 0;
-    font: var(--mat-sys-headline-small);
-    font-weight: 600;
-  }
-}
-
 .panel {
-  max-width: 880px;
+  // Con su relleno lateral, tan ancho como las tablas.
+  max-width: calc(var(--af-table-width) - 48px);
   margin: 0 0 24px;
   padding: 24px;
   border-radius: 16px;
@@ -140,8 +131,7 @@ input[type='color'] {
 }
 
 .table-wrap {
-  // El mismo ancho que el panel de arriba: sus 880px de contenido más el relleno lateral.
-  max-width: 928px;
+  max-width: var(--af-table-width);
   overflow-x: auto;
   border-radius: 16px;
   background: var(--mat-sys-surface-container-lowest);
@@ -167,7 +157,7 @@ table {
 }
 
 .col-actions {
-  width: 112px;
+  width: 184px;
   text-align: right;
 }
 
@@ -195,6 +185,11 @@ thead th {
   display: none;
 }
 
+// La fila bajo el cursor se resalta, como en el resto de tablas.
+tbody tr:hover > * {
+  background: var(--af-row-hover);
+}
+
 tbody:last-child tr:last-child > * {
   border-bottom: none;
 }
@@ -219,6 +214,54 @@ tbody:last-child tr:last-child > * {
 // Las subcategorías se alinean con el nombre de su categoría, tras el punto de color.
 .sub .name-cell {
   padding-left: 20px;
+}
+
+.drag-handle {
+  display: flex;
+  flex: none;
+  margin-left: -8px;
+  color: var(--mat-sys-on-surface-variant);
+  cursor: grab;
+  touch-action: none;
+
+  mat-icon {
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+  }
+}
+
+// Arrastrando: la fila (o el bloque) va en una copia elevada y su hueco queda marcado. La
+// copia sale de la tabla: sus celdas repiten los anchos de las columnas.
+.cdk-drag-preview {
+  display: table;
+  table-layout: fixed;
+  background: var(--mat-sys-surface-container-lowest);
+  box-shadow: var(--mat-sys-level3);
+  cursor: grabbing;
+
+  .kind {
+    width: 128px;
+  }
+
+  .num {
+    width: 112px;
+  }
+
+  td:last-child {
+    width: 184px;
+  }
+}
+
+.cdk-drag-placeholder {
+  opacity: 0.35;
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .cdk-drag-animating,
+  .cdk-drop-list-dragging .cdk-drag:not(.cdk-drag-placeholder) {
+    transition: transform 200ms cubic-bezier(0.2, 0, 0, 1);
+  }
 }
 
 .dot {
@@ -334,7 +377,7 @@ td.kind select {
   }
 
   .col-actions {
-    width: 92px;
+    width: 148px;
   }
 
   .tool {

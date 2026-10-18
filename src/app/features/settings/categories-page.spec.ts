@@ -112,6 +112,7 @@ describe('CategoriesPage', () => {
       'Hipoteca y vivienda',
       'Préstamos y financiaciones',
       'Suministros',
+      'Transporte',
       'Variables',
     ]);
     expect(text(group('Ingresos').querySelector('.group-row .kind'))).toBe('');
@@ -121,6 +122,13 @@ describe('CategoriesPage', () => {
       ['Luz', 'Gasto'],
     ]);
     expect(subcategories('Ahorro').map(([, kind]) => kind)).toEqual(['Ahorro', 'Ahorro']);
+    expect(subcategories('Transporte')).toEqual([
+      ['Transporte público', 'Gasto'],
+      ['Financiación coche', 'Gasto'],
+      ['Coche', 'Gasto'],
+      ['Moto', 'Gasto'],
+      ['Gasolina', 'Gasto'],
+    ]);
     expect(text(element)).toContain('se pierden al recargar o cerrar la página');
   });
 
@@ -338,6 +346,56 @@ describe('CategoriesPage', () => {
       tool('Cancelar').click();
       await settled(() => expect(field('Nombre: Suministros')).toBeNull());
       expect(db.dataVersion()).toBe(version);
+    });
+  });
+
+  describe('orden', () => {
+    it('las categorías se suben y bajan entre sí, y se anuncia la nueva posición', async () => {
+      const { db, settled, groupNames, tool, status } = await setup();
+
+      expect(tool('Subir: Ingresos').disabled).toBe(true);
+      expect(tool('Bajar: Variables').disabled).toBe(true);
+
+      tool('Bajar: Ingresos').click();
+      await settled(() => expect(groupNames().slice(0, 2)).toEqual(['Ahorro', 'Ingresos']));
+      await settled(() => expect(status()).not.toBe(''));
+      expect(status()).toBe('Movida: Ingresos, posición 2 de 7');
+      expect(document.activeElement).toBe(tool('Bajar: Ingresos'));
+
+      tool('Subir: Variables').click();
+      await settled(() => expect(groupNames().at(-2)).toBe('Variables'));
+      expect((await db.categoryTree()).map((g) => g.name)).toEqual(groupNames());
+    });
+
+    it('una subcategoría solo se mueve dentro de su categoría', async () => {
+      const { db, settled, subcategories, tool } = await setup();
+
+      expect(tool('Subir: Suministros › Comunidad de vecinos').disabled).toBe(true);
+      expect(tool('Bajar: Suministros › Luz').disabled).toBe(true);
+
+      tool('Bajar: Suministros › Comunidad de vecinos').click();
+      await settled(() =>
+        expect(subcategories('Suministros').map(([name]) => name)).toEqual([
+          'Luz',
+          'Comunidad de vecinos',
+        ]),
+      );
+      await settled(() => expect(document.activeElement?.tagName).toBe('BUTTON'));
+      // Al llegar al final el botón se desactiva y el foco pasa al de subir.
+      expect(document.activeElement).toBe(tool('Subir: Suministros › Comunidad de vecinos'));
+      const tree = await db.categoryTree();
+      expect(tree.find((g) => g.name === 'Suministros')?.subcategories.map((c) => c.name)).toEqual([
+        'Luz',
+        'Comunidad de vecinos',
+      ]);
+    });
+
+    it('cada fila tiene un asa para arrastrarla, oculta a los lectores de pantalla', async () => {
+      const { group } = await setup();
+
+      const handles = group('Suministros').querySelectorAll('.drag-handle');
+      expect(handles.length).toBe(3);
+      for (const handle of handles) expect(handle.getAttribute('aria-hidden')).toBe('true');
     });
   });
 

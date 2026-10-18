@@ -2,18 +2,9 @@
   display: block;
 }
 
-.page-header {
-  margin-bottom: 24px;
-
-  h2 {
-    margin: 0;
-    font: var(--mat-sys-headline-small);
-    font-weight: 600;
-  }
-}
-
 .panel {
-  max-width: 880px;
+  // Con su relleno lateral, tan ancho como las tablas.
+  max-width: calc(var(--af-table-width) - 48px);
   margin: 0 0 16px;
   padding: 24px;
   border-radius: 16px;
@@ -102,6 +93,7 @@
 }
 
 .table-wrap {
+  max-width: var(--af-table-width);
   overflow-x: auto;
   border-radius: 16px;
   background: var(--mat-sys-surface-container-lowest);
@@ -162,6 +154,11 @@ td {
 th {
   font: var(--mat-sys-label-large);
   color: var(--mat-sys-on-surface-variant);
+}
+
+// La fila bajo el cursor se resalta, como en el resto de tablas.
+tbody tr:hover > * {
+  background: var(--af-row-hover);
 }
 
 tbody tr:last-child td {

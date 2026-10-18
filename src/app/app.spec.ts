@@ -28,4 +28,16 @@ describe('App', () => {
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('mat-sidenav app-sidebar nav')).not.toBeNull();
   });
+
+  it('pone los accesos rápidos de la copia en la barra lateral', async () => {
+    const fixture = TestBed.createComponent(App);
+    await fixture.whenStable();
+    const group = (fixture.nativeElement as HTMLElement).querySelector(
+      'app-sidebar [role="group"]',
+    );
+    const labels = [...(group?.querySelectorAll('button') ?? [])].map((b) =>
+      b.getAttribute('aria-label'),
+    );
+    expect(labels).toEqual(['Descargar una copia', 'Cargar una copia', 'Modo oscuro']);
+  });
 });

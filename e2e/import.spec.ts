@@ -11,7 +11,7 @@ async function openNav(page: Page) {
 }
 
 async function chooseStatement(page: Page) {
-  await page.locator('input[type="file"]').setInputFiles(STATEMENT);
+  await page.locator('main input[type="file"]').setInputFiles(STATEMENT);
   await expect(page.getByRole('heading', { name: 'Extracto de enero de 2026' })).toBeVisible();
 }
 
@@ -70,7 +70,7 @@ test('reimportar el mismo extracto no duplica movimientos', async ({ page }) => 
 
 test('un fichero que no es un extracto se rechaza con un mensaje claro', async ({ page }) => {
   await page.goto('/importar');
-  await page.locator('input[type="file"]').setInputFiles({
+  await page.locator('main input[type="file"]').setInputFiles({
     name: 'notas.csv',
     mimeType: 'text/csv',
     buffer: Buffer.from('Fecha;Texto\n01/01/2026;Hola\n'),
@@ -87,5 +87,5 @@ test('en la demo no se puede importar', async ({ page }) => {
   await page.getByRole('link', { name: 'Importar extracto' }).click();
 
   await expect(page.getByText('En el modo demo no se pueden importar extractos')).toBeVisible();
-  await expect(page.locator('input[type="file"]')).toHaveCount(0);
+  await expect(page.locator('main input[type="file"]')).toHaveCount(0);
 });

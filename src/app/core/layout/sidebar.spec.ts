@@ -83,17 +83,37 @@ describe('Sidebar', () => {
     expect(spy).toHaveBeenCalled();
   });
 
-  it('ofrece ver la demo justo encima del modo oscuro y lo oculta dentro de ella', async () => {
+  it('ofrece ver la demo al pie y lo oculta dentro de ella', async () => {
     const { fixture, element } = await setup();
-    const footer = element.querySelector('.footer');
-    const demo = footer?.querySelector<HTMLAnchorElement>('a[href="/demo"]');
+    const demo = element.querySelector<HTMLAnchorElement>('.footer a[href="/demo"]');
 
     expect(demo?.textContent).toContain('Ver la demo');
-    expect(demo?.nextElementSibling?.tagName.toLowerCase()).toBe('mat-slide-toggle');
 
     await TestBed.inject(DbService).openDemo();
     await fixture.whenStable();
     expect(element.querySelector('a[href="/demo"]')).toBeNull();
+  });
+
+  it('dentro de la demo, en el sitio del botón, avisa del modo demo y permite salir', async () => {
+    const { fixture, element } = await setup();
+    const db = TestBed.inject(DbService);
+    const navigate = vi.fn();
+    fixture.componentRef.instance.navigate.subscribe(navigate);
+    await db.openDemo();
+    await fixture.whenStable();
+
+    const notice = element.querySelector('.footer [role="status"]');
+    expect(notice?.textContent).toContain('Modo demo: datos ficticios que no se guardan.');
+
+    const exit = [...element.querySelectorAll('button')].find((b) =>
+      b.textContent?.includes('Salir de la demo'),
+    );
+    exit?.click();
+    await fixture.whenStable();
+    expect(db.mode()).toBeNull();
+    expect(navigate).toHaveBeenCalled();
+    expect(element.querySelector('.footer [role="status"]')).toBeNull();
+    expect(element.querySelector('a[href="/demo"]')).not.toBeNull();
   });
 
   it('sigue ofreciendo la demo con la BD del usuario abierta, hasta que tiene algo suyo', async () => {
@@ -110,20 +130,32 @@ describe('Sidebar', () => {
     expect(element.querySelector('a[href="/demo"]')).toBeNull();
   });
 
-  it('el interruptor de modo oscuro cambia el tema con un clic', async () => {
+  it('muestra los accesos rápidos entre el logo y el menú', async () => {
+    const { element } = await setup();
+
+    const group = element.querySelector('[role="group"]');
+    expect(group?.getAttribute('aria-label')).toBe('Accesos rápidos');
+    expect(group?.previousElementSibling?.tagName.toLowerCase()).toBe('header');
+    expect(group?.nextElementSibling?.tagName.toLowerCase()).toBe('nav');
+  });
+
+  it('el botón de modo oscuro cambia el tema y su icono (sol en claro, luna en oscuro)', async () => {
     const { fixture, element } = await setup();
     const theme = TestBed.inject(ThemeService);
     theme.set('light');
     await fixture.whenStable();
 
-    const toggle = element.querySelector<HTMLButtonElement>('button[role="switch"]');
-    expect(toggle?.getAttribute('aria-checked')).toBe('false');
-    expect(element.textContent).toContain('Modo oscuro');
+    const button = element.querySelector<HTMLButtonElement>('button[aria-label="Modo oscuro"]');
+    const icon = () => button?.querySelector('mat-icon')?.getAttribute('fonticon');
+    expect(button?.closest('[role="group"]')).not.toBeNull();
+    expect(button?.getAttribute('aria-pressed')).toBe('false');
+    expect(icon()).toBe('light_mode');
 
-    toggle?.click();
+    button?.click();
     await fixture.whenStable();
 
     expect(theme.isDark()).toBe(true);
-    expect(toggle?.getAttribute('aria-checked')).toBe('true');
+    expect(button?.getAttribute('aria-pressed')).toBe('true');
+    expect(icon()).toBe('dark_mode');
   });
 });

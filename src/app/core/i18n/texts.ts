@@ -14,6 +14,9 @@ export const TEXTS = {
   theme: {
     dark: 'Modo oscuro',
   },
+  quickActions: {
+    label: 'Accesos rápidos',
+  },
   dashboard: {
     title: 'Resumen',
     empty: 'Todavía no hay movimientos.',
@@ -26,6 +29,22 @@ export const TEXTS = {
     balance: 'Balance',
     pending: 'Pendiente de cobrar',
     uncategorized: 'Sin categoría',
+    reimbursed: 'Devuelto',
+    reimbursedHint: 'Parte devuelta de un gasto compartido',
+    collapseAll: 'Plegar todo',
+    expandGroups: 'Desplegar categorías',
+    expandAll: 'Desplegar todo',
+  },
+  yearly: {
+    title: 'Resumen anual',
+    region: 'Tabla del resumen anual',
+    category: 'Categoría',
+    subcategory: 'Subcategoría',
+    total: 'Total',
+    expenseTotal: 'Gastos totales',
+    balance: 'Balance',
+    uncategorized: 'Sin categoría',
+    openMonth: 'Ver el resumen de',
   },
   transactions: {
     title: 'Movimientos',
@@ -193,12 +212,22 @@ export const TEXTS = {
     deleteConfirm: 'Eliminar',
     deleteCancel: 'Cancelar',
     deleteError: 'No se ha podido eliminar la categoría.',
+    orderHint:
+      'Este orden es el del Resumen mensual y el Resumen anual: arrastra una fila por su asa o usa las flechas. Las subcategorías se ordenan dentro de su categoría.',
+    moveUp: 'Subir',
+    moveDown: 'Bajar',
+    dragHint: 'Arrastra para cambiar el orden',
+    moved: 'Movida:',
+    position: 'posición',
+    positionOf: 'de',
+    reorderError: 'No se ha podido cambiar el orden.',
     errors: {
       'nombre-vacio': 'Escribe un nombre.',
       'nombre-largo': 'El nombre no puede tener más de 60 caracteres.',
       'nombre-repetido': 'Ya hay una con ese nombre en el mismo nivel.',
       'principal-inexistente': 'La categoría a la que pertenece ya no existe.',
       'categoria-inexistente': 'Esta categoría ya no existe.',
+      'orden-desfasado': 'La lista ha cambiado mientras la ordenabas. Vuelve a intentarlo.',
     },
   },
   categoryRules: {
@@ -294,6 +323,7 @@ export const TEXTS = {
     restored: 'Copia cargada:',
     restoredTransactions: 'Movimientos:',
     viewTransactions: 'Ver los movimientos',
+    close: 'Cerrar',
     replaceQuestion: '¿Sustituir tus datos por los de la copia?',
     replaceConsequence: 'Se perderán todos los datos que tienes ahora y se cargarán los de',
     replaceIrreversible:
@@ -328,6 +358,8 @@ export const TEXTS = {
   period: {
     previous: 'Mes anterior',
     next: 'Mes siguiente',
+    previousYear: 'Año anterior',
+    nextYear: 'Año siguiente',
     months: [
       'enero',
       'febrero',
@@ -346,6 +378,7 @@ export const TEXTS = {
   demo: {
     banner: 'Modo demo: datos ficticios que no se guardan.',
     exit: 'Salir de la demo',
+    tag: 'Demo',
     open: 'Ver la demo',
     loading: 'Cargando la demo…',
     error: 'No se ha podido abrir la demo.',

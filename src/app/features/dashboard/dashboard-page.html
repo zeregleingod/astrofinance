@@ -1,11 +1,26 @@
 <header class="page-header">
   <h2>{{ texts.dashboard.title }}</h2>
   @if (selection.period(); as period) {
-    <app-month-nav
-      [periods]="selection.available()"
-      [period]="period"
-      (periodChange)="selection.select($event)"
-    />
+    <div class="header-actions">
+      @if (report.value()) {
+        @let fold = foldButton();
+        <button
+          mat-icon-button
+          type="button"
+          class="fold-all"
+          [attr.aria-label]="fold.label"
+          [matTooltip]="fold.label"
+          (click)="foldStep()"
+        >
+          <mat-icon [fontIcon]="fold.icon" aria-hidden="true" />
+        </button>
+      }
+      <app-month-nav
+        [periods]="selection.available()"
+        [period]="period"
+        (periodChange)="selection.select($event)"
+      />
+    </div>
   }
 </header>
 
@@ -49,13 +64,32 @@
 
     <div class="groups">
       @for (group of r.groups; track group.id) {
-        <section class="group" [attr.aria-labelledby]="'group-' + group.id">
+        @let groupKey = 'g' + group.id;
+        <section
+          class="group"
+          [class.collapsed]="isCollapsed(groupKey)"
+          [attr.aria-labelledby]="'group-' + group.id"
+        >
           <!-- Colores de categoría como atributos SVG: sin estilos en línea. -->
           <svg class="bar" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
             <rect width="1" height="1" [attr.fill]="group.color" />
           </svg>
           <header class="group-header">
-            <h3 [id]="'group-' + group.id">{{ group.name }}</h3>
+            <svg class="tint" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+              <rect width="1" height="1" [attr.fill]="group.color" />
+            </svg>
+            <h3 [id]="'group-' + group.id">
+              <button
+                type="button"
+                class="toggle"
+                [attr.aria-expanded]="!isCollapsed(groupKey)"
+                [attr.aria-controls]="'group-body-' + group.id"
+                (click)="toggle(groupKey)"
+              >
+                <mat-icon class="chevron" fontIcon="chevron_right" aria-hidden="true" />
+                {{ group.name }}
+              </button>
+            </h3>
             <span
               class="amount"
               [class.positive]="group.totalCents > 0"
@@ -63,32 +97,76 @@
               >{{ group.totalCents | cents }}</span
             >
           </header>
-          <ul>
+          <div class="group-body" [id]="'group-body-' + group.id" [hidden]="isCollapsed(groupKey)">
             @for (line of group.lines; track line.id) {
-              <li [class.empty]="line.count === 0">
-                <svg class="dot" viewBox="0 0 10 10" aria-hidden="true">
-                  <circle cx="5" cy="5" r="5" [attr.fill]="line.color" />
-                </svg>
-                <span class="name">{{ line.name }}</span>
-                <span
-                  class="amount"
-                  [class.positive]="line.totalCents > 0"
-                  [class.negative]="line.totalCents < 0"
-                >
-                  {{ line.totalCents | cents }}
-                </span>
-              </li>
+              @let lineKey = 'l' + line.id;
+              <div class="line" [class.empty]="line.count === 0">
+                <div class="line-header">
+                  <svg class="dot" viewBox="0 0 10 10" aria-hidden="true">
+                    <circle cx="5" cy="5" r="5" [attr.fill]="line.color" />
+                  </svg>
+                  <h4>
+                    @if (line.movements.length > 0) {
+                      <button
+                        type="button"
+                        class="toggle"
+                        [attr.aria-expanded]="!isCollapsed(lineKey)"
+                        [attr.aria-controls]="'line-movements-' + line.id"
+                        (click)="toggle(lineKey)"
+                      >
+                        {{ line.name }}
+                        <mat-icon class="chevron" fontIcon="chevron_right" aria-hidden="true" />
+                      </button>
+                    } @else {
+                      {{ line.name }}
+                    }
+                  </h4>
+                  <span
+                    class="amount"
+                    [class.positive]="line.totalCents > 0"
+                    [class.negative]="line.totalCents < 0"
+                  >
+                    {{ line.totalCents | cents }}
+                  </span>
+                </div>
+                @if (line.movements.length > 0) {
+                  <app-movement-list
+                    [id]="'line-movements-' + line.id"
+                    [hidden]="isCollapsed(lineKey)"
+                    [movements]="line.movements"
+                    [label]="line.name"
+                  />
+                }
+              </div>
             }
-          </ul>
+          </div>
         </section>
       }
       @if (r.uncategorized.count > 0) {
-        <section class="group" aria-labelledby="group-none">
+        <section
+          class="group"
+          [class.collapsed]="isCollapsed('g-none')"
+          aria-labelledby="group-none"
+        >
           <svg class="bar" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
             <rect width="1" height="1" />
           </svg>
           <header class="group-header">
-            <h3 id="group-none">{{ texts.dashboard.uncategorized }}</h3>
+            <svg class="tint" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+              <rect width="1" height="1" />
+            </svg>
+            <h3 id="group-none">
+              <button
+                type="button"
+                class="toggle"
+                [attr.aria-expanded]="!isCollapsed('g-none')"
+                aria-controls="group-body-none"
+                (click)="toggle('g-none')"
+              >
+                <mat-icon class="chevron" fontIcon="chevron_right" aria-hidden="true" />
+                {{ texts.dashboard.uncategorized }}
+              </button>
+            </h3>
             <span
               class="amount"
               [class.positive]="r.uncategorized.totalCents > 0"
@@ -96,6 +174,12 @@
               >{{ r.uncategorized.totalCents | cents }}</span
             >
           </header>
+          <div class="line" id="group-body-none" [hidden]="isCollapsed('g-none')">
+            <app-movement-list
+              [movements]="r.uncategorized.movements"
+              [label]="texts.dashboard.uncategorized"
+            />
+          </div>
         </section>
       }
     </div>

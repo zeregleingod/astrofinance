@@ -12,56 +12,97 @@
     <p class="panel" role="status">{{ texts.categories.loading }}</p>
   }
 } @else {
-  <section class="panel" aria-labelledby="new-category-title">
-    <h3 id="new-category-title">{{ texts.categories.newTitle }}</h3>
-    <p class="hint">{{ texts.categories.intro }}</p>
+  <!-- El alta, arriba y a la vista al desplazar; la cabecera de la tabla se queda debajo. -->
+  <div #toolbar class="toolbar">
+    <section class="panel" aria-labelledby="new-category-title">
+      <div class="title-row">
+        <h3 id="new-category-title">{{ texts.categories.newTitle }}</h3>
+        <button
+          mat-icon-button
+          type="button"
+          class="info"
+          aria-controls="new-category-info"
+          [attr.aria-expanded]="introOpen()"
+          [attr.aria-label]="texts.categories.moreInfo + ': ' + texts.categories.newTitle"
+          [title]="texts.categories.moreInfo"
+          (click)="introOpen.set(!introOpen())"
+        >
+          <mat-icon fontIcon="info" aria-hidden="true" />
+        </button>
+      </div>
+      @if (introOpen()) {
+        <p id="new-category-info" class="hint info-text">{{ texts.categories.intro }}</p>
+      }
 
-    <form class="fields" [formRoot]="categoryForm">
-      <label class="field name">
-        <span>{{ texts.categories.name }}</span>
-        <input
-          type="text"
-          autocomplete="off"
-          [formField]="categoryForm.name"
-          [attr.aria-invalid]="showNameError()"
-          [attr.aria-describedby]="showNameError() ? 'name-error' : null"
-        />
-      </label>
-      <label class="field color">
-        <span>{{ texts.categories.color }}</span>
-        <input type="color" [formField]="categoryForm.color" />
-      </label>
-      <button mat-flat-button type="submit" [disabled]="categoryForm().submitting()">
-        <mat-icon fontIcon="add" aria-hidden="true" />
-        {{ texts.categories.add }}
-      </button>
-    </form>
+      <form class="fields" [formRoot]="categoryForm">
+        <label class="field name">
+          <span>{{ texts.categories.name }}</span>
+          <input
+            type="text"
+            autocomplete="off"
+            [formField]="categoryForm.name"
+            [attr.aria-invalid]="showNameError()"
+            [attr.aria-describedby]="showNameError() ? 'name-error' : null"
+          />
+        </label>
+        <label class="field color">
+          <span>{{ texts.categories.color }}</span>
+          <input type="color" [formField]="categoryForm.color" />
+        </label>
+        <button mat-flat-button type="submit" [disabled]="categoryForm().submitting()">
+          <mat-icon fontIcon="add" aria-hidden="true" />
+          {{ texts.categories.add }}
+        </button>
+      </form>
 
-    @if (showNameError()) {
-      <p id="name-error" class="alert">
-        @for (problem of categoryForm.name().errors(); track problem.kind) {
-          {{ problem.message }}
+      @if (showNameError()) {
+        <p id="name-error" class="alert">
+          @for (problem of categoryForm.name().errors(); track problem.kind) {
+            {{ problem.message }}
+          }
+        </p>
+      }
+      @if (error(); as message) {
+        <p class="alert" role="alert">{{ message }}</p>
+      }
+      <p class="done" role="status">
+        @if (notice(); as message) {
+          <mat-icon fontIcon="check_circle" aria-hidden="true" />
+          {{ message }}
         }
       </p>
-    }
-    @if (error(); as message) {
-      <p class="alert" role="alert">{{ message }}</p>
-    }
-    <p class="done" role="status">
-      @if (notice(); as message) {
-        <mat-icon fontIcon="check_circle" aria-hidden="true" />
-        {{ message }}
-      }
-    </p>
-    @if (db.mode() === 'local') {
-      <p class="hint warning">{{ texts.imports.memoryOnly }}</p>
-    }
-  </section>
+    </section>
+  </div>
+  <!-- Fuera del alta fija: es un aviso, no parte del formulario, y en móvil ocuparía media pantalla. -->
+  @if (db.mode() === 'local') {
+    <p class="hint warning memory-warning">{{ texts.imports.memoryOnly }}</p>
+  }
 
   <section>
-    <h3 id="category-list-title" class="list-title" tabindex="-1">{{ texts.categories.list }}</h3>
-    <p class="hint list-hint">{{ texts.categories.kindHint }} {{ texts.categories.orderHint }}</p>
-    <div class="table-wrap" role="region" aria-labelledby="category-list-title" tabindex="0">
+    <div class="title-row list-title-row">
+      <h3 id="category-list-title" class="list-title" tabindex="-1">
+        {{ texts.categories.list }}
+      </h3>
+      <button
+        mat-icon-button
+        type="button"
+        class="info"
+        aria-controls="category-list-info"
+        [attr.aria-expanded]="listInfoOpen()"
+        [attr.aria-label]="texts.categories.moreInfo + ': ' + texts.categories.list"
+        [title]="texts.categories.moreInfo"
+        (click)="listInfoOpen.set(!listInfoOpen())"
+      >
+        <mat-icon fontIcon="info" aria-hidden="true" />
+      </button>
+    </div>
+    @if (listInfoOpen()) {
+      <p id="category-list-info" class="hint info-text list-hint">
+        {{ texts.categories.kindHint }} {{ texts.categories.orderHint }}
+      </p>
+    }
+    <!-- Sin desplazamiento propio: se desplaza la página y la cabecera se queda arriba. -->
+    <div class="table-wrap">
       <!--
         Las principales se arrastran entre sí (cada una con su bloque) y las subcategorías dentro
         de su bloque: cada uno es una lista aparte, así que no pueden pasar a otra categoría.
@@ -148,15 +189,28 @@
                   <th scope="row">
                     <div class="name-cell">
                       <ng-container [ngTemplateOutlet]="dragHandle" />
-                      <ng-container [ngTemplateOutlet]="nameEditor" />
+                      <ng-container
+                        [ngTemplateOutlet]="nameEditor"
+                        [ngTemplateOutletContext]="{ kind: true }"
+                      />
                     </div>
                   </th>
-                  <td class="kind"><ng-container [ngTemplateOutlet]="kindEditor" /></td>
+                  <td class="kind">
+                    @if (!compact()) {
+                      <ng-container [ngTemplateOutlet]="kindEditor" />
+                    }
+                  </td>
                 } @else {
                   <th scope="row">
                     <div class="name-cell">
                       <ng-container [ngTemplateOutlet]="dragHandle" />
-                      <span class="name">{{ row.name }}</span>
+                      <span class="name">
+                        {{ row.name }}
+                        <!-- En móvil el tipo va debajo del nombre: su columna no cabe. -->
+                        @if (compact() && row.kind) {
+                          <span class="kind-inline">{{ texts.categories.kinds[row.kind] }}</span>
+                        }
+                      </span>
                     </div>
                   </th>
                   <td class="kind">{{ row.kind ? texts.categories.kinds[row.kind] : '' }}</td>
@@ -177,9 +231,18 @@
             @if (isAddingTo(card.group)) {
               <tr class="sub new">
                 <th scope="row">
-                  <div class="name-cell"><ng-container [ngTemplateOutlet]="nameEditor" /></div>
+                  <div class="name-cell">
+                    <ng-container
+                      [ngTemplateOutlet]="nameEditor"
+                      [ngTemplateOutletContext]="{ kind: true }"
+                    />
+                  </div>
                 </th>
-                <td class="kind"><ng-container [ngTemplateOutlet]="kindEditor" /></td>
+                <td class="kind">
+                  @if (!compact()) {
+                    <ng-container [ngTemplateOutlet]="kindEditor" />
+                  }
+                </td>
                 <td></td>
                 <td>
                   <div class="actions"><ng-container [ngTemplateOutlet]="editorActions" /></div>
@@ -197,7 +260,7 @@
   Editor de la fila: el formulario vive en la celda del nombre; el tipo y los botones, en sus
   celdas, se asocian a él con el atributo `form`.
 -->
-<ng-template #nameEditor let-color="color">
+<ng-template #nameEditor let-color="color" let-kind="kind">
   <form id="row-editor" class="row-editor" [formRoot]="rowForm" (keydown.escape)="cancelEdit()">
     @if (color) {
       <input
@@ -215,6 +278,9 @@
       [attr.aria-invalid]="showRowError()"
       [attr.aria-describedby]="showRowError() ? 'row-error' : null"
     />
+    @if (kind && compact()) {
+      <ng-container [ngTemplateOutlet]="kindEditor" />
+    }
     @if (showRowError()) {
       <p id="row-error" class="alert">
         @for (problem of rowForm.name().errors(); track problem.kind) {

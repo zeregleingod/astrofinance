@@ -4,171 +4,285 @@
 
 @if (db.ready() && !(loaded() && total() === 0)) {
   @if (loaded()) {
-    <app-transaction-filters
-      [options]="options()"
-      [filter]="filter()"
-      (filterChange)="applyFilter($event)"
-    />
+    <!--
+      La búsqueda y los filtros se quedan arriba, a la vista, al desplazar la página. En móvil
+      los filtros van plegados tras un botón, al lado de la búsqueda.
+    -->
+    <div #toolbar class="toolbar">
+      <div class="toolbar-card">
+        @if (compact()) {
+          <button
+            #filtersToggle
+            mat-stroked-button
+            type="button"
+            class="filters-toggle"
+            aria-controls="transaction-filters"
+            [attr.aria-expanded]="filtersOpen()"
+            (click)="filtersOpen.set(!filtersOpen())"
+          >
+            <mat-icon fontIcon="filter_alt" aria-hidden="true" />
+            {{ texts.transactions.filters.title }}
+            @if (filtering()) {
+              <span class="active-filters">({{ texts.transactions.filters.active }})</span>
+            }
+            <mat-icon
+              iconPositionEnd
+              class="chevron"
+              [fontIcon]="filtersOpen() ? 'expand_less' : 'expand_more'"
+              aria-hidden="true"
+            />
+          </button>
+        }
 
-    <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
-      <mat-label>{{ texts.transactions.search }}</mat-label>
-      <mat-icon matPrefix fontIcon="search" aria-hidden="true" />
-      <input
-        #search
-        matInput
-        type="search"
-        autocomplete="off"
-        [placeholder]="texts.transactions.searchPlaceholder"
-        [value]="query()"
-        (input)="query.set(search.value)"
-      />
-      @if (query()) {
+        <!-- En escritorio la búsqueda va con los filtros, como uno más; en móvil, a la vista. -->
+        @if (compact()) {
+          <ng-container [ngTemplateOutlet]="searchField" />
+        }
+
+        <app-transaction-filters
+          id="transaction-filters"
+          [hidden]="compact() && !filtersOpen()"
+          [options]="options()"
+          [filter]="filter()"
+          (filterChange)="applyFilter($event)"
+        >
+          @if (!compact()) {
+            <ng-container [ngTemplateOutlet]="searchField" />
+          }
+        </app-transaction-filters>
+      </div>
+    </div>
+
+    @if (!viewport.wide()) {
+      <!--
+        Si la tabla no cabe, una tarjeta por movimiento y el orden en un desplegable: la página
+        se desplaza en vertical y la tabla no puede desplazarse en horizontal.
+      -->
+      <div class="sort-bar">
+        <mat-form-field appearance="outline" subscriptSizing="dynamic">
+          <mat-label>{{ texts.transactions.sortBy }}</mat-label>
+          <select #sortKey matNativeControl (change)="sortByKey(sortKey.value)">
+            @for (column of columns(); track column.key) {
+              <option [value]="column.key" [selected]="sort().key === column.key">
+                {{ column.label }}
+              </option>
+            }
+          </select>
+        </mat-form-field>
+        @let direction = sort().direction;
         <button
-          matSuffix
           mat-icon-button
           type="button"
-          [attr.aria-label]="texts.transactions.clearSearch"
-          (click)="query.set('')"
+          class="direction"
+          [attr.aria-label]="texts.transactions.direction[direction]"
+          [title]="texts.transactions.direction[direction]"
+          (click)="flipDirection()"
         >
-          <mat-icon fontIcon="close" aria-hidden="true" />
+          <mat-icon
+            [fontIcon]="direction === 'asc' ? 'arrow_upward' : 'arrow_downward'"
+            aria-hidden="true"
+          />
         </button>
-      }
-    </mat-form-field>
+      </div>
 
-    <!-- La tabla llega hasta el final de la ventana y se desplaza por dentro, con sus barras. -->
-    <div
-      class="table-wrap"
-      role="region"
-      [attr.aria-label]="texts.transactions.region"
-      tabindex="0"
-    >
-      <table>
-        <caption>
-          {{
-            texts.transactions.caption
-          }}
-          ({{
-            count()
-          }})
-        </caption>
-        <colgroup>
-          @for (column of columns(); track column.key) {
-            <col [class]="'col-' + column.key" />
-          }
-        </colgroup>
-        <thead>
-          <tr
-            cdkDropList
-            cdkDropListOrientation="horizontal"
-            (cdkDropListDropped)="dropColumn($event)"
-          >
-            @for (column of columns(); track column.key; let index = $index) {
-              <th
-                scope="col"
-                cdkDrag
-                cdkDragLockAxis="x"
-                cdkDragPreviewContainer="parent"
-                [class.num]="column.numeric"
-                [attr.aria-sort]="ariaSort(column.key)"
-              >
-                <button
-                  type="button"
-                  class="sort"
-                  aria-describedby="reorder-hint"
-                  [title]="column.label"
-                  (click)="sortBy(column.key)"
-                  (keydown.alt.arrowleft)="shiftColumn(index, -1, $event)"
-                  (keydown.alt.arrowright)="shiftColumn(index, 1, $event)"
-                >
-                  <span class="label">{{ column.label }}</span>
-                  <mat-icon
-                    class="sort-icon"
-                    [class.active]="sort().key === column.key"
-                    [fontIcon]="sortIcon(column.key)"
-                    aria-hidden="true"
-                  />
-                </button>
-              </th>
+      <app-transaction-cards
+        [rows]="rows()"
+        [count]="count()"
+        [remaining]="remaining()"
+        (showMore)="showMore()"
+        (edit)="edit($event)"
+      />
+    } @else {
+      <!-- La tabla crece con sus filas: se desplaza la página y la cabecera se queda a la vista. -->
+      <div class="table-wrap" role="region" [attr.aria-label]="texts.transactions.region">
+        <table>
+          <caption>
+            {{
+              texts.transactions.caption
+            }}
+            ({{
+              count()
+            }})
+          </caption>
+          <colgroup>
+            @for (column of columns(); track column.key) {
+              <col [class]="'col-' + column.key" />
             }
-          </tr>
-        </thead>
-        <tbody>
-          @for (row of rows(); track row.id) {
-            <tr>
-              @for (column of columns(); track column.key) {
-                @switch (column.key) {
-                  @case ('bookedDate') {
-                    <!-- Por ahora solo lectura; se podrá editar para imputar el movimiento a otra fecha. -->
-                    <td class="date" [class.date-changed]="row.dateChanged">
-                      {{ row.bookedDate | isoDate }}
-                      @if (row.dateChanged) {
-                        <mat-icon
-                          class="changed-icon"
-                          fontIcon="edit_calendar"
-                          aria-hidden="true"
-                        />
-                        <span class="visually-hidden">{{ texts.transactions.dateChanged }}</span>
-                      }
-                    </td>
-                  }
-                  @case ('opDate') {
-                    <td class="date">{{ row.opDate | isoDate }}</td>
-                  }
-                  @case ('description') {
-                    <td [title]="row.description">{{ row.description }}</td>
-                  }
-                  @case ('tags') {
-                    <td [title]="row.tags.join(', ')">
-                      @for (tag of row.tags; track tag) {
-                        <!-- El espacio separa las etiquetas también para los lectores de pantalla. -->
-                        <span class="badge">{{ tag }}</span
-                        >{{ ' ' }}
-                      }
-                    </td>
-                  }
-                  @case ('category') {
-                    <td [title]="row.categoryName ?? texts.dashboard.uncategorized">
-                      {{ row.categoryName ?? texts.dashboard.uncategorized }}
-                    </td>
-                  }
-                  @case ('subcategory') {
-                    <td [title]="row.subcategoryName ?? ''">{{ row.subcategoryName }}</td>
-                  }
-                  @case ('account') {
-                    <td [title]="row.accountName">{{ row.accountName }}</td>
-                  }
-                  @case ('amount') {
-                    <td
-                      class="num"
-                      [class.positive]="row.amountCents > 0"
-                      [class.negative]="row.amountCents < 0"
-                    >
-                      {{ row.amountCents | cents }}
-                    </td>
-                  }
-                  @case ('notes') {
-                    <td class="notes" [title]="row.note ?? ''">{{ row.note }}</td>
+            <col class="col-actions" />
+          </colgroup>
+          <thead>
+            <tr
+              cdkDropList
+              cdkDropListOrientation="horizontal"
+              (cdkDropListDropped)="dropColumn($event)"
+            >
+              @for (column of columns(); track column.key; let index = $index) {
+                <th
+                  scope="col"
+                  cdkDrag
+                  cdkDragLockAxis="x"
+                  cdkDragPreviewContainer="parent"
+                  [class.num]="column.numeric"
+                  [attr.aria-sort]="ariaSort(column.key)"
+                >
+                  <button
+                    type="button"
+                    class="sort"
+                    aria-describedby="reorder-hint"
+                    [title]="column.label"
+                    (click)="sortBy(column.key)"
+                    (keydown.alt.arrowleft)="shiftColumn(index, -1, $event)"
+                    (keydown.alt.arrowright)="shiftColumn(index, 1, $event)"
+                  >
+                    <span class="label">{{ column.label }}</span>
+                    <mat-icon
+                      class="sort-icon"
+                      [class.active]="sort().key === column.key"
+                      [fontIcon]="sortIcon(column.key)"
+                      aria-hidden="true"
+                    />
+                  </button>
+                </th>
+              }
+              <!-- Fuera de las columnas que se ordenan y se mueven: siempre la última. -->
+              <th scope="col" class="actions">
+                <span class="visually-hidden">{{ texts.transactions.edit.actions }}</span>
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (row of rows(); track row.id) {
+              <tr>
+                @for (column of columns(); track column.key) {
+                  @switch (column.key) {
+                    @case ('bookedDate') {
+                      <!-- Por ahora solo lectura; se podrá editar para imputar el movimiento a otra fecha. -->
+                      <td class="date" [class.date-changed]="row.dateChanged">
+                        {{ row.bookedDate | isoDate }}
+                        @if (row.dateChanged) {
+                          <mat-icon
+                            class="changed-icon"
+                            fontIcon="edit_calendar"
+                            aria-hidden="true"
+                          />
+                          <span class="visually-hidden">{{ texts.transactions.dateChanged }}</span>
+                        }
+                      </td>
+                    }
+                    @case ('opDate') {
+                      <td class="date">{{ row.opDate | isoDate }}</td>
+                    }
+                    @case ('description') {
+                      <td [title]="row.description">{{ row.description }}</td>
+                    }
+                    @case ('tags') {
+                      <td [title]="row.tags.join(', ')">
+                        @for (tag of row.tags; track tag) {
+                          <!-- El espacio separa las etiquetas también para los lectores de pantalla. -->
+                          <span class="badge">{{ tag }}</span
+                          >{{ ' ' }}
+                        }
+                      </td>
+                    }
+                    @case ('category') {
+                      <td [title]="row.categoryName ?? texts.dashboard.uncategorized">
+                        {{ row.categoryName ?? texts.dashboard.uncategorized }}
+                      </td>
+                    }
+                    @case ('subcategory') {
+                      <td [title]="row.subcategoryName ?? ''">{{ row.subcategoryName }}</td>
+                    }
+                    @case ('account') {
+                      <td [title]="row.accountName">{{ row.accountName }}</td>
+                    }
+                    @case ('amount') {
+                      <td
+                        class="num"
+                        [class.positive]="row.amountCents > 0"
+                        [class.negative]="row.amountCents < 0"
+                      >
+                        {{ row.amountCents | cents }}
+                      </td>
+                    }
+                    @case ('notes') {
+                      <td class="notes" [title]="row.note ?? ''">{{ row.note }}</td>
+                    }
                   }
                 }
-              }
-            </tr>
-          } @empty {
-            <tr>
-              <td class="no-results" [attr.colspan]="columns().length">
-                {{ texts.transactions.noResults }}
-              </td>
-            </tr>
-          }
-        </tbody>
-      </table>
-      @if (remaining() > 0) {
-        <button mat-stroked-button type="button" class="more" (click)="showMore()">
-          {{ texts.transactions.showMore }} ({{ texts.transactions.remaining }} {{ remaining() }})
-        </button>
-      }
-    </div>
-    <p id="reorder-hint" class="visually-hidden">{{ texts.transactions.reorderHint }}</p>
+                <td class="actions">
+                  <button
+                    mat-icon-button
+                    type="button"
+                    class="edit"
+                    [attr.aria-label]="
+                      texts.transactions.edit.open +
+                      ': ' +
+                      row.description +
+                      ', ' +
+                      (row.bookedDate | isoDate)
+                    "
+                    [title]="texts.transactions.edit.open"
+                    (click)="edit(row)"
+                  >
+                    <mat-icon fontIcon="edit" aria-hidden="true" />
+                  </button>
+                </td>
+              </tr>
+            } @empty {
+              <tr>
+                <td class="no-results" [attr.colspan]="columns().length + 1">
+                  {{ texts.transactions.noResults }}
+                </td>
+              </tr>
+            }
+          </tbody>
+        </table>
+        @if (remaining() > 0) {
+          <button mat-stroked-button type="button" class="more" (click)="showMore()">
+            {{ texts.transactions.showMore }} ({{ texts.transactions.remaining }} {{ remaining() }})
+          </button>
+        }
+      </div>
+      <p id="reorder-hint" class="visually-hidden">{{ texts.transactions.reorderHint }}</p>
+    }
   }
 } @else {
   <app-empty-state [status]="db.status()" />
 }
+
+<!--
+  Se busca al escribir, sin pulsar «Filtrar»: Intro no envía el formulario de los filtros en el que
+  va en escritorio.
+-->
+<ng-template #searchField>
+  <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+    <mat-label>{{ texts.transactions.search }}</mat-label>
+    <!--
+      La lupa va al final, no delante: con un prefijo, en los campos compactos la etiqueta flotante
+      se monta sobre el texto. Con algo escrito, en su sitio va el botón de borrar.
+    -->
+    <input
+      #search
+      matInput
+      type="search"
+      autocomplete="off"
+      [placeholder]="texts.transactions.searchPlaceholder"
+      [value]="query()"
+      (input)="query.set(search.value)"
+      (keydown.enter)="$event.preventDefault()"
+    />
+    @if (query()) {
+      <button
+        matSuffix
+        mat-icon-button
+        type="button"
+        [attr.aria-label]="texts.transactions.clearSearch"
+        (click)="query.set('')"
+      >
+        <mat-icon fontIcon="close" aria-hidden="true" />
+      </button>
+    } @else {
+      <mat-icon matSuffix class="search-icon" fontIcon="search" aria-hidden="true" />
+    }
+  </mat-form-field>
+</ng-template>

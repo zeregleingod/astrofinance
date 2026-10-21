@@ -1,4 +1,4 @@
-import { expect, test as base } from '@playwright/test';
+import { expect, test as base, type Page } from '@playwright/test';
 
 interface Guards {
   /** Peticiones abortadas por salir del origen de la app (ver T9.4). */
@@ -44,3 +44,23 @@ export const test = base.extend<Guards>({
 });
 
 export { expect };
+
+/**
+ * La lista de movimientos se ve como tabla en escritorio y como tarjetas en móvil: estos
+ * localizadores valen para las dos.
+ */
+export const movements = {
+  /** «Movimientos (40)» o «Movimientos (12 de 40)». */
+  count: (page: Page) => page.locator('main caption, main app-transaction-cards h3'),
+  /** Cada movimiento: su fila o su tarjeta. */
+  items: (page: Page) => page.locator('main tbody tr, main app-transaction-cards li'),
+  item: (page: Page, text: string | RegExp) => movements.items(page).filter({ hasText: text }),
+  /** En móvil los filtros van plegados: los despliega si hace falta. */
+  openFilters: async (page: Page) => {
+    const toggle = page.getByRole('button', { name: /^Filtros/ });
+    if ((await toggle.isVisible()) && (await toggle.getAttribute('aria-expanded')) === 'false') {
+      await toggle.click();
+    }
+    return page.getByRole('form', { name: 'Filtros' });
+  },
+};

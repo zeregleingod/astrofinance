@@ -15,6 +15,7 @@ import type { MonthReport } from '@domain/reports/month-report';
 import type { TransactionRow } from '@domain/reports/transaction-row';
 import type { YearReport } from '@domain/reports/year-report';
 import type { NewRule, RuleChange, RuleRow, RuleUpdate } from '@domain/rules/rule';
+import type { TransactionEdit } from '@domain/transactions/transaction-edit';
 import type { DbApi } from '@workers/db/db-api';
 import type { RpcEndpoint } from '@workers/rpc/protocol';
 import { RpcClient } from '../rpc/rpc-client';
@@ -170,6 +171,12 @@ export class DbService {
     return this.call((c) =>
       c.call('allTransactions', undefined, { signal, timeoutMs: OPEN_TIMEOUT_MS }),
     );
+  }
+
+  /** Guarda lo que el usuario cambia de un movimiento y avisa de que hay datos nuevos. */
+  async updateTransaction(edit: TransactionEdit): Promise<void> {
+    await this.call((c) => c.call('updateTransaction', edit));
+    this.dataChanged();
   }
 
   categoryOptions(signal?: AbortSignal): Promise<readonly CategoryOption[]> {

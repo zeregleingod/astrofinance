@@ -32,6 +32,8 @@ function row(overrides: Partial<TransactionRow> & Pick<TransactionRow, 'id'>): T
     reimbursement: false,
     transfer: false,
     installment: null,
+    originalDescription: null,
+    categoryId: null,
     ...overrides,
   };
 }

@@ -12,6 +12,7 @@ import {
   resource,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import {
   FormField,
@@ -24,6 +25,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
 import { TEXTS } from '@core/i18n/texts';
+import { Viewport } from '@core/layout/viewport';
 import { DbService } from '@data/db/db-service';
 import type { CategoryKind } from '@domain/categories/category-kind';
 import {
@@ -120,6 +122,8 @@ export class CategoriesPage {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef);
   private readonly injector = inject(Injector);
   protected readonly kinds = CATEGORY_KINDS;
+  /** En móvil la columna del tipo no cabe: el tipo va con el nombre. */
+  protected readonly compact = inject(Viewport).compact;
 
   private readonly tree = resource({
     params: () => (this.db.ready() ? { version: this.db.dataVersion() } : undefined),
@@ -189,7 +193,26 @@ export class CategoriesPage {
     return name.invalid() && (name.dirty() || this.rowAttempted());
   });
 
+  /** Descripciones de cada sección: se ven al pulsar su icono de información. */
+  protected readonly introOpen = signal(false);
+  protected readonly listInfoOpen = signal(false);
+
+  private readonly toolbar = viewChild('toolbar', { read: ElementRef });
+
   constructor() {
+    // La cabecera de la tabla se queda fija justo debajo del alta, cuyo alto cambia al
+    // mostrar su descripción, un error o el aviso de lo guardado.
+    effect((onCleanup) => {
+      const host = this.host.nativeElement;
+      const toolbar = this.toolbar()?.nativeElement as HTMLElement | undefined;
+      const view = host.ownerDocument.defaultView;
+      if (!toolbar || !view || !('ResizeObserver' in view)) return;
+      const observer = new view.ResizeObserver(() =>
+        host.style.setProperty('--toolbar-height', `${toolbar.offsetHeight}px`),
+      );
+      observer.observe(toolbar);
+      onCleanup(() => observer.disconnect());
+    });
     // Sin BD abierta (primera visita, o al salir de la demo) se abre la del usuario.
     effect(() => {
       if (this.db.status() === 'cerrada') {

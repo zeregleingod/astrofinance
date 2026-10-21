@@ -114,7 +114,7 @@
             <tbody>
               @for (item of rows(); track item.row.movement.dedupeHash; let index = $index) {
                 <tr [class.muted]="!item.row.included">
-                  <td>
+                  <td class="include" [attr.data-label]="texts.imports.include">
                     <input
                       #include
                       type="checkbox"
@@ -148,7 +148,7 @@
                       </span>
                     }
                   </td>
-                  <td>
+                  <td [attr.data-label]="texts.imports.category">
                     <select
                       #category
                       [disabled]="!item.row.included"
@@ -167,7 +167,7 @@
                       }
                     </select>
                   </td>
-                  <td>
+                  <td [attr.data-label]="texts.imports.amount">
                     <input
                       #amount
                       class="num"
@@ -184,7 +184,7 @@
                       (input)="edit(index, { amountText: amount.value })"
                     />
                   </td>
-                  <td>
+                  <td [attr.data-label]="texts.imports.notes">
                     <input
                       #note
                       type="text"

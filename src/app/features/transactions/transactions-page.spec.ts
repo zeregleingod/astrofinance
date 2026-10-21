@@ -1,13 +1,21 @@
+import { signal } from '@angular/core';
 import { TestBed } from '@angular/core/testing';
+import { MATERIAL_ANIMATIONS } from '@angular/material/core';
 import { provideRouter } from '@angular/router';
+import { Viewport } from '@core/layout/viewport';
 import { DB_WORKER_FACTORY, DbService } from '@data/db/db-service';
 import { inProcessDbWorker } from '../../../testing/in-process-db-worker';
 import { TransactionsPage } from './transactions-page';
 
 describe('TransactionsPage', () => {
-  async function setup(demo: boolean) {
+  async function setup(demo: boolean, compact = false) {
     TestBed.configureTestingModule({
-      providers: [provideRouter([]), { provide: DB_WORKER_FACTORY, useValue: inProcessDbWorker }],
+      providers: [
+        provideRouter([]),
+        { provide: DB_WORKER_FACTORY, useValue: inProcessDbWorker },
+        { provide: MATERIAL_ANIMATIONS, useValue: { animationsDisabled: true } },
+        { provide: Viewport, useValue: { compact: signal(compact), wide: signal(!compact) } },
+      ],
     });
     if (demo) await TestBed.inject(DbService).openDemo();
     const fixture = TestBed.createComponent(TransactionsPage);
@@ -97,7 +105,7 @@ describe('TransactionsPage', () => {
 
   it('muestra las columnas en orden, empezando por la fecha imputada', async () => {
     const { element } = await setup(true);
-    expect([...element.querySelectorAll('thead th')].map(text)).toEqual([
+    expect([...element.querySelectorAll('thead th:not(.actions)')].map(text)).toEqual([
       'Fecha',
       'Fecha original',
       'Descripción',
@@ -117,7 +125,7 @@ describe('TransactionsPage', () => {
     const months = new Set(column(0).map((date) => date?.slice(3, 10)));
     expect([...months].sort()).toEqual(['07/2026', '08/2026', '09/2026']);
     const first = rows().find((r) => text(r)?.includes('Alex - Cortinas'));
-    expect([...(first?.querySelectorAll('td') ?? [])].map(text)).toEqual([
+    expect([...(first?.querySelectorAll('td:not(.actions)') ?? [])].map(text)).toEqual([
       '28/09/2026 (fecha modificada)',
       '03/10/2026',
       'Bizum recibido - Alex - Cortinas',
@@ -209,7 +217,8 @@ describe('TransactionsPage', () => {
   });
 
   describe('orden de las columnas', () => {
-    const headers = (element: HTMLElement) => [...element.querySelectorAll('thead th')].map(text);
+    const headers = (element: HTMLElement) =>
+      [...element.querySelectorAll('thead th:not(.actions)')].map(text);
     const press = async (
       fixture: { whenStable(): Promise<unknown> },
       th: Element | undefined,
@@ -552,6 +561,207 @@ describe('TransactionsPage', () => {
       // Al cambiar lo que se busca se vuelve a la primera tanda.
       await search('demo');
       expect(rows().length).toBeLessThanOrEqual(50);
+    });
+  });
+
+  describe('en móvil', () => {
+    const cards = (element: HTMLElement) => [
+      ...element.querySelectorAll('app-transaction-cards li'),
+    ];
+    const amounts = (element: HTMLElement) =>
+      cards(element).map((card) => text(card.querySelector('.amount')));
+
+    it('enseña una tarjeta por movimiento en lugar de la tabla', async () => {
+      const { element } = await setup(true, true);
+      expect(element.querySelector('table')).toBeNull();
+      const list = cards(element);
+      expect(list.length).toBeGreaterThan(0);
+      expect(text(element.querySelector('app-transaction-cards h3'))).toBe(
+        `Movimientos (${list.length})`,
+      );
+      // Cada tarjeta lleva el concepto, el importe, la fecha y la categoría.
+      const first = list[0];
+      expect(text(first?.querySelector('.description'))).not.toBe('');
+      expect(text(first?.querySelector('.amount'))).toMatch(/€$/);
+      expect(text(first?.querySelector('.date'))).toMatch(/^\d{2}\/\d{2}\/\d{4}/);
+    });
+
+    it('pliega los filtros tras un botón y los vuelve a plegar al filtrar', async () => {
+      const { element, fixture, setFilter, applyFilters } = await setup(true, true);
+      const toggle = element.querySelector<HTMLButtonElement>('button.filters-toggle');
+      const filters = () => element.querySelector<HTMLElement>('app-transaction-filters');
+      if (!toggle) throw new Error('Sin botón de filtros');
+      expect(toggle.getAttribute('aria-expanded')).toBe('false');
+      expect(filters()?.hidden).toBe(true);
+
+      toggle.click();
+      await fixture.whenStable();
+      expect(toggle.getAttribute('aria-expanded')).toBe('true');
+      expect(filters()?.hidden).toBe(false);
+
+      await setFilter('Importe mínimo', '100');
+      await applyFilters();
+      expect(filters()?.hidden).toBe(true);
+      expect(document.activeElement).toBe(toggle);
+      expect(text(toggle)).toContain('(activos)');
+    });
+
+    it('ordena con el desplegable y el botón de dirección', async () => {
+      const { element, fixture } = await setup(true, true);
+      const select = element.querySelector<HTMLSelectElement>('.sort-bar select');
+      const direction = element.querySelector<HTMLButtonElement>('.sort-bar button');
+      if (!select || !direction) throw new Error('Sin controles de orden');
+      expect(direction.getAttribute('aria-label')).toBe('Orden descendente');
+
+      select.value = 'amount';
+      select.dispatchEvent(new Event('change'));
+      await fixture.whenStable();
+      const cents = (value: string | undefined) =>
+        Number((value ?? '').replace(/[^\d,-]/g, '').replace(',', '.'));
+      const desc = amounts(element).map(cents);
+      expect(desc).toEqual([...desc].sort((a, b) => b - a));
+
+      direction.click();
+      await fixture.whenStable();
+      expect(direction.getAttribute('aria-label')).toBe('Orden ascendente');
+      const asc = amounts(element).map(cents);
+      expect(asc).toEqual([...asc].sort((a, b) => a - b));
+    });
+  });
+
+  describe('edición', () => {
+    const dialog = () => document.querySelector('mat-dialog-container');
+    /** Un campo del diálogo por su etiqueta. */
+    const dialogField = (label: string) => {
+      const field = [...(dialog()?.querySelectorAll('mat-form-field') ?? [])].find(
+        (f) => text(f.querySelector('mat-label')) === label,
+      );
+      const control = field?.querySelector<
+        HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement
+      >('input, select, textarea');
+      if (!control) throw new Error(`Sin campo ${label}`);
+      return control;
+    };
+    /** Escribe en un campo del diálogo o, si es un desplegable, elige la opción con ese texto. */
+    const type = (label: string, value: string) => {
+      const control = dialogField(label);
+      if (control instanceof HTMLSelectElement) {
+        const option = [...control.options].find((o) => text(o) === value);
+        if (!option) throw new Error(`Sin opción ${value} en ${label}`);
+        control.value = option.value;
+      } else {
+        control.value = value;
+      }
+      control.dispatchEvent(new Event('input', { bubbles: true }));
+      control.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    const dialogButton = (name: string) => {
+      const found = [...(dialog()?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find(
+        (b) => text(b) === name,
+      );
+      if (!found) throw new Error(`Sin botón ${name}`);
+      return found;
+    };
+
+    async function open(description: string, compact = false) {
+      const page = await setup(true, compact);
+      const settled = async (assertion: () => void) => {
+        await vi.waitFor(async () => {
+          await page.fixture.whenStable();
+          assertion();
+        });
+      };
+      const container = compact ? '.card' : 'tbody tr';
+      const button = [...page.element.querySelectorAll(container)]
+        .find((r) => text(r)?.includes(description))
+        ?.querySelector<HTMLButtonElement>('button.edit');
+      if (!button) throw new Error(`Sin botón de editar para ${description}`);
+      button.click();
+      await settled(() => expect(dialog()).not.toBeNull());
+      return { ...page, button, settled };
+    }
+
+    it('cada fila tiene su botón de editar, que dice qué movimiento es', async () => {
+      const { button } = await open('Gasolinera Demo');
+
+      expect(button.getAttribute('aria-label')).toMatch(
+        /^Editar movimiento: Gasolinera Demo, \d\d\/\d\d\/2026$/,
+      );
+      expect(text(dialog()?.querySelector('h2'))).toBe('Editar movimiento');
+      expect((dialogField('Descripción') as HTMLInputElement).value).toBe('Gasolinera Demo');
+      expect(text(dialog()?.querySelector('.facts'))).toMatch(/-55,00\s€/);
+    });
+
+    it('guarda el concepto, la categoría y las observaciones', async () => {
+      const { rows, settled } = await open('Gasolinera Demo');
+
+      type('Descripción', '  Gasolina del coche ');
+      type('Categoría', 'Variables › Ocio');
+      type('Observaciones', 'Viaje a la playa');
+      dialogButton('Guardar').click();
+
+      await settled(() => expect(dialog()).toBeNull());
+      await settled(() =>
+        expect(rows().some((r) => text(r)?.includes('Gasolina del coche'))).toBe(true),
+      );
+      const row = rows().find((r) => text(r)?.includes('Gasolina del coche'));
+      const cells = [...(row?.querySelectorAll('td') ?? [])].map(text);
+      expect(cells.slice(4, 6)).toEqual(['Variables', 'Ocio']);
+      expect(cells[8]).toBe('Viaje a la playa');
+      const saved = (await TestBed.inject(DbService).allTransactions()).find(
+        (tx) => tx.description === 'Gasolina del coche',
+      );
+      expect(saved).toMatchObject({ subcategoryName: 'Ocio', note: 'Viaje a la playa' });
+    });
+
+    it('imputa el movimiento a otra fecha, y avisa si lo escrito no es una fecha', async () => {
+      const { rows, settled } = await open('Gasolinera Demo');
+
+      type('Fecha', '31/13/2026');
+      await settled(() =>
+        expect(text(dialog()?.querySelector('#edit-date-error'))).toContain('dd/mm/aaaa'),
+      );
+      expect(dialogField('Fecha').getAttribute('aria-invalid')).toBe('true');
+      dialogButton('Guardar').click();
+      await settled(() => expect(dialog()).not.toBeNull());
+
+      type('Fecha', '01/01/2027');
+      await settled(() => expect(dialog()?.querySelector('#edit-date-error')).toBeNull());
+      expect(text(dialog())).toContain('Usar la fecha original');
+      dialogButton('Guardar').click();
+
+      await settled(() => expect(dialog()).toBeNull());
+      await settled(() =>
+        expect(
+          rows().some(
+            (r) => text(r)?.includes('Gasolinera Demo') && text(r)?.includes('01/01/2027'),
+          ),
+        ).toBe(true),
+      );
+      const moved = rows().find((r) => text(r)?.includes('01/01/2027'));
+      expect(moved?.querySelector('td.date-changed')).not.toBeNull();
+    });
+
+    it('no guarda un concepto vacío', async () => {
+      const { settled } = await open('Gasolinera Demo');
+      const version = TestBed.inject(DbService).dataVersion();
+
+      type('Descripción', '   ');
+      await settled(() => expect(text(dialog())).toContain('Escribe un concepto.'));
+      dialogButton('Guardar').click();
+      await settled(() => expect(dialog()).not.toBeNull());
+
+      dialogButton('Cancelar').click();
+      await settled(() => expect(dialog()).toBeNull());
+      expect(TestBed.inject(DbService).dataVersion()).toBe(version);
+    });
+
+    it('en móvil cada tarjeta tiene su botón de editar', async () => {
+      const { button, settled } = await open('Gasolinera Demo', true);
+
+      expect(button.getAttribute('aria-label')).toMatch(/^Editar movimiento: Gasolinera Demo, /);
+      dialogButton('Cancelar').click();
+      await settled(() => expect(dialog()).toBeNull());
     });
   });
 });

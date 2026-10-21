@@ -1,0 +1,130 @@
+<h2 mat-dialog-title>{{ texts.transactions.edit.title }}</h2>
+
+<form [formRoot]="editForm">
+  <mat-dialog-content>
+    <!-- Lo que viene del banco: se enseña para saber qué movimiento es, pero no se cambia. -->
+    <dl class="facts">
+      <div>
+        <dt>{{ texts.transactions.amount }}</dt>
+        <dd
+          class="amount"
+          [class.positive]="row.amountCents > 0"
+          [class.negative]="row.amountCents < 0"
+        >
+          {{ row.amountCents | cents }}
+        </dd>
+      </div>
+      <div>
+        <dt>{{ texts.transactions.originalDate }}</dt>
+        <dd>{{ row.opDate | isoDate }}</dd>
+      </div>
+      <div>
+        <dt>{{ texts.transactions.account }}</dt>
+        <dd>{{ row.accountName }}</dd>
+      </div>
+      @if (row.originalDescription; as original) {
+        <div class="wide">
+          <dt>{{ texts.transactions.edit.bankDescription }}</dt>
+          <dd>{{ original }}</dd>
+        </div>
+      }
+    </dl>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>{{ texts.transactions.description }}</mat-label>
+      <input
+        matInput
+        autocomplete="off"
+        [formField]="editForm.description"
+        [attr.aria-invalid]="editForm.description().invalid()"
+        [attr.aria-describedby]="editForm.description().invalid() ? 'edit-description-error' : null"
+      />
+      @if (descriptionEdited()) {
+        <button
+          matSuffix
+          mat-icon-button
+          type="button"
+          [attr.aria-label]="texts.transactions.edit.restoreDescription"
+          [title]="texts.transactions.edit.restoreDescription"
+          (click)="restoreDescription()"
+        >
+          <mat-icon fontIcon="undo" aria-hidden="true" />
+        </button>
+      }
+    </mat-form-field>
+    @if (editForm.description().invalid()) {
+      <p id="edit-description-error" class="alert">
+        {{ editForm.description().errors()[0]?.message }}
+      </p>
+    }
+
+    <!-- La fecha a la que se imputa: decide en qué mes cuenta. Se escribe dd/mm/aaaa. -->
+    <div class="date-row">
+      <mat-form-field appearance="outline" subscriptSizing="dynamic">
+        <mat-label>{{ texts.transactions.bookedDate }}</mat-label>
+        <input
+          matInput
+          autocomplete="off"
+          [matDatepicker]="bookedPicker"
+          [value]="bookedDateValue()"
+          [placeholder]="texts.transactions.filters.datePlaceholder"
+          [attr.aria-invalid]="editForm.bookedDate().invalid()"
+          [attr.aria-describedby]="
+            editForm.bookedDate().invalid() ? 'edit-date-error' : 'edit-date-hint'
+          "
+          (dateInput)="setDate($event)"
+          (dateChange)="setDate($event)"
+        />
+        <mat-datepicker-toggle matIconSuffix [for]="bookedPicker" />
+        <mat-datepicker #bookedPicker />
+      </mat-form-field>
+      @if (dateMoved()) {
+        <button mat-button type="button" (click)="restoreDate()">
+          <mat-icon fontIcon="event_repeat" aria-hidden="true" />
+          {{ texts.transactions.edit.restoreDate }}
+        </button>
+      }
+    </div>
+    @if (editForm.bookedDate().invalid()) {
+      <p id="edit-date-error" class="alert">{{ texts.transactions.edit.errors.date }}</p>
+    } @else {
+      <p id="edit-date-hint" class="hint">{{ texts.transactions.edit.dateHint }}</p>
+    }
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>{{ texts.transactions.category }}</mat-label>
+      <select matNativeControl [formField]="editForm.categoryId">
+        <option value="">{{ texts.dashboard.uncategorized }}</option>
+        @for (option of categories; track option.id) {
+          <option [value]="option.id">{{ option.label }}</option>
+        }
+      </select>
+    </mat-form-field>
+
+    <mat-form-field appearance="outline" subscriptSizing="dynamic">
+      <mat-label>{{ texts.transactions.notes }}</mat-label>
+      <textarea
+        matInput
+        rows="2"
+        [formField]="editForm.note"
+        [attr.aria-invalid]="editForm.note().invalid()"
+        [attr.aria-describedby]="editForm.note().invalid() ? 'edit-note-error' : null"
+      ></textarea>
+    </mat-form-field>
+    @if (editForm.note().invalid()) {
+      <p id="edit-note-error" class="alert">{{ texts.transactions.edit.errors.tooLong }}</p>
+    }
+
+    @if (error(); as message) {
+      <p class="alert" role="alert">{{ message }}</p>
+    }
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" mat-dialog-close>{{ texts.transactions.edit.cancel }}</button>
+    <button mat-flat-button type="submit" [disabled]="editForm().submitting()">
+      <mat-icon fontIcon="save" aria-hidden="true" />
+      {{ texts.transactions.edit.save }}
+    </button>
+  </mat-dialog-actions>
+</form>

@@ -10,11 +10,15 @@ export interface TransactionRow {
   /** Mes al que se imputa (el de `bookedDate`). */
   readonly period: string;
   readonly description: string;
+  /** Concepto del banco, intacto; `null` en los movimientos creados a mano. */
+  readonly originalDescription: string | null;
   readonly note: string | null;
   readonly amountCents: number;
   readonly accountName: string;
   /** Categoría padre (el bloque de la hoja mensual). */
   readonly categoryName: string | null;
+  /** La categoría asignada (una subcategoría salvo en datos antiguos); `null` si no tiene. */
+  readonly categoryId: number | null;
   /** Subcategoría; nula si el movimiento está asignado directamente a la categoría padre. */
   readonly subcategoryName: string | null;
   /** Gasto compartido con otra persona. */

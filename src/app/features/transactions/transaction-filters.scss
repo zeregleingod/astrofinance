@@ -1,6 +1,7 @@
+// El recuadro y la densidad de los campos los pone la barra de la página, que los comparte con
+// la búsqueda.
 :host {
   display: block;
-  margin-bottom: 16px;
 }
 
 // Los campos van uno tras otro y saltan de fila al llenarla.
@@ -8,15 +9,13 @@
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 12px;
-  padding: 16px;
-  border-radius: 16px;
-  background: var(--mat-sys-surface-container-lowest);
+  gap: 8px;
 }
 
 mat-form-field {
-  flex: 0 1 168px;
+  flex: 1 1 128px;
   min-width: 0;
+  max-width: 180px;
 }
 
 // El último filtro y los botones no se separan: los botones quedan siempre a su derecha.
@@ -27,12 +26,13 @@ mat-form-field {
 }
 
 .last {
-  gap: 12px;
+  flex: 1 1 auto;
+  gap: 8px;
 }
 
 .buttons {
   flex: none;
-  gap: 8px;
+  gap: 4px;
 }
 
 .problems {
@@ -53,6 +53,7 @@ mat-form-field {
 @media (max-width: 599px) {
   mat-form-field {
     flex: 1 1 140px;
+    max-width: none;
   }
 
   .last {

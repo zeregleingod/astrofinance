@@ -1,15 +1,21 @@
 :host {
   display: block;
-  // Ancho de la columna de categoría: lo mide la página para fijar la de subcategoría a su lado.
-  --group-width: 9rem;
-  --line-width: 11rem;
+  // Anchos fijos: categoría, subcategoría (la del nombre más largo, que mide la página) y total.
+  // Los meses se reparten a partes iguales lo que queda, con un mínimo.
+  --group-width: 11.5rem;
+  --line-width: var(--line-content-width, 15rem);
+  --total-width: 7rem;
+  --month-min-width: 5.5rem;
 }
 
-// La hoja: tan ancha como su contenido y, si no cabe, se desplaza en horizontal con las
-// columnas de categoría fijas a la izquierda.
+// La hoja ocupa todo el ancho y, si no cabe con el mínimo de cada mes, se desplaza en horizontal
+// con las columnas de categoría fijas a la izquierda.
 .sheet {
-  width: fit-content;
-  max-width: 100%;
+  container: sheet / inline-size;
+  // Lo que se coloca con `position: absolute` (los nombres de los meses para lectores de
+  // pantalla) se queda dentro de la hoja: si no, alargaría el contenedor de la app y saldría una
+  // segunda barra de desplazamiento fuera de ella.
+  position: relative;
   overflow-x: auto;
   border-radius: 16px;
   background: var(--mat-sys-surface-container-lowest);
@@ -21,6 +27,11 @@
 }
 
 table {
+  width: 100%;
+  min-width: calc(
+    var(--group-width) + var(--line-width) + var(--total-width) + 12 * var(--month-min-width)
+  );
+  table-layout: fixed;
   border-collapse: separate;
   border-spacing: 0;
   font: var(--mat-sys-body-medium);
@@ -57,14 +68,34 @@ td {
   background: var(--mat-sys-surface-container-lowest);
 }
 
-// Los nombres se ven enteros y en una línea: las columnas toman el ancho del más largo.
+.col-group {
+  width: var(--group-width);
+}
+
+.col-line {
+  width: var(--line-width);
+}
+
+.col-total {
+  width: var(--total-width);
+}
+
 .group-col {
   left: 0;
 }
 
+// La categoría abarca al menos dos filas, las de sus subcategorías: un nombre largo crece en alto,
+// saltando de línea entre palabras, en vez de ensanchar la columna. El total no se parte.
+tbody .group-col {
+  white-space: normal;
+
+  .group-total {
+    white-space: nowrap;
+  }
+}
+
 .line-col {
   left: var(--group-width);
-  min-width: var(--line-width);
   font-weight: 400;
   box-shadow: 1px 0 0 var(--mat-sys-outline-variant);
 }
@@ -84,6 +115,9 @@ thead th {
   }
 
   &.month {
+    position: relative;
+    overflow: hidden;
+    text-overflow: ellipsis;
     text-transform: capitalize;
   }
 
@@ -100,6 +134,27 @@ thead th {
       outline: 2px solid var(--mat-sys-primary);
       outline-offset: 2px;
     }
+  }
+}
+
+// Los meses, abreviados cuando la hoja no deja sitio para «Septiembre»; el nombre entero sigue
+// para los lectores de pantalla.
+.month-short {
+  display: none;
+}
+
+@container sheet (width < 1740px) {
+  .month-long {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+    white-space: nowrap;
+  }
+
+  .month-short {
+    display: inline;
   }
 }
 
@@ -238,18 +293,59 @@ tfoot {
   }
 }
 
-// En pantallas estrechas solo queda fija la subcategoría: las dos juntas no dejarían sitio.
-@media (max-width: 720px) {
+// En pantallas estrechas la categoría va en su propia fila, encima de sus subcategorías, y solo
+// queda fija la columna de subcategoría.
+@media (width < 840px) {
   :host {
+    --group-width: 0px;
     --line-width: 9.5rem;
   }
 
-  tbody .group-col {
-    position: relative;
-    left: auto;
+  table {
+    font: var(--mat-sys-body-small);
   }
 
+  // Los nombres largos saltan de línea: así quedan a la vista más meses.
   .line-col {
     left: 0;
+    white-space: normal;
+  }
+
+  // Sangría francesa: las líneas siguientes empiezan donde el nombre, no bajo el punto.
+  tbody .line-col {
+    padding-left: 24px;
+    text-indent: -16px;
+  }
+
+  .section-row th {
+    position: relative;
+    padding: 6px 12px 6px 16px;
+    text-align: left;
+  }
+
+  tbody + tbody .section-row > * {
+    border-top: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  tbody + tbody tr.first > * {
+    border-top: none;
+  }
+
+  // El nombre y el total se quedan a la vista al desplazar los meses.
+  // La hoja es la referencia de `cqw`: el nombre va a la izquierda y el total a la derecha de lo
+  // que se ve, aunque la fila siga hasta diciembre. El relleno de la celda (16 + 12 px) queda
+  // fuera del ancho visible.
+  .section-label {
+    position: sticky;
+    left: 16px;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 12px;
+    width: calc(100cqw - 28px);
+  }
+
+  .group-total {
+    margin: 0;
   }
 }

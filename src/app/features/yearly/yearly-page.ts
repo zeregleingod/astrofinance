@@ -10,6 +10,7 @@ import {
 import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { TEXTS } from '@core/i18n/texts';
+import { Viewport } from '@core/layout/viewport';
 import { injectYearSelection } from '@core/period/year-selection';
 import { DbService } from '@data/db/db-service';
 import type { MonthSeries, YearLine } from '@domain/reports/year-report';
@@ -48,6 +49,8 @@ interface FooterRow {
 export class YearlyPage {
   protected readonly texts = TEXTS;
   protected readonly db = inject(DbService);
+  /** En móvil la columna de categoría no cabe junto a los meses. */
+  protected readonly compact = inject(Viewport).compact;
 
   /** `?anio=AAAA`. */
   readonly anio = input<string>();
@@ -55,15 +58,21 @@ export class YearlyPage {
   protected readonly selection = injectYearSelection(this.anio);
 
   constructor() {
-    // La columna de subcategoría se queda fija justo a la derecha de la de categoría, cuyo
-    // ancho depende de los nombres: se mide cada vez que cambian.
+    // Los meses se reparten lo que dejan las demás columnas, que tienen ancho fijo: la de
+    // subcategoría, el del nombre más largo (en una línea, nunca se recorta). Se mide cada vez
+    // que cambian los nombres y, otra vez, cuando la fuente está cargada. En móvil los nombres
+    // saltan de línea y el ancho lo fija la hoja de estilos.
     const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
     afterRenderEffect(() => {
       this.sections();
-      const column = host.querySelector('thead .group-col');
-      if (column) {
-        host.style.setProperty('--group-width', `${column.getBoundingClientRect().width}px`);
+      if (this.compact()) {
+        host.style.removeProperty('--line-content-width');
+        return;
       }
+      measureLineWidth(host);
+      void host.ownerDocument.fonts?.ready.then(() => {
+        if (!this.compact()) measureLineWidth(host);
+      });
     });
   }
 
@@ -81,6 +90,7 @@ export class YearlyPage {
     const report = this.report.value();
     return TEXTS.period.months.map((name, i) => ({
       name,
+      short: TEXTS.period.monthsShort[i],
       // Solo los meses con movimientos enlazan a su resumen mensual.
       period:
         report?.monthsWithData[i] === true
@@ -125,4 +135,30 @@ export class YearlyPage {
       { label: TEXTS.yearly.balance, series: report.balanceWithoutSavings, kind: 'balance' },
     ];
   });
+}
+
+/** Fija `--line-content-width` al ancho del nombre de subcategoría más largo de la hoja. */
+function measureLineWidth(host: HTMLElement): void {
+  const view = host.ownerDocument.defaultView;
+  if (!view) return;
+  const widths = [...host.querySelectorAll<HTMLElement>('tbody th.line-col')].map((cell) => {
+    // Del punto de color al final del nombre: el tinte de la fila ocupa toda la celda.
+    const dot = cell.querySelector('.dot');
+    const last = cell.lastChild;
+    if (!dot || !last) return 0;
+    const range = host.ownerDocument.createRange();
+    // Sin maquetación (p. ej. en los tests) no hay nada que medir.
+    if (typeof range.getBoundingClientRect !== 'function') return 0;
+    range.setStartBefore(dot);
+    range.setEndAfter(last);
+    const style = view.getComputedStyle(cell);
+    return (
+      range.getBoundingClientRect().width +
+      parseFloat(style.paddingLeft) +
+      parseFloat(style.paddingRight)
+    );
+  });
+  if (widths.length > 0) {
+    host.style.setProperty('--line-content-width', `${Math.ceil(Math.max(...widths))}px`);
+  }
 }

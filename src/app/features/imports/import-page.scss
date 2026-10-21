@@ -272,3 +272,109 @@ input[type='checkbox'] {
     margin: 0;
   }
 }
+
+// En pantallas estrechas cada movimiento es una tarjeta: arriba si se guarda, la fecha y el
+// estado; debajo, los campos que se pueden corregir, cada uno con su nombre.
+@media (width < 840px) {
+  .panel {
+    padding: 16px;
+  }
+
+  caption {
+    display: block;
+  }
+
+  thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  table,
+  tbody {
+    display: block;
+    min-width: 0;
+  }
+
+  tbody tr {
+    display: grid;
+    grid-template-columns: auto minmax(0, 1fr) minmax(96px, 35%);
+    grid-template-areas:
+      'include date status'
+      'description description description'
+      'category category amount'
+      'notes notes notes';
+    align-items: center;
+    gap: 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+
+    &:last-child {
+      border-bottom: none;
+    }
+
+    > td {
+      padding: 0;
+      border: none;
+    }
+
+    > :nth-child(1) {
+      grid-area: include;
+    }
+
+    > :nth-child(2) {
+      grid-area: date;
+    }
+
+    > :nth-child(3) {
+      grid-area: description;
+    }
+
+    > :nth-child(4) {
+      grid-area: category;
+    }
+
+    > :nth-child(5) {
+      grid-area: amount;
+    }
+
+    > :nth-child(6) {
+      grid-area: notes;
+    }
+
+    > :nth-child(7) {
+      grid-area: status;
+      justify-self: end;
+    }
+  }
+
+  // «Guardar» va a la izquierda de su casilla, en la misma línea.
+  .include {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    &::before {
+      margin: 0;
+    }
+
+    input {
+      margin: 0;
+    }
+  }
+
+  td[data-label]::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    font: var(--mat-sys-label-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .actions .hint {
+    flex-basis: 100%;
+    min-width: 0;
+  }
+}

@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, movements, test } from './fixtures';
 
 const STATEMENT = 'e2e/fixtures/sabadell-enero-2026.xls';
 const TOTAL = 44;
@@ -82,9 +82,7 @@ test('crear reglas, ver los cambios, cancelar y después confirmar', async ({ pa
 
   await openNav(page);
   await page.getByRole('link', { name: 'Movimientos' }).click();
-  await expect(
-    page.getByRole('table').getByRole('row', { name: /NOMINA DE EMPRESA DEMO SL/ }),
-  ).toContainText('Nómina');
+  await expect(movements.item(page, /NOMINA DE EMPRESA DEMO SL/)).toContainText('Nómina');
 });
 
 test('editar y eliminar una regla en la tabla', async ({ page }) => {

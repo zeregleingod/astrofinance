@@ -13,6 +13,7 @@ import type {
 import type { MonthReport } from '@domain/reports/month-report';
 import type { TransactionRow } from '@domain/reports/transaction-row';
 import type { YearReport } from '@domain/reports/year-report';
+import type { TransactionEdit } from '@domain/transactions/transaction-edit';
 import type { NewRule, RuleChange, RuleRow, RuleUpdate } from '@domain/rules/rule';
 
 /** Contrato RPC del worker de base de datos. */
@@ -36,6 +37,8 @@ export interface DbApi {
   transactions: { params: { period: string }; result: readonly TransactionRow[] };
   /** Todos los movimientos, del más reciente al más antiguo. */
   allTransactions: { params: undefined; result: readonly TransactionRow[] };
+  /** Guarda lo que el usuario cambia de un movimiento (concepto, fecha, categoría, notas). */
+  updateTransaction: { params: TransactionEdit; result: undefined };
   categoryOptions: { params: undefined; result: readonly CategoryOption[] };
   categoryTree: { params: undefined; result: readonly CategoryGroup[] };
   /** Da de alta una categoría o subcategoría y devuelve su id. */

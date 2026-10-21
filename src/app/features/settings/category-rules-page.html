@@ -12,87 +12,123 @@
     <p class="panel" role="status">{{ texts.categoryRules.loading }}</p>
   }
 } @else {
-  <section class="panel" aria-labelledby="new-rule-title">
-    <h3 id="new-rule-title">{{ texts.categoryRules.newTitle }}</h3>
-    <p class="hint">{{ texts.categoryRules.intro }}</p>
-
-    <form class="fields" [formRoot]="ruleForm">
-      <label class="field">
-        <span>{{ texts.categoryRules.operator }}</span>
-        <select [formField]="ruleForm.operator">
-          @for (operator of operators; track operator) {
-            <option [value]="operator">{{ texts.categoryRules.operators[operator] }}</option>
-          }
-        </select>
-      </label>
-      <label class="field pattern">
-        <span>{{ texts.categoryRules.pattern }}</span>
-        <input
-          type="text"
-          autocomplete="off"
-          spellcheck="false"
-          [class.upper]="isUpper(ruleForm.operator().value())"
-          [formField]="ruleForm.pattern"
-          [attr.aria-invalid]="showPatternError()"
-          [attr.aria-describedby]="showPatternError() ? 'pattern-error' : null"
-        />
-      </label>
-      <label class="field category">
-        <span>{{ texts.categoryRules.category }}</span>
-        <select
-          [formField]="ruleForm.categoryId"
-          [attr.aria-invalid]="showCategoryError()"
-          [attr.aria-describedby]="showCategoryError() ? 'category-error' : null"
+  <!-- El alta, arriba y a la vista al desplazar; la cabecera de la tabla se queda debajo. -->
+  <div #toolbar class="toolbar">
+    <section class="panel" aria-labelledby="new-rule-title">
+      <div class="title-row">
+        <h3 id="new-rule-title">{{ texts.categoryRules.newTitle }}</h3>
+        <button
+          mat-icon-button
+          type="button"
+          class="info"
+          aria-controls="new-rule-info"
+          [attr.aria-expanded]="introOpen()"
+          [attr.aria-label]="texts.categories.moreInfo + ': ' + texts.categoryRules.newTitle"
+          [title]="texts.categories.moreInfo"
+          (click)="introOpen.set(!introOpen())"
         >
-          <option value="">{{ texts.categoryRules.chooseCategory }}</option>
-          @for (category of categories(); track category.id) {
-            <option [value]="category.id">{{ category.label }}</option>
-          }
-        </select>
-      </label>
-      <button mat-flat-button type="submit" [disabled]="ruleForm().submitting()">
-        <mat-icon fontIcon="add" aria-hidden="true" />
-        {{ texts.categoryRules.add }}
-      </button>
-    </form>
+          <mat-icon fontIcon="info" aria-hidden="true" />
+        </button>
+      </div>
+      @if (introOpen()) {
+        <p id="new-rule-info" class="hint info-text">{{ texts.categoryRules.intro }}</p>
+      }
 
-    @if (showPatternError()) {
-      <p id="pattern-error" class="alert">
-        @for (problem of ruleForm.pattern().errors(); track problem.kind) {
-          {{ problem.message }}
+      <form class="fields" [formRoot]="ruleForm">
+        <label class="field">
+          <span>{{ texts.categoryRules.operator }}</span>
+          <select [formField]="ruleForm.operator">
+            @for (operator of operators; track operator) {
+              <option [value]="operator">{{ texts.categoryRules.operators[operator] }}</option>
+            }
+          </select>
+        </label>
+        <label class="field pattern">
+          <span>{{ texts.categoryRules.pattern }}</span>
+          <input
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            [class.upper]="isUpper(ruleForm.operator().value())"
+            [formField]="ruleForm.pattern"
+            [attr.aria-invalid]="showPatternError()"
+            [attr.aria-describedby]="showPatternError() ? 'pattern-error' : null"
+          />
+        </label>
+        <label class="field category">
+          <span>{{ texts.categoryRules.category }}</span>
+          <select
+            [formField]="ruleForm.categoryId"
+            [attr.aria-invalid]="showCategoryError()"
+            [attr.aria-describedby]="showCategoryError() ? 'category-error' : null"
+          >
+            <option value="">{{ texts.categoryRules.chooseCategory }}</option>
+            @for (category of categories(); track category.id) {
+              <option [value]="category.id">{{ category.label }}</option>
+            }
+          </select>
+        </label>
+        <button mat-flat-button type="submit" [disabled]="ruleForm().submitting()">
+          <mat-icon fontIcon="add" aria-hidden="true" />
+          {{ texts.categoryRules.add }}
+        </button>
+      </form>
+
+      @if (showPatternError()) {
+        <p id="pattern-error" class="alert">
+          @for (problem of ruleForm.pattern().errors(); track problem.kind) {
+            {{ problem.message }}
+          }
+        </p>
+      }
+      @if (showCategoryError()) {
+        <p id="category-error" class="alert">{{ texts.categoryRules.categoryRequired }}</p>
+      }
+      @if (error(); as message) {
+        <p class="alert" role="alert">{{ message }}</p>
+      }
+      <p class="done" role="status">
+        @if (notice(); as message) {
+          <mat-icon fontIcon="check_circle" aria-hidden="true" />
+          {{ message }}
         }
       </p>
-    }
-    @if (showCategoryError()) {
-      <p id="category-error" class="alert">{{ texts.categoryRules.categoryRequired }}</p>
-    }
-    @if (error(); as message) {
-      <p class="alert" role="alert">{{ message }}</p>
-    }
-    <p class="done" role="status">
-      @if (notice(); as message) {
-        <mat-icon fontIcon="check_circle" aria-hidden="true" />
-        {{ message }}
-      }
-    </p>
-    @if (db.mode() === 'local') {
-      <p class="hint warning">{{ texts.imports.memoryOnly }}</p>
-    }
-  </section>
+    </section>
+  </div>
+  <!-- Fuera del alta fija: es un aviso, no parte del formulario, y en móvil ocuparía media pantalla. -->
+  @if (db.mode() === 'local') {
+    <p class="hint warning memory-warning">{{ texts.imports.memoryOnly }}</p>
+  }
 
   <section>
     <div class="list-header">
       <div>
-        <h3 id="rule-list-title" class="list-title" tabindex="-1">
-          {{ texts.categoryRules.list }}
-        </h3>
-        <p id="apply-hint" class="hint list-hint">{{ texts.categoryRules.applyHint }}</p>
+        <div class="title-row">
+          <h3 id="rule-list-title" class="list-title" tabindex="-1">
+            {{ texts.categoryRules.list }}
+          </h3>
+          <button
+            mat-icon-button
+            type="button"
+            class="info"
+            aria-controls="apply-hint"
+            [attr.aria-expanded]="listInfoOpen()"
+            [attr.aria-label]="texts.categories.moreInfo + ': ' + texts.categoryRules.list"
+            [title]="texts.categories.moreInfo"
+            (click)="listInfoOpen.set(!listInfoOpen())"
+          >
+            <mat-icon fontIcon="info" aria-hidden="true" />
+          </button>
+        </div>
+        @if (listInfoOpen()) {
+          <p id="apply-hint" class="hint list-hint">{{ texts.categoryRules.applyHint }}</p>
+        }
       </div>
       <button
         mat-stroked-button
         type="button"
         id="apply-rules"
-        aria-describedby="apply-hint"
+        [attr.aria-describedby]="listInfoOpen() ? 'apply-hint' : null"
         [disabled]="rules().length === 0 || previewing() || preview() !== null"
         (click)="showPreview()"
       >
@@ -117,12 +153,8 @@
           {{ texts.categoryRules.previewCount }} {{ changes.length }}.
           {{ texts.categoryRules.previewHint }}
         </p>
-        <div
-          class="table-wrap preview-table"
-          role="region"
-          aria-labelledby="preview-title"
-          tabindex="0"
-        >
+        <!-- Sin desplazamiento propio: se desplaza la página y la cabecera se queda arriba. -->
+        <div class="table-wrap preview-table">
           <table aria-labelledby="preview-title">
             <thead>
               <tr>
@@ -168,7 +200,7 @@
     @if (rules().length === 0) {
       <p class="panel hint">{{ texts.categoryRules.empty }}</p>
     } @else {
-      <div class="table-wrap" role="region" aria-labelledby="rule-list-title" tabindex="0">
+      <div class="table-wrap">
         <table class="rules" aria-labelledby="rule-list-title">
           <thead>
             <tr>
@@ -239,7 +271,7 @@
                       }
                     </select>
                   </td>
-                  <td class="num">
+                  <td class="num" [attr.data-label]="texts.categoryRules.movementsColumn">
                     <span class="count" [class.unused]="rule.transactionCount === 0">{{
                       rule.transactionCount
                     }}</span>
@@ -277,7 +309,7 @@
                     <code>{{ rule.pattern }}</code>
                   </th>
                   <td class="category wrap">{{ rule.categoryLabel }}</td>
-                  <td class="num">
+                  <td class="num" [attr.data-label]="texts.categoryRules.movementsColumn">
                     <span class="count" [class.unused]="rule.transactionCount === 0">{{
                       rule.transactionCount
                     }}</span>

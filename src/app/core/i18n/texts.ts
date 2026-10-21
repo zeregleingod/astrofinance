@@ -9,6 +9,8 @@ export const TEXTS = {
   nav: {
     label: 'Navegación principal',
     openMenu: 'Abrir menú',
+    collapse: 'Plegar menú',
+    expand: 'Desplegar menú',
     section: 'Menú',
   },
   theme: {
@@ -71,6 +73,8 @@ export const TEXTS = {
     showMore: 'Mostrar más movimientos',
     remaining: 'quedan',
     shown: 'Movimientos que cumplen los filtros:',
+    sortBy: 'Ordenar por',
+    direction: { asc: 'Orden ascendente', desc: 'Orden descendente' },
     filters: {
       title: 'Filtros',
       year: 'Año',
@@ -88,6 +92,7 @@ export const TEXTS = {
       apply: 'Filtrar',
       clear: 'Limpiar',
       clearLabel: 'Limpiar filtros',
+      active: 'activos',
       errors: {
         date: 'Escribe la fecha como dd/mm/aaaa, por ejemplo 01/08/2026.',
         dateOrder: 'La fecha «Hasta» no puede ser anterior a la fecha «Desde».',
@@ -99,6 +104,25 @@ export const TEXTS = {
     reorderHint:
       'Arrastra la cabecera o pulsa Alt + flecha izquierda o derecha para mover la columna.',
     columnPosition: 'columna',
+    edit: {
+      open: 'Editar movimiento',
+      actions: 'Acciones',
+      title: 'Editar movimiento',
+      bankDescription: 'Concepto del banco',
+      restoreDescription: 'Volver al concepto del banco',
+      restoreDate: 'Usar la fecha original',
+      dateHint:
+        'El movimiento cuenta en el mes de esta fecha. Cámbiala si pertenece a otro mes, por ejemplo un Bizum que devuelve un gasto del mes anterior.',
+      cancel: 'Cancelar',
+      save: 'Guardar',
+      saved: 'Movimiento guardado.',
+      saveError: 'No se ha podido guardar el movimiento.',
+      errors: {
+        description: 'Escribe un concepto.',
+        tooLong: 'Como máximo 500 caracteres.',
+        date: 'Escribe la fecha como dd/mm/aaaa, por ejemplo 01/08/2026.',
+      },
+    },
   },
   imports: {
     title: 'Importar extracto',
@@ -175,6 +199,7 @@ export const TEXTS = {
     loading: 'Cargando las categorías…',
     loadError: 'No se han podido cargar las categorías.',
     newTitle: 'Nueva categoría',
+    moreInfo: 'Más información',
     intro:
       'Una categoría agrupa subcategorías y les da color. Las subcategorías, que son las que se asignan a los movimientos, se añaden desde la tabla con el botón «+» de su categoría.',
     name: 'Nombre',
@@ -373,6 +398,21 @@ export const TEXTS = {
       'octubre',
       'noviembre',
       'diciembre',
+    ],
+    /** Para las cabeceras estrechas: el nombre entero sigue para los lectores de pantalla. */
+    monthsShort: [
+      'ene',
+      'feb',
+      'mar',
+      'abr',
+      'may',
+      'jun',
+      'jul',
+      'ago',
+      'sep',
+      'oct',
+      'nov',
+      'dic',
     ],
   },
   demo: {

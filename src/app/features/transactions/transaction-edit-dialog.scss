@@ -1,0 +1,84 @@
+@use '@angular/material' as mat;
+
+// Campos compactos, como los filtros: el diálogo cabe sin desplazarse en la mayoría de pantallas.
+:host {
+  @include mat.form-field-density(-4);
+
+  display: block;
+}
+
+mat-dialog-content {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+// Lo que viene del banco, en pequeño y en rejilla.
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  gap: 8px 16px;
+  margin: 0 0 4px;
+  padding: 12px 16px;
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container);
+
+  .wide {
+    grid-column: 1 / -1;
+  }
+
+  dt {
+    font: var(--mat-sys-label-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 0;
+    font: var(--mat-sys-body-medium);
+    overflow-wrap: anywhere;
+  }
+}
+
+.amount {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.positive {
+  color: var(--af-positive);
+}
+
+.negative {
+  color: var(--af-negative);
+}
+
+mat-form-field {
+  width: 100%;
+}
+
+.date-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+
+  mat-form-field {
+    flex: 1 1 200px;
+  }
+}
+
+// Los mensajes van justo debajo de su campo.
+.alert,
+.hint {
+  margin: -8px 0 0;
+  font: var(--mat-sys-body-small);
+}
+
+.alert {
+  color: var(--mat-sys-error);
+  font-weight: 500;
+}
+
+.hint {
+  color: var(--mat-sys-on-surface-variant);
+}

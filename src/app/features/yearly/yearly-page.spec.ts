@@ -30,7 +30,10 @@ describe('YearlyPage', () => {
     const element = await setup({ demo: true });
 
     expect(text(element.querySelector('app-year-nav p'))).toBe('2026');
-    const headers = [...element.querySelectorAll('thead th')].map((th) => text(th));
+    // De cada mes, el nombre entero: la abreviatura no la leen los lectores de pantalla.
+    const headers = [...element.querySelectorAll('thead th')].map((th) =>
+      text(th.querySelector('.month-long') ?? th),
+    );
     expect(headers).toHaveLength(2 + 12 + 1);
     expect(headers.slice(2, 14)).toEqual([
       'enero',

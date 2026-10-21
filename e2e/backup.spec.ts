@@ -1,6 +1,6 @@
 import { type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { expect, test } from './fixtures';
+import { expect, movements, test } from './fixtures';
 
 const STATEMENT = 'e2e/fixtures/sabadell-enero-2026.xls';
 const TOTAL = 44;
@@ -61,7 +61,7 @@ test('descargar una copia, recargar la página y volver a cargarla', async ({ pa
   await expect(page.getByRole('button', { name: 'Descargar copia' })).toBeEnabled();
 
   await page.getByRole('link', { name: 'Ver los movimientos' }).click();
-  await expect(page.getByRole('table')).toContainText(`Movimientos (${TOTAL})`);
+  await expect(movements.count(page)).toHaveText(`Movimientos (${TOTAL})`);
 });
 
 test('cargar una copia sobre datos propios pide confirmación', async ({ page }) => {

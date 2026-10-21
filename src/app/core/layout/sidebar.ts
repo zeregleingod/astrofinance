@@ -1,5 +1,5 @@
 import { NgOptimizedImage } from '@angular/common';
-import { Component, inject, output } from '@angular/core';
+import { Component, booleanAttribute, inject, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
@@ -13,10 +13,13 @@ import { DbService } from '@data/db/db-service';
 
 /**
  * Barra lateral: marca, accesos rápidos (los que se proyecten y el modo oscuro), una entrada por
- * sección (agrupadas en apartados) y acceso a la demo (o su aviso, dentro de ella).
+ * sección (agrupadas en apartados) y acceso a la demo (o su aviso, dentro de ella). En
+ * escritorio se pliega a una franja con solo los iconos; sus nombres salen al pasar por encima
+ * y siguen ahí para los lectores de pantalla.
  */
 @Component({
   selector: 'app-sidebar',
+  host: { '[class.collapsed]': 'collapsed()' },
   imports: [
     DemoBanner,
     NgOptimizedImage,
@@ -31,6 +34,24 @@ import { DbService } from '@data/db/db-service';
     <header class="brand">
       <img ngSrc="logo.svg" width="36" height="36" alt="" priority />
       <h1 class="brand-name">{{ texts.app.name }}</h1>
+      @if (collapsible()) {
+        <button
+          mat-icon-button
+          type="button"
+          class="collapse-toggle"
+          aria-controls="main-nav"
+          [attr.aria-expanded]="!collapsed()"
+          [attr.aria-label]="collapsed() ? texts.nav.expand : texts.nav.collapse"
+          [matTooltip]="collapsed() ? texts.nav.expand : texts.nav.collapse"
+          matTooltipPosition="right"
+          (click)="collapseToggle.emit()"
+        >
+          <mat-icon
+            [fontIcon]="collapsed() ? 'keyboard_double_arrow_right' : 'keyboard_double_arrow_left'"
+            aria-hidden="true"
+          />
+        </button>
+      }
     </header>
     <div class="quick-actions" role="group" [attr.aria-label]="texts.quickActions.label">
       <ng-content />
@@ -45,7 +66,7 @@ import { DbService } from '@data/db/db-service';
         <mat-icon [fontIcon]="theme.isDark() ? 'dark_mode' : 'light_mode'" aria-hidden="true" />
       </button>
     </div>
-    <nav [attr.aria-label]="texts.nav.label">
+    <nav id="main-nav" [attr.aria-label]="texts.nav.label">
       @for (section of sections; track section.label) {
         <p class="section-label" aria-hidden="true">{{ section.label ?? texts.nav.section }}</p>
         <mat-nav-list [attr.aria-label]="section.label ?? texts.nav.section">
@@ -58,6 +79,9 @@ import { DbService } from '@data/db/db-service';
               [routerLinkActiveOptions]="{ exact: item.path === '/' }"
               ariaCurrentWhenActive="page"
               [activated]="active.isActive"
+              [matTooltip]="item.label"
+              matTooltipPosition="right"
+              [matTooltipDisabled]="!collapsed()"
               (click)="navigate.emit()"
             >
               @if (item.icon) {
@@ -75,7 +99,19 @@ import { DbService } from '@data/db/db-service';
         ofrece si ya hay algo del usuario en ella.
       -->
       @if (db.mode() === 'demo') {
-        <app-demo-banner (exited)="navigate.emit()" />
+        <app-demo-banner [rail]="collapsed()" (exited)="navigate.emit()" />
+      } @else if (!db.hasUserData() && collapsed()) {
+        <a
+          mat-icon-button
+          class="demo-link"
+          routerLink="/demo"
+          [attr.aria-label]="texts.demo.open"
+          [matTooltip]="texts.demo.open"
+          matTooltipPosition="right"
+          (click)="navigate.emit()"
+        >
+          <mat-icon aria-hidden="true">science</mat-icon>
+        </a>
       } @else if (!db.hasUserData()) {
         <a mat-stroked-button class="demo-link" routerLink="/demo" (click)="navigate.emit()">
           <mat-icon aria-hidden="true">science</mat-icon>
@@ -96,7 +132,7 @@ import { DbService } from '@data/db/db-service';
     .brand {
       display: flex;
       align-items: center;
-      gap: 12px;
+      gap: 8px;
       padding: 0 8px 16px;
     }
 
@@ -138,6 +174,7 @@ import { DbService } from '@data/db/db-service';
       );
       --mat-list-list-item-label-text-color: var(--mat-sys-on-surface-variant);
       --mat-list-list-item-leading-icon-color: var(--mat-sys-on-surface-variant);
+      --mat-list-list-item-leading-icon-end-space: 12px;
     }
 
     a[mat-list-item] {
@@ -161,6 +198,77 @@ import { DbService } from '@data/db/db-service';
     .demo-link {
       width: 100%;
     }
+
+    .brand-name {
+      flex: 1;
+    }
+
+    .collapse-toggle {
+      --mat-icon-button-state-layer-size: 32px;
+
+      flex: none;
+      padding: 4px;
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    /*
+      Plegada: una franja con los iconos centrados. Los nombres quedan para los lectores de
+      pantalla y salen en un aviso al pasar por encima.
+    */
+    :host(.collapsed) {
+      align-items: center;
+      padding-inline: 12px;
+    }
+
+    :host(.collapsed) .brand,
+    :host(.collapsed) .quick-actions {
+      flex-direction: column;
+      padding-inline: 0;
+    }
+
+    :host(.collapsed) .collapse-toggle {
+      margin: 0;
+    }
+
+    :host(.collapsed) .brand,
+    :host(.collapsed) a[mat-list-item] {
+      position: relative;
+    }
+
+    :host(.collapsed) .brand-name,
+    :host(.collapsed) [matListItemTitle] {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 1px;
+      height: 1px;
+      overflow: hidden;
+      clip-path: inset(50%);
+      white-space: nowrap;
+    }
+
+    /* Sin rótulos (ya los llevan las listas como nombre accesible): una línea separa los apartados. */
+    :host(.collapsed) .section-label {
+      display: none;
+    }
+
+    :host(.collapsed) mat-nav-list ~ mat-nav-list {
+      margin-top: 8px;
+      padding-top: 8px;
+      border-top: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    :host(.collapsed) nav {
+      width: 56px;
+    }
+
+    :host(.collapsed) .footer {
+      padding-inline: 0;
+    }
+
+    :host(.collapsed) .demo-link {
+      width: auto;
+    }
   `,
 })
 export class Sidebar {
@@ -168,6 +276,13 @@ export class Sidebar {
   protected readonly sections = groupNavItems(buildNavItems(inject(Router).config));
   protected readonly theme = inject(ThemeService);
   protected readonly db = inject(DbService);
+
+  /** Plegada: solo los iconos. */
+  readonly collapsed = input(false, { transform: booleanAttribute });
+  /** Ofrece el botón de plegar y desplegar (en escritorio; en móvil es un panel). */
+  readonly collapsible = input(false, { transform: booleanAttribute });
+  /** Se pide plegar o desplegar. */
+  readonly collapseToggle = output();
 
   /** Se emite al elegir una sección (p. ej. para cerrar el panel en móvil). */
   readonly navigate = output();

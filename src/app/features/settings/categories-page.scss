@@ -1,17 +1,49 @@
+// La página crece con la tabla y es ella la que se desplaza, no la tabla. Referencia de los
+// textos solo para lectores (`position: absolute`): sin ella alargarían el contenedor de la app.
 :host {
+  position: relative;
   display: block;
+}
+
+// El alta, arriba y a la vista al desplazar. El fondo de la página tapa lo que pasa por debajo;
+// `top` negativo: también tapa el relleno de la página.
+.toolbar {
+  position: sticky;
+  top: -24px;
+  z-index: 2;
+  margin-top: -8px;
+  padding: 8px 0 16px;
+  background: var(--mat-sys-surface);
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.info {
+  --mat-icon-button-state-layer-size: 32px;
+  --mat-icon-button-icon-size: 20px;
+
+  padding: 6px;
+  color: var(--mat-sys-on-surface-variant);
+
+  &[aria-expanded='true'] {
+    color: var(--mat-sys-primary);
+  }
 }
 
 .panel {
   // Con su relleno lateral, tan ancho como las tablas.
   max-width: calc(var(--af-table-width) - 48px);
-  margin: 0 0 24px;
-  padding: 24px;
+  margin: 0;
+  padding: 16px 24px;
   border-radius: 16px;
   background: var(--mat-sys-surface-container-lowest);
 
   h3 {
-    margin: 0 0 4px;
+    margin: 0;
     font: var(--mat-sys-title-large);
     font-weight: 600;
   }
@@ -20,7 +52,7 @@
     margin: 12px 0 0;
   }
 
-  h3 + p {
+  .info-text {
     margin-top: 0;
   }
 }
@@ -28,6 +60,11 @@
 .hint {
   color: var(--mat-sys-on-surface-variant);
   font: var(--mat-sys-body-medium);
+}
+
+.memory-warning {
+  max-width: calc(var(--af-table-width) - 24px);
+  margin: 0 0 16px;
 }
 
 .warning {
@@ -126,26 +163,26 @@ input[type='color'] {
   }
 }
 
+.list-title-row {
+  margin-bottom: 8px;
+}
+
 .list-hint {
-  margin: 2px 0 12px;
+  margin: -4px 0 12px;
 }
 
 .table-wrap {
   max-width: var(--af-table-width);
-  overflow-x: auto;
   border-radius: 16px;
   background: var(--mat-sys-surface-container-lowest);
-
-  &:focus-visible {
-    outline: 2px solid var(--mat-sys-primary);
-    outline-offset: 2px;
-  }
 }
 
 // El nombre se queda con el ancho que sobra y, si es largo, salta de línea: nunca se recorta.
+// `separate`: con `collapse` los bordes de la cabecera fija no la acompañan al desplazar.
 table {
   width: 100%;
-  border-collapse: collapse;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .col-kind {
@@ -174,10 +211,24 @@ th:first-child {
   padding-left: 20px;
 }
 
+// La cabecera se queda a la vista, justo debajo del alta, al desplazar la página.
 thead th {
+  position: sticky;
+  // Menos el relleno de la página, que el alta también tapa (ver `.toolbar`).
+  top: calc(var(--toolbar-height, 0px) - 24px);
+  z-index: 1;
   padding-block: 12px;
   font: var(--mat-sys-label-large);
   color: var(--mat-sys-on-surface-variant);
+  background: var(--mat-sys-surface-container-lowest);
+
+  &:first-child {
+    border-top-left-radius: 16px;
+  }
+
+  &:last-child {
+    border-top-right-radius: 16px;
+  }
 }
 
 // En pantallas estrechas la cabecera usa la abreviatura; el texto completo sigue para lectores.
@@ -345,10 +396,18 @@ td.kind select {
   min-height: 34px;
 }
 
-// En pantallas estrechas la tabla cabe sin desplazarse.
-@media (max-width: 599px) {
+// En pantallas estrechas la tabla cabe sin desplazarse: el tipo va debajo del nombre.
+@media (width < 840px) {
+  .toolbar {
+    top: -16px;
+  }
+
   table {
     table-layout: fixed;
+  }
+
+  thead th {
+    top: calc(var(--toolbar-height, 0px) - 16px);
   }
 
   thead th {
@@ -368,8 +427,19 @@ td.kind select {
     display: inline;
   }
 
-  .col-kind {
-    width: 76px;
+  .col-kind,
+  .kind {
+    display: none;
+  }
+
+  .kind-inline {
+    display: block;
+    font: var(--mat-sys-body-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .panel {
+    padding: 16px;
   }
 
   .col-count {

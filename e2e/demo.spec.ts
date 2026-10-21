@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, movements, test } from './fixtures';
 
 async function openNav(page: Page) {
   const openMenu = page.getByRole('button', { name: 'Abrir menú' });
@@ -17,7 +17,7 @@ test('la barra lateral ofrece ver la demo y la abre', async ({ page }) => {
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
 });
 
-test('la demo carga datos ficticios en memoria y se puede recorrer', async ({ page }) => {
+test('la demo carga datos ficticios en memoria y se puede recorrer', async ({ page, isMobile }) => {
   await page.goto('/demo');
 
   await expect(page).toHaveURL(/\/$/);
@@ -33,13 +33,19 @@ test('la demo carga datos ficticios en memoria y se puede recorrer', async ({ pa
 
   await openNav(page);
   await page.getByRole('link', { name: 'Movimientos' }).click();
-  await expect(page.getByRole('table')).toContainText(/Movimientos \(\d+\)/);
-  const curtains = page.getByRole('row', { name: /Bizum recibido - Alex - Cortinas/ });
-  await expect(curtains.getByRole('cell').nth(0)).toHaveText('28/09/2026 (fecha modificada)');
-  await expect(curtains.getByRole('cell').nth(1)).toHaveText('03/10/2026');
+  await expect(movements.count(page)).toHaveText(/Movimientos \(\d+\)/);
+  const curtains = movements.item(page, /Bizum recibido - Alex - Cortinas/);
+  if (isMobile) {
+    await expect(curtains.locator('.date')).toHaveText('28/09/2026 (fecha modificada)');
+    await expect(curtains).toContainText('Fecha original: 03/10/2026');
+  } else {
+    await expect(curtains.getByRole('cell').nth(0)).toHaveText('28/09/2026 (fecha modificada)');
+    await expect(curtains.getByRole('cell').nth(1)).toHaveText('03/10/2026');
+  }
 });
 
-test('la tabla se ordena por columna y se filtra al escribir', async ({ page }) => {
+test('la tabla se ordena por columna y se filtra al escribir', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'En móvil no hay tabla: lo cubre mobile.spec.ts');
   await page.goto('/demo');
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await openNav(page);
@@ -65,14 +71,13 @@ test('los filtros de movimientos no se aplican hasta pulsar «Filtrar»', async 
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await openNav(page);
   await page.getByRole('link', { name: 'Movimientos' }).click();
-  const table = page.getByRole('table');
+  const caption = movements.count(page);
   // Ya no va por meses: están los movimientos de los tres de la demo.
-  await expect(table).toContainText(/Movimientos \(\d+\)/);
-  const caption = table.locator('caption');
+  await expect(caption).toHaveText(/Movimientos \(\d+\)/);
   const all = await caption.innerText();
-  await expect(table.getByRole('cell', { name: /\/07\/2026/ }).first()).toBeAttached();
+  await expect(movements.item(page, /\/07\/2026/).first()).toBeAttached();
 
-  const filters = page.getByRole('form', { name: 'Filtros' });
+  const filters = await movements.openFilters(page);
   await filters.getByLabel('Año').selectOption({ label: '2026' });
   await filters.getByLabel('Desde').fill('01/08/2026');
   await filters.getByLabel('Hasta').fill('31/08/2026');
@@ -83,12 +88,13 @@ test('los filtros de movimientos no se aplican hasta pulsar «Filtrar»', async 
 
   await filters.getByRole('button', { name: 'Filtrar' }).click();
   await expect(caption).toHaveText(/Movimientos \(\d+ de \d+\)/);
-  const rows = table.locator('tbody tr');
+  const rows = movements.items(page);
   await expect(rows.first()).toContainText('/08/2026');
   await expect(rows.filter({ hasText: 'Comida' })).toHaveCount(await rows.count());
 
   // Un rango imposible se explica y no cambia la lista.
   const filtered = await caption.innerText();
+  await movements.openFilters(page);
   await filters.getByLabel('Hasta').fill('01/07/2026');
   await filters.getByRole('button', { name: 'Filtrar' }).click();
   await expect(filters.getByRole('alert')).toContainText('no puede ser anterior');
@@ -96,10 +102,13 @@ test('los filtros de movimientos no se aplican hasta pulsar «Filtrar»', async 
 
   await filters.getByRole('button', { name: 'Limpiar filtros' }).click();
   await expect(caption).toHaveText(all);
+  // En móvil limpiar también pliega los filtros, para ver la lista entera.
+  await movements.openFilters(page);
   await expect(filters.getByLabel('Desde')).toHaveValue('');
 });
 
-test('cada movimiento ocupa una sola línea', async ({ page }) => {
+test('cada movimiento ocupa una sola línea', async ({ page, isMobile }) => {
+  test.skip(isMobile, 'En móvil cada movimiento es una tarjeta');
   await page.goto('/demo');
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await openNav(page);

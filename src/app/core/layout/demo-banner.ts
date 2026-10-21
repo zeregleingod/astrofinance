@@ -1,21 +1,38 @@
 import { Component, booleanAttribute, inject, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
+import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router } from '@angular/router';
 import { DbService } from '@data/db/db-service';
 import { TEXTS } from '@core/i18n/texts';
 
 /**
  * Aviso del modo demo. En la barra lateral, una tarjeta con la salida siempre a mano; en la
- * barra superior del móvil (`compact`), solo una etiqueta: la salida está en el menú. Ninguno
+ * barra superior del móvil (`compact`), solo una etiqueta: la salida está en el menú. En el menú
+ * plegado (`rail`), solo el botón de salir, con el aviso para los lectores de pantalla. Ninguno
  * ocupa sitio sobre las páginas.
  */
 @Component({
   selector: 'app-demo-banner',
-  imports: [MatButtonModule, MatIconModule],
+  imports: [MatButtonModule, MatIconModule, MatTooltipModule],
   template: `
     @if (db.mode() === 'demo') {
-      @if (compact()) {
+      @if (rail()) {
+        <div role="status">
+          <span class="visually-hidden">{{ texts.demo.banner }}</span>
+          <button
+            mat-icon-button
+            type="button"
+            class="rail"
+            [attr.aria-label]="texts.demo.exit"
+            [matTooltip]="texts.demo.banner + ' ' + texts.demo.exit"
+            matTooltipPosition="right"
+            (click)="exit()"
+          >
+            <mat-icon aria-hidden="true">logout</mat-icon>
+          </button>
+        </div>
+      } @else if (compact()) {
         <p class="tag" role="status">
           <mat-icon aria-hidden="true">science</mat-icon>
           <span aria-hidden="true">{{ texts.demo.tag }}</span>
@@ -64,6 +81,11 @@ import { TEXTS } from '@core/i18n/texts';
       }
     }
 
+    .rail {
+      background: var(--mat-sys-tertiary-container);
+      color: var(--mat-sys-on-tertiary-container);
+    }
+
     .tag {
       display: inline-flex;
       align-items: center;
@@ -99,6 +121,8 @@ export class DemoBanner {
 
   /** Solo la etiqueta, para la barra superior del móvil. */
   readonly compact = input(false, { transform: booleanAttribute });
+  /** Solo el botón de salir, para el menú lateral plegado. */
+  readonly rail = input(false, { transform: booleanAttribute });
   /** Se emite al salir de la demo (p. ej. para cerrar el menú en móvil). */
   readonly exited = output();
 

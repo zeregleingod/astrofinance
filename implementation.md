@@ -129,7 +129,7 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 ## Fase 5 — Movimientos
 
 - [ ] **T5.1 Listado** con búsqueda, filtros (fecha, categoría, importe, sin categorizar), ordenación y *virtual scroll*. *(Hechos la búsqueda, la ordenación y los filtros —año, fechas, etiqueta, categoría, subcategoría, cuenta e importe—, sobre todos los movimientos y no por meses (ADR-0012); en lugar de virtual scroll, la tabla se pinta por tandas de 200.)*
-- [ ] **T5.2 Alta/edición/borrado manual** con validación (`Money`, fecha).
+- [ ] **T5.2 Alta/edición/borrado manual** con validación (`Money`, fecha). *(Hecha la edición, en un diálogo desde cada movimiento (ADR-0016): concepto, fecha imputada, subcategoría y observaciones; lo que viene del banco no se cambia. Faltan el alta y el borrado.)*
 - [ ] **T5.3 Edición masiva** (asignar categoría a una selección).
 - [ ] **T5.4 E2E del flujo manual**: crear → categorizar → guardar → recargar → los datos persisten.
 - [ ] **T5.5 Gastos compartidos y reembolsos** (ADR-0013): marcar un gasto como compartido (persona + parte esperada, en % o importe), repartir un ingreso entre uno o varios gastos y subcategorías de gasto, ver lo pendiente de cobrar por persona; cada reembolso aparece bajo su gasto y los resúmenes enseñan aparte lo devuelto. *(Hechos el modelo —migración 005— y los informes: cada parte cuenta en la categoría y el mes de su destino y `reimbursedCents` separa lo devuelto. Falta la interfaz.)*

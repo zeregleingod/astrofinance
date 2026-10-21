@@ -49,4 +49,18 @@ describe('DemoBanner', () => {
     expect(tag?.textContent).toContain('Modo demo: datos ficticios que no se guardan.');
     expect(element.querySelector('button')).toBeNull();
   });
+
+  it('en el menú plegado es solo el botón de salir, con el aviso para lectores', async () => {
+    const { fixture, element, db } = await setup();
+    fixture.componentRef.setInput('rail', true);
+    await db.openDemo();
+    await fixture.whenStable();
+
+    expect(element.querySelector('[role="status"]')?.textContent).toContain('Modo demo');
+    const exit = element.querySelector<HTMLButtonElement>('button[aria-label="Salir de la demo"]');
+    expect(exit).not.toBeNull();
+    exit?.click();
+    await fixture.whenStable();
+    expect(db.mode()).toBeNull();
+  });
 });

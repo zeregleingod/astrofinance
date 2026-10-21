@@ -1,4 +1,6 @@
 <form class="filters" [formRoot]="filterForm" [attr.aria-label]="texts.transactions.filters.title">
+  <!-- Lo que ponga la página delante de los filtros, en su misma línea (la búsqueda). -->
+  <ng-content />
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
     <mat-label>{{ texts.transactions.filters.year }}</mat-label>
     <select matNativeControl [formField]="filterForm.year">

@@ -2,20 +2,26 @@ import { LiveAnnouncer } from '@angular/cdk/a11y';
 import { CdkDrag, type CdkDragDrop, CdkDropList, moveItemInArray } from '@angular/cdk/drag-drop';
 import {
   Component,
+  ElementRef,
   Injector,
   afterNextRender,
   computed,
+  effect,
   inject,
   input,
   linkedSignal,
   resource,
   signal,
+  viewChild,
 } from '@angular/core';
+import { NgTemplateOutlet } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
+import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { TEXTS } from '@core/i18n/texts';
+import { Viewport } from '@core/layout/viewport';
 import { DbService } from '@data/db/db-service';
 import {
   applyTransactionFilter,
@@ -37,6 +43,8 @@ import {
 import { EmptyState } from '@shared/empty-state/empty-state';
 import { CentsPipe } from '@shared/format/cents-pipe';
 import { IsoDatePipe } from '@shared/format/iso-date-pipe';
+import { TransactionCards } from './transaction-cards';
+import { TransactionEditDialog, type TransactionEditData } from './transaction-edit-dialog';
 import { TransactionFilters } from './transaction-filters';
 
 interface Column {
@@ -57,7 +65,7 @@ const LABELS: TableLabels = {
 
 /**
  * Lista de todos los movimientos, con filtros que se aplican al pulsar «Filtrar», búsqueda al
- * escribir y orden por columna.
+ * escribir y orden por columna. Cada movimiento se edita en un diálogo (T5.2, ADR-0016).
  */
 @Component({
   selector: 'app-transactions-page',
@@ -71,6 +79,8 @@ const LABELS: TableLabels = {
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
+    NgTemplateOutlet,
+    TransactionCards,
     TransactionFilters,
   ],
   templateUrl: './transactions-page.html',
@@ -81,6 +91,30 @@ export class TransactionsPage {
   protected readonly db = inject(DbService);
   private readonly announcer = inject(LiveAnnouncer);
   private readonly injector = inject(Injector);
+  private readonly dialog = inject(MatDialog);
+
+  /** Si no cabe la tabla, tarjetas; en móvil, además, los filtros plegados. */
+  protected readonly viewport = inject(Viewport);
+  protected readonly compact = this.viewport.compact;
+  protected readonly filtersOpen = signal(false);
+  private readonly filtersToggle = viewChild('filtersToggle', { read: ElementRef });
+  private readonly toolbar = viewChild('toolbar', { read: ElementRef });
+
+  constructor() {
+    // La cabecera de la tabla se queda fija justo debajo de la barra de búsqueda y filtros, cuyo
+    // alto cambia cuando los filtros saltan de línea, se despliegan o explican un error.
+    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    effect((onCleanup) => {
+      const toolbar = this.toolbar()?.nativeElement as HTMLElement | undefined;
+      const view = host.ownerDocument.defaultView;
+      if (!toolbar || !view || !('ResizeObserver' in view)) return;
+      const observer = new view.ResizeObserver(() =>
+        host.style.setProperty('--toolbar-height', `${toolbar.offsetHeight}px`),
+      );
+      observer.observe(toolbar);
+      onCleanup(() => observer.disconnect());
+    });
+  }
 
   /** `?mes=AAAA-MM`: llegar con un mes equivale a filtrar por sus fechas. */
   readonly mes = input<string>();
@@ -121,6 +155,12 @@ export class TransactionsPage {
     computation: (value, previous) => value ?? previous?.value,
   });
 
+  /** Las subcategorías que se pueden asignar al editar un movimiento. */
+  private readonly categories = resource({
+    params: () => (this.db.ready() ? { version: this.db.dataVersion() } : undefined),
+    loader: ({ abortSignal }) => this.db.categoryOptions(abortSignal),
+  });
+
   protected readonly loaded = computed(() => this.all() !== undefined);
   protected readonly total = computed(() => this.all()?.length ?? 0);
   protected readonly options = computed(() => transactionFilterOptions(this.all() ?? []));
@@ -147,9 +187,11 @@ export class TransactionsPage {
   /** Movimientos que cumplen los filtros pero aún no se han pintado. */
   protected readonly remaining = computed(() => this.matching().length - this.rows().length);
 
+  protected readonly filtering = computed(() => isFiltering(this.filter()));
+
   /** «40» o, con filtros o búsqueda, «12 de 40». */
   protected readonly count = computed(() =>
-    this.query() || isFiltering(this.filter())
+    this.query() || this.filtering()
       ? `${this.matching().length} ${t.of} ${this.total()}`
       : String(this.total()),
   );
@@ -158,6 +200,29 @@ export class TransactionsPage {
   protected applyFilter(filter: TransactionFilter): void {
     this.filter.set(filter);
     void this.announcer.announce(`${t.shown} ${this.matching().length}`);
+    // En móvil los filtros se pliegan para ver el resultado; el foco vuelve a su botón.
+    if (this.compact() && this.filtersOpen()) {
+      this.filtersOpen.set(false);
+      this.filtersToggle()?.nativeElement.focus();
+    }
+  }
+
+  /** Abre el movimiento para editarlo; al guardar la lista se recarga sola. */
+  protected edit(row: TransactionRow): void {
+    this.dialog
+      .open<TransactionEditDialog, TransactionEditData, boolean>(TransactionEditDialog, {
+        data: {
+          row,
+          categories: this.categories.hasValue() ? this.categories.value() : [],
+        },
+        width: '560px',
+        maxWidth: 'calc(100vw - 32px)',
+        autoFocus: 'first-tabbable',
+      })
+      .afterClosed()
+      .subscribe((saved) => {
+        if (saved) void this.announcer.announce(t.edit.saved);
+      });
   }
 
   protected showMore(): void {
@@ -166,6 +231,19 @@ export class TransactionsPage {
 
   protected sortBy(key: TransactionSortKey): void {
     this.sort.update((current) => nextSort(current, key));
+  }
+
+  /** En móvil el orden se elige en un desplegable; se conserva la dirección. */
+  protected sortByKey(key: string): void {
+    const column = this.columns().find((candidate) => candidate.key === key);
+    if (column) this.sort.update(({ direction }) => ({ key: column.key, direction }));
+  }
+
+  protected flipDirection(): void {
+    this.sort.update(({ key, direction }) => ({
+      key,
+      direction: direction === 'asc' ? 'desc' : 'asc',
+    }));
   }
 
   protected dropColumn({ previousIndex, currentIndex }: CdkDragDrop<unknown>): void {

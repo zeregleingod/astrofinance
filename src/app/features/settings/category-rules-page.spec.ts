@@ -111,6 +111,29 @@ describe('CategoryRulesPage', () => {
 
   const text = (el: Element | null | undefined) => el?.textContent?.replace(/\s+/g, ' ').trim();
 
+  it('las descripciones se ven al pulsar su icono de información y la tabla no se desplaza sola', async () => {
+    const { element, button, settled } = await setup();
+    expect(element.querySelector('#new-rule-info')).toBeNull();
+    expect(element.querySelector('#apply-hint')).toBeNull();
+    expect(button('Aplicar a movimientos existentes').getAttribute('aria-describedby')).toBeNull();
+
+    const intro = button('Más información: Nueva regla');
+    expect(intro.getAttribute('aria-expanded')).toBe('false');
+    intro.click();
+    await settled(() => expect(element.querySelector('#new-rule-info')).not.toBeNull());
+    expect(intro.getAttribute('aria-expanded')).toBe('true');
+
+    button('Más información: Tus reglas').click();
+    await settled(() => expect(element.querySelector('#apply-hint')).not.toBeNull());
+    expect(button('Aplicar a movimientos existentes').getAttribute('aria-describedby')).toBe(
+      'apply-hint',
+    );
+
+    const wrap = element.querySelector('.table-wrap');
+    expect(wrap?.getAttribute('role')).toBeNull();
+    expect(wrap?.getAttribute('tabindex')).toBeNull();
+    expect(element.querySelector('.toolbar .panel')).not.toBeNull();
+  });
   it('lista las reglas con su condición, su categoría y lo que han clasificado', async () => {
     const { rules, settled } = await setup();
 

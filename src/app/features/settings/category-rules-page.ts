@@ -10,6 +10,7 @@ import {
   resource,
   signal,
   untracked,
+  viewChild,
 } from '@angular/core';
 import {
   FormField,
@@ -166,7 +167,26 @@ export class CategoryRulesPage {
     computation: () => null,
   });
 
+  /** Descripciones de cada sección: se ven al pulsar su icono de información. */
+  protected readonly introOpen = signal(false);
+  protected readonly listInfoOpen = signal(false);
+
+  private readonly toolbar = viewChild('toolbar', { read: ElementRef });
+
   constructor() {
+    // La cabecera de la tabla se queda fija justo debajo del alta, cuyo alto cambia al
+    // mostrar su descripción, un error o el aviso de lo guardado.
+    effect((onCleanup) => {
+      const host = this.host.nativeElement;
+      const toolbar = this.toolbar()?.nativeElement as HTMLElement | undefined;
+      const view = host.ownerDocument.defaultView;
+      if (!toolbar || !view || !('ResizeObserver' in view)) return;
+      const observer = new view.ResizeObserver(() =>
+        host.style.setProperty('--toolbar-height', `${toolbar.offsetHeight}px`),
+      );
+      observer.observe(toolbar);
+      onCleanup(() => observer.disconnect());
+    });
     // Sin BD abierta (primera visita, o al salir de la demo) se abre la del usuario.
     effect(() => {
       if (this.db.status() === 'cerrada') {

@@ -132,6 +132,36 @@ describe('CategoriesPage', () => {
     expect(text(element)).toContain('se pierden al recargar o cerrar la página');
   });
 
+  it('las descripciones se ven al pulsar el icono de información de su sección', async () => {
+    const { element, tool, settled } = await setup();
+    const intro = 'Una categoría agrupa subcategorías';
+    const list = 'El tipo de una subcategoría decide';
+    expect(text(element)).not.toContain(intro);
+    expect(text(element)).not.toContain(list);
+
+    const introButton = tool('Más información: Nueva categoría');
+    expect(introButton.getAttribute('aria-expanded')).toBe('false');
+    expect(introButton.getAttribute('aria-controls')).toBe('new-category-info');
+    introButton.click();
+    await settled(() => expect(text(element.querySelector('#new-category-info'))).toContain(intro));
+    expect(introButton.getAttribute('aria-expanded')).toBe('true');
+
+    tool('Más información: Tus categorías').click();
+    await settled(() => expect(text(element.querySelector('#category-list-info'))).toContain(list));
+
+    introButton.click();
+    await settled(() => expect(element.querySelector('#new-category-info')).toBeNull());
+    expect(text(element)).toContain(list);
+  });
+
+  it('la tabla no tiene desplazamiento propio: lo hace la página', async () => {
+    const { element } = await setup();
+    const wrap = element.querySelector('.table-wrap');
+    expect(wrap?.getAttribute('role')).toBeNull();
+    expect(wrap?.getAttribute('tabindex')).toBeNull();
+    expect(element.querySelector('.toolbar .panel')).not.toBeNull();
+  });
+
   describe('formulario de alta', () => {
     it('solo da de alta categorías principales: nombre y color, sin tipo ni «dentro de»', async () => {
       const { element, field } = await setup();

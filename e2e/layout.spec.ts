@@ -42,20 +42,20 @@ test('todas las páginas tienen la cabecera del mismo tamaño y en el mismo siti
 test('las tablas y paneles de configuración son tan anchos como la del resumen anual', async ({
   page,
 }) => {
-  const width = await page.evaluate(() =>
-    parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--af-table-width')),
-  );
-  // La hoja anual se ajusta a su contenido: el ancho común es el suyo con los datos de la demo.
+  // La hoja anual ocupa todo el ancho de la página: el ancho común es el suyo.
   await open(page, 'Resumen anual');
   const yearly = await page.locator('main table').boundingBox();
-  expect(Math.abs((yearly?.width ?? 0) - width)).toBeLessThanOrEqual(8);
+  const width = await page
+    .locator('main')
+    .evaluate((main) => main.clientWidth - 2 * parseFloat(getComputedStyle(main).paddingLeft));
+  expect(Math.round(yearly?.width ?? 0)).toBe(Math.round(width));
 
   for (const name of ['Categorías', 'Reglas de categoría']) {
     await open(page, name);
     const table = page.locator('main table').first();
     await expect(table).toBeVisible();
     const box = await table.boundingBox();
-    expect(Math.round(box?.width ?? 0), name).toBe(width);
+    expect(Math.round(box?.width ?? 0), name).toBe(Math.round(width));
   }
 
   await open(page, 'Copia de seguridad');
@@ -63,7 +63,7 @@ test('las tablas y paneles de configuración son tan anchos como la del resumen 
   await expect(panels).toHaveCount(2);
   for (const panel of await panels.all()) {
     const box = await panel.boundingBox();
-    expect(Math.round(box?.width ?? 0)).toBe(width);
+    expect(Math.round(box?.width ?? 0)).toBe(Math.round(width));
   }
 });
 

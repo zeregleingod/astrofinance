@@ -24,6 +24,8 @@ const row = (id: number, extra: Partial<TransactionRow> = {}): TransactionRow =>
   reimbursement: false,
   transfer: false,
   installment: null,
+  originalDescription: null,
+  categoryId: null,
   ...extra,
 });
 

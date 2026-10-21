@@ -13,9 +13,26 @@
   @if (report.value()) {
     <div class="sheet" role="region" tabindex="0" [attr.aria-label]="texts.yearly.region">
       <table [attr.aria-label]="texts.yearly.title">
+        <!--
+          Categoría, subcategoría y total tienen ancho fijo; los meses, sin ancho, se reparten a
+          partes iguales lo que queda de la hoja.
+        -->
+        <colgroup>
+          @if (!compact()) {
+            <col class="col-group" />
+          }
+          <col class="col-line" />
+          @for (col of columns(); track col.name) {
+            <col />
+          }
+          <col class="col-total" />
+        </colgroup>
         <thead>
           <tr>
-            <th scope="col" class="group-col">{{ texts.yearly.category }}</th>
+            <!-- En móvil la categoría va en una fila propia encima de sus subcategorías. -->
+            @if (!compact()) {
+              <th scope="col" class="group-col">{{ texts.yearly.category }}</th>
+            }
             <th scope="col" class="line-col">{{ texts.yearly.subcategory }}</th>
             @for (col of columns(); track col.name) {
               <th scope="col" class="month">
@@ -24,10 +41,15 @@
                     routerLink="/"
                     [queryParams]="{ mes: period }"
                     [attr.title]="texts.yearly.openMonth + ' ' + col.name"
-                    >{{ col.name }}</a
-                  >
+                    ><ng-container
+                      [ngTemplateOutlet]="monthName"
+                      [ngTemplateOutletContext]="{ $implicit: col }"
+                  /></a>
                 } @else {
-                  {{ col.name }}
+                  <ng-container
+                    [ngTemplateOutlet]="monthName"
+                    [ngTemplateOutletContext]="{ $implicit: col }"
+                  />
                 }
               </th>
             }
@@ -37,31 +59,37 @@
 
         @for (section of sections(); track section.key) {
           <tbody>
+            @if (compact()) {
+              <tr class="section-row">
+                <th scope="rowgroup" [attr.colspan]="columns().length + 2">
+                  <ng-container
+                    [ngTemplateOutlet]="sectionColor"
+                    [ngTemplateOutletContext]="{ color: section.color }"
+                  />
+                  <span class="section-label">
+                    <span class="group-name">{{ section.name }}</span>
+                    <span
+                      class="group-total"
+                      [class.positive]="section.totalCents > 0"
+                      [class.negative]="section.totalCents < 0"
+                      >{{ section.totalCents | cents }}</span
+                    >
+                  </span>
+                </th>
+              </tr>
+            }
             @for (line of section.rows; track line.id; let first = $first) {
               <tr
                 [class.first]="first"
                 [class.empty]="line.count === 0"
                 [class.tinted]="section.tinted"
               >
-                @if (first) {
+                @if (first && !compact()) {
                   <th scope="rowgroup" class="group-col" [attr.rowspan]="section.rows.length">
-                    <!-- Colores de categoría como atributos SVG: sin estilos en línea. -->
-                    <svg
-                      class="tint"
-                      viewBox="0 0 1 1"
-                      preserveAspectRatio="none"
-                      aria-hidden="true"
-                    >
-                      <rect width="1" height="1" [attr.fill]="section.color" />
-                    </svg>
-                    <svg
-                      class="band"
-                      viewBox="0 0 1 1"
-                      preserveAspectRatio="none"
-                      aria-hidden="true"
-                    >
-                      <rect width="1" height="1" [attr.fill]="section.color" />
-                    </svg>
+                    <ng-container
+                      [ngTemplateOutlet]="sectionColor"
+                      [ngTemplateOutletContext]="{ color: section.color }"
+                    />
                     <span class="group-name">{{ section.name }}</span>
                     <span
                       class="group-total"
@@ -114,7 +142,9 @@
         <tfoot>
           @for (row of footer(); track row.label) {
             <tr [class.expense]="row.kind === 'expense'" [class.highlight]="row.kind === 'balance'">
-              <th scope="row" colspan="2" class="group-col">{{ row.label }}</th>
+              <th scope="row" [attr.colspan]="compact() ? 1 : 2" class="group-col">
+                {{ row.label }}
+              </th>
               @for (value of row.series.months; track $index) {
                 <td [class.positive]="value > 0" [class.negative]="value < 0">
                   {{ value | cents: false }}
@@ -136,6 +166,25 @@
 } @else {
   <app-empty-state [status]="db.status()" />
 }
+
+<!--
+  El nombre del mes entero y, si la hoja es estrecha, abreviado: entonces el entero queda solo
+  para los lectores de pantalla.
+-->
+<ng-template #monthName let-col>
+  <span class="month-long">{{ col.name }}</span>
+  <span class="month-short" aria-hidden="true">{{ col.short }}</span>
+</ng-template>
+
+<!-- Colores de categoría como atributos SVG: sin estilos en línea. -->
+<ng-template #sectionColor let-color="color">
+  <svg class="tint" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+    <rect width="1" height="1" [attr.fill]="color" />
+  </svg>
+  <svg class="band" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+    <rect width="1" height="1" [attr.fill]="color" />
+  </svg>
+</ng-template>
 
 <!-- El tinte de la categoría en cada celda de las filas de ingresos y de ahorro. -->
 <ng-template #rowTint let-color="color">

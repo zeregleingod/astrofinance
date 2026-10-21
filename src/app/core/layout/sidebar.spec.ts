@@ -158,4 +158,52 @@ describe('Sidebar', () => {
     expect(button?.getAttribute('aria-pressed')).toBe('true');
     expect(icon()).toBe('dark_mode');
   });
+
+  describe('plegada', () => {
+    async function collapsible(collapsed: boolean) {
+      const page = await setup();
+      page.fixture.componentRef.setInput('collapsible', true);
+      page.fixture.componentRef.setInput('collapsed', collapsed);
+      await page.fixture.whenStable();
+      return page;
+    }
+    const toggle = (element: HTMLElement) =>
+      element.querySelector<HTMLButtonElement>('button.collapse-toggle');
+
+    it('sin `collapsible` no ofrece plegarse (móvil)', async () => {
+      const { element } = await setup();
+      expect(toggle(element)).toBeNull();
+    });
+
+    it('el botón dice qué hace, si está desplegada y lo pide al pulsarlo', async () => {
+      const { fixture, element } = await collapsible(false);
+      const spy = vi.fn();
+      fixture.componentInstance.collapseToggle.subscribe(spy);
+
+      expect(toggle(element)?.getAttribute('aria-label')).toBe('Plegar menú');
+      expect(toggle(element)?.getAttribute('aria-expanded')).toBe('true');
+      expect(toggle(element)?.getAttribute('aria-controls')).toBe('main-nav');
+      toggle(element)?.click();
+      expect(spy).toHaveBeenCalledTimes(1);
+
+      fixture.componentRef.setInput('collapsed', true);
+      await fixture.whenStable();
+      expect(toggle(element)?.getAttribute('aria-label')).toBe('Desplegar menú');
+      expect(toggle(element)?.getAttribute('aria-expanded')).toBe('false');
+    });
+
+    it('plegada conserva los enlaces con su nombre y ofrece la demo con un icono', async () => {
+      const { element } = await collapsible(true);
+
+      expect(element.classList.contains('collapsed')).toBe(true);
+      const links = [...element.querySelectorAll('nav a')].map((a) =>
+        a.querySelector('[matListItemTitle]')?.textContent?.trim(),
+      );
+      expect(links).toEqual(['Resumen', 'Movimientos', 'Categorías']);
+      expect(element.querySelector('h1')?.textContent).toContain('AstroFinance');
+      const demo = element.querySelector('a[href="/demo"]');
+      expect(demo?.getAttribute('aria-label')).toBe('Ver la demo');
+      expect(demo?.textContent?.trim()).toBe('science');
+    });
+  });
 });

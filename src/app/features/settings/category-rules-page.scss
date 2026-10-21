@@ -1,5 +1,47 @@
+// La página crece con la tabla y es ella la que se desplaza, no la tabla. Referencia de los
+// textos solo para lectores (`position: absolute`): sin ella alargarían el contenedor de la app.
 :host {
+  position: relative;
   display: block;
+}
+
+// El alta, arriba y a la vista al desplazar. El fondo de la página tapa lo que pasa por debajo;
+// `top` negativo: también tapa el relleno de la página.
+.toolbar {
+  position: sticky;
+  top: -24px;
+  z-index: 2;
+  margin-top: -8px;
+  padding: 8px 0 16px;
+  background: var(--mat-sys-surface);
+
+  .panel {
+    margin: 0;
+    padding-block: 16px;
+  }
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.info {
+  --mat-icon-button-state-layer-size: 32px;
+  --mat-icon-button-icon-size: 20px;
+
+  padding: 6px;
+  color: var(--mat-sys-on-surface-variant);
+
+  &[aria-expanded='true'] {
+    color: var(--mat-sys-primary);
+  }
+}
+
+.memory-warning {
+  max-width: calc(var(--af-table-width) - 24px);
+  margin: 0 0 16px;
 }
 
 .panel {
@@ -11,7 +53,7 @@
   background: var(--mat-sys-surface-container-lowest);
 
   h3 {
-    margin: 0 0 4px;
+    margin: 0;
     font: var(--mat-sys-title-large);
     font-weight: 600;
   }
@@ -20,7 +62,7 @@
     margin: 12px 0 0;
   }
 
-  h3 + p,
+  .info-text,
   p:first-child {
     margin-top: 0;
   }
@@ -151,25 +193,18 @@ tbody tr:hover > * {
   background: var(--af-row-hover);
 }
 
+// Sin desplazamiento propio: los textos largos saltan de línea y la tabla cabe a lo ancho.
 .table-wrap {
   max-width: var(--af-table-width);
-  overflow-x: auto;
   border-radius: 16px;
   background: var(--mat-sys-surface-container-lowest);
-
-  &:focus-visible {
-    outline: 2px solid var(--mat-sys-primary);
-    outline-offset: 2px;
-  }
 }
 
+// `separate`: con `collapse` los bordes de la cabecera fija no la acompañan al desplazar.
 table {
   width: 100%;
-  border-collapse: collapse;
-}
-
-.rules {
-  min-width: 640px;
+  border-collapse: separate;
+  border-spacing: 0;
 }
 
 .col-operator {
@@ -203,10 +238,24 @@ td:first-child {
   padding-left: 20px;
 }
 
+// La cabecera se queda a la vista, justo debajo del alta, al desplazar la página.
 thead th {
+  position: sticky;
+  // Menos el relleno de la página, que el alta también tapa (ver `.toolbar`).
+  top: calc(var(--toolbar-height, 0px) - 24px);
+  z-index: 1;
   padding-block: 12px;
   font: var(--mat-sys-label-large);
   color: var(--mat-sys-on-surface-variant);
+  background: var(--mat-sys-surface-container-lowest);
+
+  &:first-child {
+    border-top-left-radius: 16px;
+  }
+
+  &:last-child {
+    border-top-right-radius: 16px;
+  }
 }
 
 tbody tr:last-child > * {
@@ -285,7 +334,7 @@ code {
   font: var(--mat-sys-body-small);
 }
 
-// Los cambios propuestos: una tabla que se desplaza dentro de su recuadro si es larga.
+// Los cambios propuestos, en un recuadro; su tabla crece con la página, como la de las reglas.
 .preview {
   max-width: var(--af-table-width);
   margin-bottom: 24px;
@@ -299,21 +348,6 @@ code {
   }
 }
 
-.preview-table {
-  max-height: 60vh;
-  overflow: auto;
-
-  table {
-    min-width: 760px;
-  }
-
-  thead th {
-    position: sticky;
-    top: 0;
-    background: var(--mat-sys-surface-container-lowest);
-  }
-}
-
 .new-category {
   font-weight: 600;
 }
@@ -324,4 +358,152 @@ code {
   justify-content: flex-end;
   gap: 12px;
   margin-top: 16px;
+}
+
+// En pantallas estrechas cada fila es una tarjeta: la condición y el texto arriba, con los
+// botones a la derecha, y debajo la categoría y los movimientos. La cabecera sigue para los
+// lectores de pantalla.
+@media (width < 840px) {
+  .toolbar {
+    top: -16px;
+  }
+
+  .panel {
+    padding: 16px;
+  }
+
+  thead {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip-path: inset(50%);
+  }
+
+  .rules,
+  .rules tbody,
+  .preview-table table,
+  .preview-table tbody {
+    display: block;
+    min-width: 0;
+  }
+
+  .rules tr,
+  .preview-table tr {
+    display: grid;
+    align-items: center;
+    gap: 4px 8px;
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--mat-sys-outline-variant);
+  }
+
+  .rules tr:last-child,
+  .preview-table tr:last-child {
+    border-bottom: none;
+  }
+
+  .rules,
+  .preview-table {
+    th,
+    td,
+    th:first-child,
+    td:first-child {
+      padding: 0;
+      border: none;
+    }
+  }
+
+  .rules tr {
+    grid-template-columns: auto minmax(0, 1fr) auto;
+    grid-template-areas:
+      'operator pattern actions'
+      'category category count';
+
+    > :nth-child(1) {
+      grid-area: operator;
+    }
+
+    > :nth-child(2) {
+      grid-area: pattern;
+    }
+
+    > :nth-child(3) {
+      grid-area: category;
+    }
+
+    > :nth-child(4) {
+      grid-area: count;
+    }
+
+    > :nth-child(5) {
+      grid-area: actions;
+    }
+  }
+
+  // Editando, cada campo en su línea para que se pueda escribir con comodidad.
+  .rules tr.editing {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'operator actions'
+      'pattern pattern'
+      'category count';
+  }
+
+  .rules td.category::before {
+    content: '→ ' / '';
+  }
+
+  td[data-label]::before {
+    content: attr(data-label) ' ';
+    font: var(--mat-sys-label-medium);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  // Vista previa: concepto e importe arriba; debajo la fecha, el cambio de categoría y la regla.
+  .preview {
+    padding: 12px;
+  }
+
+  .preview-table tr {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'description amount'
+      'date date'
+      'current new'
+      'rule rule';
+
+    > :nth-child(1) {
+      grid-area: date;
+    }
+
+    > :nth-child(2) {
+      grid-area: description;
+    }
+
+    > :nth-child(3) {
+      grid-area: amount;
+    }
+
+    > :nth-child(4) {
+      grid-area: current;
+    }
+
+    > :nth-child(5) {
+      grid-area: new;
+    }
+
+    > :nth-child(6) {
+      grid-area: rule;
+    }
+  }
+
+  .preview-table .new-category::before {
+    content: '→ ' / '';
+    font-weight: 400;
+  }
+
+  .preview-table .date {
+    font: var(--mat-sys-body-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
 }

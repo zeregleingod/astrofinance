@@ -5,6 +5,7 @@ import { exportDatabase, openDatabaseFile } from './backup';
 import type { DbApi } from './db-api';
 import { migrate } from './migrate';
 import { MIGRATIONS } from './migrations';
+import { transactionEditParam, updateTransaction } from './queries/transactions';
 import {
   categoryIdParam,
   categoryOrderParam,
@@ -101,6 +102,7 @@ export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcH
     yearReport: (params) => yearReport(requireDb(), yearParam(params)),
     transactions: (params) => monthTransactions(requireDb(), periodParam(params)),
     allTransactions: () => allTransactions(requireDb()),
+    updateTransaction: (params) => updateTransaction(requireDb(), transactionEditParam(params)),
     categoryOptions: () => categoryOptions(requireDb()),
     categoryTree: () => categoryTree(requireDb()),
     createCategory: (params) => createCategory(requireDb(), newCategoryParam(params)),

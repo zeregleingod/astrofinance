@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, movements, test } from './fixtures';
 
 /** Extracto ficticio con la forma del Banc Sabadell (`tools/make-sabadell-fixture.mjs`). */
 const STATEMENT = 'e2e/fixtures/sabadell-enero-2026.xls';
@@ -41,17 +41,14 @@ test('importar un extracto: revisar, editar, guardar y verlo en movimientos', as
 
   await page.getByRole('link', { name: 'Ver los movimientos' }).click();
   await expect(page).toHaveURL(/\/movimientos\?mes=2026-01$/);
-  const table = page.getByRole('table');
   // Se llega filtrando por las fechas del mes importado.
-  await expect(table).toContainText(`Movimientos (${TOTAL - 1} de ${TOTAL - 1})`);
-  await expect(page.getByRole('form', { name: 'Filtros' }).getByLabel('Desde')).toHaveValue(
-    '01/01/2026',
-  );
-  await expect(table.getByRole('row', { name: /Nómina/ })).toContainText('1.850,00 €');
-  const light = table.getByRole('row', { name: /ADEUDO RECIBO LUZ DEMO/ });
+  await expect(movements.count(page)).toHaveText(`Movimientos (${TOTAL - 1} de ${TOTAL - 1})`);
+  await expect((await movements.openFilters(page)).getByLabel('Desde')).toHaveValue('01/01/2026');
+  await expect(movements.item(page, /Nómina/)).toContainText('1.850,00 €');
+  const light = movements.item(page, /ADEUDO RECIBO LUZ DEMO/);
   await expect(light).toContainText('-70,00 €');
   await expect(light).toContainText('Importe corregido');
-  await expect(table.getByText('ABONO PROMOCIÓN')).toHaveCount(0);
+  await expect(movements.item(page, 'ABONO PROMOCIÓN')).toHaveCount(0);
 });
 
 test('reimportar el mismo extracto no duplica movimientos', async ({ page }) => {

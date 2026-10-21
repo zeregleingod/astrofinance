@@ -9,6 +9,36 @@ async function openYearly(page: Page) {
   await page.getByRole('link', { name: 'Resumen anual' }).click();
 }
 
+/** Ancho de cada columna de mes, en el orden de la hoja. */
+function monthWidths(page: Page) {
+  return page
+    .locator('main thead th.month')
+    .evaluateAll((els) => els.map((el) => Math.round(el.getBoundingClientRect().width)));
+}
+
+test('la hoja ocupa todo el ancho y los meses se lo reparten a partes iguales', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'En móvil la hoja se desplaza con el ancho mínimo de cada mes');
+  await page.setViewportSize({ width: 1920, height: 1080 });
+  await openYearly(page);
+  await expect(page.locator('main thead th.month')).toHaveCount(12);
+  const widths = await monthWidths(page);
+  expect(new Set(widths).size, widths.join(', ')).toBe(1);
+  // Sin sitio para «Septiembre», los meses van abreviados; el nombre entero sigue en la cabecera.
+  await expect(page.getByRole('columnheader', { name: 'septiembre' })).toBeVisible();
+  await expect(page.locator('main thead .month-short').nth(8)).toHaveText('sep');
+
+  // En una pantalla ancha caben enteros.
+  await page.setViewportSize({ width: 2560, height: 1080 });
+  await expect(page.locator('main thead .month-long').nth(8)).toBeVisible();
+  await expect(page.locator('main thead .month-short').nth(8)).toBeHidden();
+  const wide = await monthWidths(page);
+  expect(new Set(wide).size, wide.join(', ')).toBe(1);
+  expect(wide[0]).toBeGreaterThan(widths[0] ?? 0);
+});
+
 test('el resumen anual muestra la hoja del año y enlaza cada mes a su resumen', async ({
   page,
 }) => {
@@ -40,14 +70,42 @@ test('en una pantalla de 1080 px de alto la hoja del año se ve entera', async (
   expect((box?.y ?? 0) + (box?.height ?? 0)).toBeLessThanOrEqual(1080);
 });
 
-test('los nombres de categoría y subcategoría se ven enteros y en una sola línea', async ({
+test('las categorías largas saltan de línea en vez de ensanchar su columna', async ({
   page,
+  isMobile,
 }) => {
+  test.skip(isMobile, 'En móvil cada categoría va en su propia fila');
+  await openYearly(page);
+  const sheet = page.getByRole('region', { name: 'Tabla del resumen anual' });
+  const group = sheet.locator('tbody th.group-col', { hasText: 'Préstamos y financiaciones' });
+  await expect(group).toBeVisible();
+
+  const name = await group.locator('.group-name').evaluate((el) => ({
+    lines: Math.round(
+      el.getBoundingClientRect().height / parseFloat(getComputedStyle(el).lineHeight),
+    ),
+    cut: el.scrollWidth > el.clientWidth,
+  }));
+  expect(name).toEqual({ lines: 2, cut: false });
+  // Todas las categorías comparten el mismo ancho, el de la cabecera.
+  const widths = await sheet
+    .locator('thead .group-col, tbody th.group-col')
+    .evaluateAll((els) => [
+      ...new Set(els.map((el) => Math.round(el.getBoundingClientRect().width))),
+    ]);
+  expect(widths).toHaveLength(1);
+});
+
+test('los nombres de subcategoría se ven enteros y en una sola línea', async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, 'En móvil los nombres largos saltan de línea para dejar sitio a los meses');
   await openYearly(page);
   const sheet = page.getByRole('region', { name: 'Tabla del resumen anual' });
   await expect(sheet.getByRole('rowheader', { name: 'Balance' })).toBeVisible();
 
-  const names = await sheet.locator('tbody .group-name, tbody th.line-col').evaluateAll((els) =>
+  const names = await sheet.locator('tbody th.line-col').evaluateAll((els) =>
     els.map((el) => {
       // Solo el texto: el punto de color no está a la misma altura.
       const tops = [...el.childNodes]
@@ -73,7 +131,9 @@ test('los nombres de categoría y subcategoría se ven enteros y en una sola lí
 
 test('las categorías se separan con una línea, como las subcategorías del resumen', async ({
   page,
+  isMobile,
 }) => {
+  test.skip(isMobile, 'En móvil cada categoría va en su propia fila');
   await openYearly(page);
   const second = page.locator('main tbody').nth(1).locator('tr').first().locator('td').first();
   await expect(second).toBeVisible();
@@ -102,4 +162,25 @@ test('en pantallas estrechas solo se desplaza la tabla, no la página', async ({
   const line = sheet.getByRole('rowheader', { name: 'Cuota hipoteca' });
   const [box, region] = await Promise.all([line.boundingBox(), sheet.boundingBox()]);
   expect(box && region && box.x - region.x).toBeLessThan(2);
+});
+
+test('si la hoja no cabe, solo ella se desplaza a lo ancho: la página no', async ({ page }) => {
+  await page.setViewportSize({ width: 1280, height: 800 });
+  await openYearly(page);
+  const sheet = page.getByRole('region', { name: 'Tabla del resumen anual' });
+  await expect(sheet.locator('thead th.month')).toHaveCount(12);
+
+  // Los nombres de los meses para lectores de pantalla no alargan la página.
+  const overflow = await page.evaluate(() =>
+    ['html', 'body', 'mat-sidenav-container', 'mat-sidenav-content', 'main']
+      .map((name) => ({ name, el: document.querySelector(name) }))
+      .filter(({ el }) => el !== null && el.scrollWidth > el.clientWidth + 1)
+      .map(({ name }) => name),
+  );
+  expect(overflow).toEqual([]);
+  const scroll = await sheet.evaluate((el) => ({
+    across: el.scrollWidth > el.clientWidth,
+    down: el.scrollHeight > el.clientHeight + 1,
+  }));
+  expect(scroll).toEqual({ across: true, down: false });
 });

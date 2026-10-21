@@ -41,7 +41,7 @@ html {
       container-background-color: var(--mat-sys-surface-container-lowest),
       container-divider-color: transparent,
       container-shape: 0,
-      container-width: 260px,
+      container-width: 272px,
       content-background-color: var(--mat-sys-surface),
     )
   );
@@ -73,8 +73,9 @@ html {
 :root {
   --af-positive: light-dark(#1b6b3a, #7fd99a);
   --af-negative: light-dark(#b3261e, #ffb4ab);
-  // Ancho de las tablas y paneles de las páginas: el de la hoja del Resumen anual.
-  --af-table-width: 1400px;
+  // Ancho de las tablas y paneles de las páginas: el de la hoja del Resumen anual, que ocupa todo
+  // el ancho disponible.
+  --af-table-width: 100%;
   // Fondo de la fila de una tabla bajo el cursor.
   --af-row-hover: color-mix(
     in srgb,

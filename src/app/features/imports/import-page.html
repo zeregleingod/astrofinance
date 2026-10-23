@@ -75,6 +75,13 @@
             </div>
           </dl>
 
+          @if (suggested().byRule + suggested().byHistory > 0) {
+            <p class="hint" role="status">
+              {{ texts.imports.suggested }}: {{ suggested().byRule }}
+              {{ texts.imports.suggestedByRules }} · {{ suggested().byHistory }}
+              {{ texts.imports.suggestedByHistory }}. {{ texts.imports.suggestedReview }}
+            </p>
+          }
           @if (current.errors.length > 0) {
             <p class="hint warning" role="status">
               {{ texts.imports.unreadableRows }}
@@ -155,6 +162,7 @@
                       [attr.aria-label]="
                         texts.imports.category + ': ' + item.row.movement.description
                       "
+                      [attr.aria-describedby]="item.suggestion ? 'suggested-' + index : null"
                       (change)="setCategory(index, category.value)"
                     >
                       <option value="" [selected]="item.row.categoryId === null">
@@ -166,6 +174,12 @@
                         </option>
                       }
                     </select>
+                    @if (item.suggestion; as suggestion) {
+                      <span class="suggested" [id]="'suggested-' + index">
+                        <mat-icon [fontIcon]="suggestion.icon" aria-hidden="true" />
+                        {{ suggestion.label }}
+                      </span>
+                    }
                   </td>
                   <td [attr.data-label]="texts.imports.amount">
                     <input

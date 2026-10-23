@@ -26,29 +26,51 @@
 
 @if (db.ready() && !selection.empty()) {
   @if (report.value(); as r) {
+    <!-- Cada total lleva a los movimientos que lo forman (ADR-0017). -->
+    <span id="kpi-link-hint" hidden>{{ texts.dashboard.kpiLink }}</span>
     <dl class="kpis" [attr.aria-label]="texts.dashboard.kpis">
       <div class="kpi">
         <dt>{{ texts.dashboard.income }}</dt>
         <dd [class.positive]="r.incomeCents > 0" [class.negative]="r.incomeCents < 0">
-          {{ r.incomeCents | cents }}
+          <a
+            routerLink="/movimientos"
+            [queryParams]="{ mes: r.period, origen: 'ingresos' }"
+            aria-describedby="kpi-link-hint"
+            >{{ r.incomeCents | cents }}</a
+          >
         </dd>
       </div>
       <div class="kpi">
         <dt>{{ texts.dashboard.expense }}</dt>
         <dd [class.positive]="r.expenseCents > 0" [class.negative]="r.expenseCents < 0">
-          {{ r.expenseCents | cents }}
+          <a
+            routerLink="/movimientos"
+            [queryParams]="{ mes: r.period, origen: 'gastos' }"
+            aria-describedby="kpi-link-hint"
+            >{{ r.expenseCents | cents }}</a
+          >
         </dd>
       </div>
       <div class="kpi">
         <dt>{{ texts.dashboard.savings }}</dt>
         <dd [class.positive]="r.savingsCents > 0" [class.negative]="r.savingsCents < 0">
-          {{ r.savingsCents | cents }}
+          <a
+            routerLink="/movimientos"
+            [queryParams]="{ mes: r.period, origen: 'ahorro' }"
+            aria-describedby="kpi-link-hint"
+            >{{ r.savingsCents | cents }}</a
+          >
         </dd>
       </div>
       <div class="kpi highlight">
         <dt>{{ texts.dashboard.balance }}</dt>
         <dd [class.positive]="r.balanceCents > 0" [class.negative]="r.balanceCents < 0">
-          {{ r.balanceCents | cents }}
+          <a
+            routerLink="/movimientos"
+            [queryParams]="{ mes: r.period, origen: 'balance' }"
+            aria-describedby="kpi-link-hint"
+            >{{ r.balanceCents | cents }}</a
+          >
         </dd>
       </div>
       <div class="kpi">
@@ -57,133 +79,162 @@
           [class.positive]="r.pendingReimbursementCents > 0"
           [class.negative]="r.pendingReimbursementCents < 0"
         >
-          {{ r.pendingReimbursementCents | cents }}
+          <a
+            routerLink="/movimientos"
+            [queryParams]="{ mes: r.period, origen: 'pendiente' }"
+            aria-describedby="kpi-link-hint"
+            >{{ r.pendingReimbursementCents | cents }}</a
+          >
         </dd>
       </div>
     </dl>
 
-    <div class="groups">
-      @for (group of r.groups; track group.id) {
-        @let groupKey = 'g' + group.id;
-        <section
-          class="group"
-          [class.collapsed]="isCollapsed(groupKey)"
-          [attr.aria-labelledby]="'group-' + group.id"
-        >
-          <!-- Colores de categoría como atributos SVG: sin estilos en línea. -->
-          <svg class="bar" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
-            <rect width="1" height="1" [attr.fill]="group.color" />
-          </svg>
-          <header class="group-header">
-            <svg class="tint" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
-              <rect width="1" height="1" [attr.fill]="group.color" />
-            </svg>
-            <h3 [id]="'group-' + group.id">
-              <button
-                type="button"
-                class="toggle"
-                [attr.aria-expanded]="!isCollapsed(groupKey)"
-                [attr.aria-controls]="'group-body-' + group.id"
-                (click)="toggle(groupKey)"
-              >
-                <mat-icon class="chevron" fontIcon="chevron_right" aria-hidden="true" />
-                {{ group.name }}
-              </button>
-            </h3>
-            <span
-              class="amount"
-              [class.positive]="group.totalCents > 0"
-              [class.negative]="group.totalCents < 0"
-              >{{ group.totalCents | cents }}</span
-            >
-          </header>
-          <div class="group-body" [id]="'group-body-' + group.id" [hidden]="isCollapsed(groupKey)">
-            @for (line of group.lines; track line.id) {
-              @let lineKey = 'l' + line.id;
-              <div class="line" [class.empty]="line.count === 0">
-                <div class="line-header">
-                  <svg class="dot" viewBox="0 0 10 10" aria-hidden="true">
-                    <circle cx="5" cy="5" r="5" [attr.fill]="line.color" />
-                  </svg>
-                  <h4>
-                    @if (line.movements.length > 0) {
-                      <button
-                        type="button"
-                        class="toggle"
-                        [attr.aria-expanded]="!isCollapsed(lineKey)"
-                        [attr.aria-controls]="'line-movements-' + line.id"
-                        (click)="toggle(lineKey)"
-                      >
-                        {{ line.name }}
-                        <mat-icon class="chevron" fontIcon="chevron_right" aria-hidden="true" />
-                      </button>
-                    } @else {
-                      {{ line.name }}
-                    }
-                  </h4>
-                  <span
-                    class="amount"
-                    [class.positive]="line.totalCents > 0"
-                    [class.negative]="line.totalCents < 0"
-                  >
-                    {{ line.totalCents | cents }}
-                  </span>
-                </div>
-                @if (line.movements.length > 0) {
-                  <app-movement-list
-                    [id]="'line-movements-' + line.id"
-                    [hidden]="isCollapsed(lineKey)"
-                    [movements]="line.movements"
-                    [label]="line.name"
-                  />
-                }
-              </div>
-            }
-          </div>
-        </section>
-      }
-      @if (r.uncategorized.count > 0) {
-        <section
-          class="group"
-          [class.collapsed]="isCollapsed('g-none')"
-          aria-labelledby="group-none"
-        >
-          <svg class="bar" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
-            <rect width="1" height="1" />
-          </svg>
-          <header class="group-header">
-            <svg class="tint" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
-              <rect width="1" height="1" />
-            </svg>
-            <h3 id="group-none">
-              <button
-                type="button"
-                class="toggle"
-                [attr.aria-expanded]="!isCollapsed('g-none')"
-                aria-controls="group-body-none"
-                (click)="toggle('g-none')"
-              >
-                <mat-icon class="chevron" fontIcon="chevron_right" aria-hidden="true" />
-                {{ texts.dashboard.uncategorized }}
-              </button>
-            </h3>
-            <span
-              class="amount"
-              [class.positive]="r.uncategorized.totalCents > 0"
-              [class.negative]="r.uncategorized.totalCents < 0"
-              >{{ r.uncategorized.totalCents | cents }}</span
-            >
-          </header>
-          <div class="line" id="group-body-none" [hidden]="isCollapsed('g-none')">
-            <app-movement-list
-              [movements]="r.uncategorized.movements"
-              [label]="texts.dashboard.uncategorized"
+    <!--
+      Las tarjetas en orden por columnas, tres en cada una y hasta tres columnas; las que no
+      caben, debajo y de tres en tres por fila.
+    -->
+    <div class="columns">
+      @for (column of layout().columns; track $index) {
+        <div class="column">
+          @for (card of column; track card.kind === 'group' ? card.group.id : 'none') {
+            <ng-container
+              [ngTemplateOutlet]="cardTemplate"
+              [ngTemplateOutletContext]="{ $implicit: card, report: r }"
             />
-          </div>
-        </section>
+          }
+        </div>
       }
     </div>
+    @if (layout().rest.length > 0) {
+      <div class="groups">
+        @for (card of layout().rest; track card.kind === 'group' ? card.group.id : 'none') {
+          <ng-container
+            [ngTemplateOutlet]="cardTemplate"
+            [ngTemplateOutletContext]="{ $implicit: card, report: r }"
+          />
+        }
+      </div>
+    }
   }
 } @else {
   <app-empty-state [status]="db.status()" />
 }
+
+<!-- Una tarjeta: una categoría o lo que no tiene categoría. -->
+<ng-template #cardTemplate let-card let-r="report">
+  @if (card.kind === 'group') {
+    @let group = card.group;
+    @let groupKey = 'g' + group.id;
+    <section
+      class="group"
+      [class.collapsed]="isCollapsed(groupKey)"
+      [attr.aria-labelledby]="'group-' + group.id"
+    >
+      <!-- Colores de categoría como atributos SVG: sin estilos en línea. -->
+      <svg class="bar" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+        <rect width="1" height="1" [attr.fill]="group.color" />
+      </svg>
+      <header class="group-header">
+        <svg class="tint" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+          <rect width="1" height="1" [attr.fill]="group.color" />
+        </svg>
+        <h3 [id]="'group-' + group.id">
+          <button
+            type="button"
+            class="toggle"
+            [attr.aria-expanded]="!isCollapsed(groupKey)"
+            [attr.aria-controls]="'group-body-' + group.id"
+            (click)="toggle(groupKey)"
+          >
+            <mat-icon class="chevron" fontIcon="chevron_right" aria-hidden="true" />
+            {{ group.name }}
+          </button>
+        </h3>
+        <span
+          class="amount"
+          [class.positive]="group.totalCents > 0"
+          [class.negative]="group.totalCents < 0"
+          >{{ group.totalCents | cents }}</span
+        >
+      </header>
+      <div class="group-body" [id]="'group-body-' + group.id" [hidden]="isCollapsed(groupKey)">
+        @for (line of group.lines; track line.id) {
+          @let lineKey = 'l' + line.id;
+          <div class="line" [class.empty]="line.count === 0">
+            <div class="line-header">
+              <svg class="dot" viewBox="0 0 10 10" aria-hidden="true">
+                <circle cx="5" cy="5" r="5" [attr.fill]="line.color" />
+              </svg>
+              <h4>
+                @if (line.movements.length > 0) {
+                  <button
+                    type="button"
+                    class="toggle"
+                    [attr.aria-expanded]="!isCollapsed(lineKey)"
+                    [attr.aria-controls]="'line-movements-' + line.id"
+                    (click)="toggle(lineKey)"
+                  >
+                    {{ line.name }}
+                    <mat-icon class="chevron" fontIcon="chevron_right" aria-hidden="true" />
+                  </button>
+                } @else {
+                  {{ line.name }}
+                }
+              </h4>
+              <span
+                class="amount"
+                [class.positive]="line.totalCents > 0"
+                [class.negative]="line.totalCents < 0"
+              >
+                {{ line.totalCents | cents }}
+              </span>
+            </div>
+            @if (line.movements.length > 0) {
+              <app-movement-list
+                [id]="'line-movements-' + line.id"
+                [hidden]="isCollapsed(lineKey)"
+                [movements]="line.movements"
+                [label]="line.name"
+              />
+            }
+          </div>
+        }
+      </div>
+    </section>
+  } @else {
+    <section class="group" [class.collapsed]="isCollapsed('g-none')" aria-labelledby="group-none">
+      <svg class="bar" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+        <rect width="1" height="1" />
+      </svg>
+      <header class="group-header">
+        <svg class="tint" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+          <rect width="1" height="1" />
+        </svg>
+        <h3 id="group-none">
+          <button
+            type="button"
+            class="toggle"
+            [attr.aria-expanded]="!isCollapsed('g-none')"
+            aria-controls="group-body-none"
+            (click)="toggle('g-none')"
+          >
+            <mat-icon class="chevron" fontIcon="chevron_right" aria-hidden="true" />
+            {{ texts.dashboard.uncategorized }}
+          </button>
+        </h3>
+        <span
+          class="amount"
+          [class.positive]="r.uncategorized.totalCents > 0"
+          [class.negative]="r.uncategorized.totalCents < 0"
+          >{{ r.uncategorized.totalCents | cents }}</span
+        >
+      </header>
+      <div class="line" id="group-body-none" [hidden]="isCollapsed('g-none')">
+        <app-movement-list
+          [movements]="r.uncategorized.movements"
+          [label]="texts.dashboard.uncategorized"
+        />
+      </div>
+    </section>
+  }
+</ng-template>

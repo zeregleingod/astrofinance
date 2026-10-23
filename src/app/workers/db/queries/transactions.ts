@@ -43,8 +43,8 @@ export function updateTransaction(db: SqlDb, input: TransactionEdit): undefined 
   });
 }
 
-/** A un movimiento solo se le asignan subcategorías (ADR-0009). */
-function requireSubcategory(db: SqlDb, id: number): void {
+/** A un movimiento (o a un submovimiento) solo se le asignan subcategorías (ADR-0009). */
+export function requireSubcategory(db: SqlDb, id: number): void {
   const found = db.value(
     'SELECT 1 FROM categories WHERE id = ? AND parent_id IS NOT NULL AND archived = 0',
     [id],
@@ -70,7 +70,7 @@ export function transactionEditParam(params: unknown): TransactionEdit {
   return { id, description, bookedDate, categoryId, note };
 }
 
-const positiveId = (value: unknown): value is number =>
+export const positiveId = (value: unknown): value is number =>
   Number.isSafeInteger(value) && Number(value) > 0;
 
 const invalid = (field: string) => new RangeError(`Movimiento no válido (${field}).`);

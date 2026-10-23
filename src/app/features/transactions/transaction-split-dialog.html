@@ -1,0 +1,223 @@
+<h2 mat-dialog-title>{{ texts.transactions.splits.title }}</h2>
+
+<form [formRoot]="splitForm">
+  <mat-dialog-content>
+    <!-- El movimiento que se divide: lo que viene del banco no se cambia aquí. -->
+    <section class="movement" [attr.aria-label]="texts.transactions.splits.movement">
+      <div class="movement-text">
+        <p class="movement-description">{{ row.description }}</p>
+        <p class="movement-meta">{{ row.bookedDate | isoDate }} · {{ parentPlace }}</p>
+      </div>
+      <p class="movement-amount">
+        <span class="movement-kind">{{ kind }}</span>
+        {{ totalCents | cents }}
+      </p>
+    </section>
+
+    @if (row.refundingCents > 0) {
+      <p class="hint">
+        {{ texts.transactions.splits.refundingBefore }} {{ row.refundingCents | cents }}
+        {{ texts.transactions.splits.refundingAfter }}
+      </p>
+    }
+
+    <!-- Lo repartido, siempre a la vista; se anuncia al cambiar sin mover el foco. -->
+    <div class="progress" [class.over]="check().exceeds">
+      <p class="progress-text" aria-live="polite">
+        <span>
+          {{ texts.transactions.splits.divided }} <strong>{{ dividedCents() | cents }}</strong>
+          {{ texts.transactions.splits.of }} {{ divisibleCents | cents }}
+        </span>
+        <span class="progress-rest">
+          @if (check().exceeds) {
+            {{ texts.transactions.splits.over }} {{ restCents() | cents }}
+          } @else if (restCents() === 0) {
+            {{ texts.transactions.splits.allDivided }}
+          } @else {
+            {{ texts.transactions.splits.unsplit }} {{ restCents() | cents }}
+          }
+        </span>
+      </p>
+      <progress
+        class="bar"
+        aria-hidden="true"
+        [max]="divisibleCents"
+        [value]="dividedCents()"
+      ></progress>
+    </div>
+
+    @let drafts = splitForm.lines().value();
+    @if (drafts.length === 0) {
+      <div class="empty">
+        <mat-icon fontIcon="call_split" aria-hidden="true" />
+        <p>{{ texts.transactions.splits.empty }}</p>
+      </div>
+    } @else {
+      <!-- Las cabeceras se ven en pantallas anchas; cada campo lleva además su propio nombre. -->
+      <div class="head" aria-hidden="true">
+        <span>{{ texts.transactions.splits.concept }}</span>
+        <span>{{ texts.transactions.splits.category }}</span>
+        <span class="num">{{ texts.transactions.splits.amount }}</span>
+      </div>
+
+      <ol class="items">
+        @for (draft of drafts; track draft.key; let index = $index) {
+          @let field = line(index);
+          <li class="item">
+            <fieldset>
+              <legend class="visually-hidden">
+                {{ texts.transactions.splits.item }} {{ index + 1 }}
+              </legend>
+              <div class="cells">
+                <div class="cell concept">
+                  <span class="cell-label" aria-hidden="true">{{
+                    texts.transactions.splits.concept
+                  }}</span>
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <input
+                      matInput
+                      autocomplete="off"
+                      [id]="'split-concept-' + draft.key"
+                      [attr.aria-label]="texts.transactions.splits.concept"
+                      [placeholder]="texts.transactions.splits.conceptPlaceholder"
+                      [formField]="field.description"
+                      [attr.aria-invalid]="
+                        field.description().touched() && field.description().invalid()
+                      "
+                      [attr.aria-describedby]="
+                        field.description().touched() && field.description().invalid()
+                          ? 'split-concept-error-' + draft.key
+                          : null
+                      "
+                    />
+                  </mat-form-field>
+                </div>
+
+                <div class="cell category">
+                  <span class="cell-label" aria-hidden="true">{{
+                    texts.transactions.splits.category
+                  }}</span>
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <select
+                      matNativeControl
+                      [attr.aria-label]="texts.transactions.splits.category"
+                      [formField]="field.categoryId"
+                    >
+                      <option value="">{{ texts.dashboard.uncategorized }}</option>
+                      @for (option of categories; track option.id) {
+                        <option [value]="option.id">{{ option.label }}</option>
+                      }
+                    </select>
+                  </mat-form-field>
+                </div>
+
+                <div class="cell amount">
+                  <span class="cell-label" aria-hidden="true">{{
+                    texts.transactions.splits.amount
+                  }}</span>
+                  <mat-form-field appearance="outline" subscriptSizing="dynamic">
+                    <input
+                      matInput
+                      inputmode="decimal"
+                      autocomplete="off"
+                      [attr.aria-label]="texts.transactions.splits.amount"
+                      [formField]="field.amount"
+                      [attr.aria-invalid]="field.amount().touched() && field.amount().invalid()"
+                      [attr.aria-describedby]="
+                        field.amount().touched() && field.amount().invalid()
+                          ? 'split-amount-error-' + draft.key
+                          : null
+                      "
+                    />
+                    <span matTextSuffix>&nbsp;€</span>
+                  </mat-form-field>
+                </div>
+
+                <button
+                  mat-icon-button
+                  type="button"
+                  class="remove"
+                  [attr.aria-label]="texts.transactions.splits.remove + ' ' + (index + 1)"
+                  [title]="texts.transactions.splits.remove"
+                  (click)="remove(index)"
+                >
+                  <mat-icon fontIcon="delete" aria-hidden="true" />
+                </button>
+              </div>
+
+              @if (draft.refundsTo.length > 0) {
+                <p class="note">
+                  <span class="badge">{{ texts.transactions.splits.refunds }}</span>
+                  {{ draft.refundsTo.join(', ') }}.
+                  {{ texts.transactions.splits.refundsHint }}
+                </p>
+              }
+              @if (draft.shared) {
+                <p class="note">
+                  <span class="badge">{{ texts.transactions.splits.shared }}</span>
+                  {{ texts.transactions.splits.sharedHint }}
+                </p>
+              }
+              @if (field.description().touched() && field.description().invalid()) {
+                <p class="alert" [id]="'split-concept-error-' + draft.key">
+                  {{ field.description().errors()[0]?.message }}
+                </p>
+              }
+              @if (field.amount().touched() && field.amount().invalid()) {
+                <p class="alert" [id]="'split-amount-error-' + draft.key">
+                  {{ texts.transactions.splits.errors.amount }}
+                </p>
+              }
+            </fieldset>
+          </li>
+        }
+
+        <!-- Lo que no se reparte: se queda en el movimiento, en su categoría. -->
+        <li class="item rest" [class.over]="check().exceeds">
+          <div class="cells">
+            <div class="cell concept">
+              @if (check().exceeds) {
+                <span class="rest-title">{{ texts.transactions.splits.errors.exceeds }}</span>
+              } @else {
+                <span class="rest-title">{{ texts.transactions.splits.rest }}</span>
+              }
+            </div>
+            @if (!check().exceeds) {
+              <div class="cell category">
+                <span class="rest-place">
+                  {{ texts.transactions.splits.staysIn }} {{ parentPlace }}
+                </span>
+              </div>
+            }
+            <div class="cell amount rest-amount">
+              @if (check().exceeds) {
+                {{ texts.transactions.splits.over }} {{ restCents() | cents }}
+              } @else {
+                {{ restCents() | cents }}
+              }
+            </div>
+          </div>
+        </li>
+      </ol>
+    }
+
+    <button id="split-add" mat-stroked-button type="button" class="add" (click)="add()">
+      <mat-icon fontIcon="add" aria-hidden="true" />
+      {{ texts.transactions.splits.add }}
+    </button>
+
+    @if (error(); as message) {
+      <p class="alert" role="alert">{{ message }}</p>
+    }
+  </mat-dialog-content>
+
+  <mat-dialog-actions align="end">
+    <button mat-button type="button" mat-dialog-close>
+      {{ texts.transactions.splits.cancel }}
+    </button>
+    <button mat-flat-button type="submit" [disabled]="splitForm().submitting()">
+      <mat-icon fontIcon="save" aria-hidden="true" />
+      {{ texts.transactions.splits.save }}
+    </button>
+  </mat-dialog-actions>
+</form>

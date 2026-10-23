@@ -1,8 +1,14 @@
 import { isPeriod, periodParts } from '../dates/period';
-import type { TransactionRow } from './transaction-row';
+import type { SplitRow, TransactionRow } from './transaction-row';
 
 /** Marcas de un movimiento por las que se puede filtrar. */
-export const TRANSACTION_TAGS = ['shared', 'reimbursement', 'transfer', 'installment'] as const;
+export const TRANSACTION_TAGS = [
+  'shared',
+  'reimbursement',
+  'transfer',
+  'installment',
+  'split',
+] as const;
 
 export type TransactionTag = (typeof TRANSACTION_TAGS)[number];
 
@@ -72,10 +78,14 @@ export function applyTransactionFilter(
     if (dateFrom !== null && row.bookedDate < dateFrom) return false;
     if (dateTo !== null && row.bookedDate > dateTo) return false;
     if (tag !== null && !hasTag(row, tag)) return false;
-    if (category !== null && row.categoryName !== category.name) return false;
+    // Un movimiento dividido también está en las categorías de sus submovimientos (ADR-0019).
+    const placed = [row, ...row.splits];
+    if (category !== null && !placed.some((p) => p.categoryName === category.name)) return false;
     if (
       subcategory !== null &&
-      (row.categoryName !== subcategory.category || row.subcategoryName !== subcategory.name)
+      !placed.some(
+        (p) => p.categoryName === subcategory.category && p.subcategoryName === subcategory.name,
+      )
     ) {
       return false;
     }
@@ -95,20 +105,25 @@ export function transactionFilterOptions(
   const subcategories = new Map<string, SubcategoryChoice>();
   let uncategorized = false;
 
+  const place = (where: Pick<SplitRow, 'categoryName' | 'subcategoryName'>) => {
+    if (where.categoryName === null) {
+      uncategorized = true;
+      return;
+    }
+    categories.add(where.categoryName);
+    if (where.subcategoryName !== null) {
+      subcategories.set(`${where.categoryName}\u0000${where.subcategoryName}`, {
+        category: where.categoryName,
+        name: where.subcategoryName,
+      });
+    }
+  };
+
   for (const row of rows) {
     years.add(Number(row.bookedDate.slice(0, 4)));
     accounts.add(row.accountName);
-    if (row.categoryName === null) {
-      uncategorized = true;
-      continue;
-    }
-    categories.add(row.categoryName);
-    if (row.subcategoryName !== null) {
-      subcategories.set(`${row.categoryName}\u0000${row.subcategoryName}`, {
-        category: row.categoryName,
-        name: row.subcategoryName,
-      });
-    }
+    place(row);
+    row.splits.forEach(place);
   }
 
   return {
@@ -136,7 +151,14 @@ export function monthFilter(period: string | undefined): TransactionFilter {
 }
 
 function hasTag(row: TransactionRow, tag: TransactionTag): boolean {
-  return tag === 'installment' ? row.installment !== null : row[tag];
+  switch (tag) {
+    case 'installment':
+      return row.installment !== null;
+    case 'split':
+      return row.splits.length > 0;
+    default:
+      return row[tag];
+  }
 }
 
 const collator = new Intl.Collator('es', { sensitivity: 'base', numeric: true });

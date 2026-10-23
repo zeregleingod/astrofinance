@@ -244,6 +244,22 @@ describe('consultas de categorías', () => {
       ]);
     });
 
+    it('al eliminar una subcategoría sus submovimientos también quedan sin categoría', () => {
+      const food = sub('Variables', 'Comida').id;
+      const parent = tx(sub('Variables', 'Ocio').id);
+      db.run(
+        `INSERT INTO transaction_splits (transaction_id, description, category_id, amount_cents)
+         VALUES (?, 'PAN', ?, -400)`,
+        [parent, food],
+      );
+
+      deleteCategory(db, food);
+
+      expect(db.rows('SELECT description, category_id FROM transaction_splits')).toEqual([
+        { description: 'PAN', category_id: null },
+      ]);
+    });
+
     it('al eliminar una principal se van sus subcategorías y todo lo que dependía de ellas', () => {
       const variables = group('Variables').id;
       const food = sub('Variables', 'Comida').id;

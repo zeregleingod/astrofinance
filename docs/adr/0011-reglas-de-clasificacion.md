@@ -48,5 +48,7 @@ movimientos pueden tocar y cómo se protege al usuario de una regla mal escrita.
 - La pantalla solo edita condición, texto y categoría. El signo, el rango de importe, la cuenta
   y el estado activo/inactivo existen en el esquema y el motor los respeta, pero aún no se
   pueden cambiar; las reglas nuevas valen para cualquier signo, importe y cuenta.
-- Pendiente: proponer la categoría en la revisión de una importación (T6.4), reordenar las
+- La categoría que proponen las reglas en la revisión de una importación (T6.4) se describe en
+  ADR-0018.
+- Pendiente: reordenar las
   reglas y activarlas o desactivarlas (T4.2), y «crear regla desde este movimiento» (T4.4).

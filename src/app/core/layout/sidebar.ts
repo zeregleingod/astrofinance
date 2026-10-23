@@ -136,10 +136,13 @@ import { DbService } from '@data/db/db-service';
       padding: 0 8px 16px;
     }
 
+    /* Debajo de los accesos rápidos, una línea los separa del menú. */
     .quick-actions {
       display: flex;
       gap: 4px;
-      padding: 0 4px 16px;
+      margin-bottom: 16px;
+      padding: 0 4px 12px;
+      border-bottom: 1px solid var(--mat-sys-outline-variant);
       color: var(--mat-sys-on-surface-variant);
     }
 
@@ -159,8 +162,11 @@ import { DbService } from '@data/db/db-service';
       color: var(--mat-sys-on-surface-variant);
     }
 
+    /* Entre un apartado y el siguiente, una línea, como en la barra plegada. */
     mat-nav-list + .section-label {
-      margin-top: 20px;
+      margin-top: 12px;
+      padding-top: 16px;
+      border-top: 1px solid var(--mat-sys-outline-variant);
     }
 
     mat-nav-list {
@@ -224,6 +230,12 @@ import { DbService } from '@data/db/db-service';
     :host(.collapsed) .quick-actions {
       flex-direction: column;
       padding-inline: 0;
+    }
+
+    /* La línea, del ancho de las que separan los apartados. */
+    :host(.collapsed) .quick-actions {
+      align-items: center;
+      width: 56px;
     }
 
     :host(.collapsed) .collapse-toggle {

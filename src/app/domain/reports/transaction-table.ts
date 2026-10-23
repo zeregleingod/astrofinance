@@ -4,15 +4,7 @@ import type { TransactionRow } from './transaction-row';
 
 /** Columnas por las que se puede ordenar la tabla de movimientos. */
 export type TransactionSortKey =
-  | 'bookedDate'
-  | 'opDate'
-  | 'description'
-  | 'tags'
-  | 'category'
-  | 'subcategory'
-  | 'account'
-  | 'amount'
-  | 'notes';
+  'bookedDate' | 'description' | 'tags' | 'category' | 'account' | 'amount' | 'notes';
 
 export type SortDirection = 'asc' | 'desc';
 
@@ -27,6 +19,7 @@ export interface TableLabels {
   readonly reimbursement: string;
   readonly transfer: string;
   readonly installment: string;
+  readonly split: string;
   readonly uncategorized: string;
 }
 
@@ -36,6 +29,7 @@ export function transactionTags(row: TransactionRow, labels: TableLabels): strin
     ...(row.reimbursement ? [labels.reimbursement] : []),
     ...(row.transfer ? [labels.transfer] : []),
     ...(row.installment ? [`${labels.installment} ${row.installment}`] : []),
+    ...(row.splits.length > 0 ? [labels.split] : []),
   ];
 }
 
@@ -69,6 +63,13 @@ function searchableText(row: TransactionRow, labels: TableLabels): string {
     row.accountName,
     formatCents(row.amountCents),
     row.note ?? '',
+    ...row.splits.flatMap((split) => [
+      split.description,
+      split.categoryName ?? labels.uncategorized,
+      split.subcategoryName ?? '',
+      formatCents(split.amountCents),
+    ]),
+    ...row.refunds.map((refund) => refund.description),
   ].join(' | ');
 }
 
@@ -107,16 +108,15 @@ function sortValue(row: TransactionRow, key: TransactionSortKey, labels: TableLa
   switch (key) {
     case 'bookedDate':
       return row.bookedDate;
-    case 'opDate':
-      return row.opDate;
     case 'description':
       return row.description;
     case 'tags':
       return transactionTags(row, labels).join(' ') || null;
+    // «Principal › Subcategoría», como se ve: por categoría y, dentro, por subcategoría.
     case 'category':
-      return row.categoryName;
-    case 'subcategory':
-      return row.subcategoryName;
+      return row.categoryName === null
+        ? null
+        : [row.categoryName, row.subcategoryName].filter(Boolean).join(' › ');
     case 'account':
       return row.accountName;
     case 'amount':

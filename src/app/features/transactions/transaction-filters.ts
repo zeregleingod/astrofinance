@@ -49,6 +49,7 @@ const TAG_LABELS: Readonly<Record<TransactionTag, string>> = {
   reimbursement: t.reimbursement,
   transfer: t.transfer,
   installment: t.installment,
+  split: t.split,
 };
 
 /** Valor del desplegable de categoría para «Sin categoría». */

@@ -11,9 +11,16 @@ import type {
   ImportBatchResult,
 } from '@domain/imports/import-batch';
 import type { MonthReport } from '@domain/reports/month-report';
+import type { SummaryTotal } from '@domain/reports/summary-origin';
 import type { TransactionRow } from '@domain/reports/transaction-row';
 import type { YearReport } from '@domain/reports/year-report';
+import type {
+  CategorySuggestion,
+  SuggestionRequest,
+} from '@domain/suggestions/category-suggestion';
 import type { TransactionEdit } from '@domain/transactions/transaction-edit';
+import type { ExpenseRefundOptions, ExpenseRefunds } from '@domain/transactions/refund';
+import type { TransactionSplits } from '@domain/transactions/transaction-split';
 import type { NewRule, RuleChange, RuleRow, RuleUpdate } from '@domain/rules/rule';
 
 /** Contrato RPC del worker de base de datos. */
@@ -37,8 +44,19 @@ export interface DbApi {
   transactions: { params: { period: string }; result: readonly TransactionRow[] };
   /** Todos los movimientos, del más reciente al más antiguo. */
   allTransactions: { params: undefined; result: readonly TransactionRow[] };
+  /** Los movimientos que forman un total del resumen del mes (ids, de menor a mayor). */
+  summaryTransactionIds: {
+    params: { period: string; total: SummaryTotal };
+    result: readonly number[];
+  };
   /** Guarda lo que el usuario cambia de un movimiento (concepto, fecha, categoría, notas). */
   updateTransaction: { params: TransactionEdit; result: undefined };
+  /** Sustituye los submovimientos de un movimiento; una lista vacía lo deja sin dividir. */
+  saveSplits: { params: TransactionSplits; result: undefined };
+  /** Los ingresos que devuelven un gasto o pueden devolverlo, de fecha más cercana primero. */
+  expenseRefundOptions: { params: { expenseId: number }; result: ExpenseRefundOptions };
+  /** Sustituye las devoluciones de un gasto; una lista vacía lo deja sin devoluciones. */
+  saveRefunds: { params: ExpenseRefunds; result: undefined };
   categoryOptions: { params: undefined; result: readonly CategoryOption[] };
   categoryTree: { params: undefined; result: readonly CategoryGroup[] };
   /** Da de alta una categoría o subcategoría y devuelve su id. */
@@ -60,6 +78,14 @@ export interface DbApi {
   applyRules: { params: undefined; result: number };
   /** De las huellas indicadas, las de movimientos que ya están guardados. */
   existingHashes: { params: { hashes: readonly string[] }; result: readonly string[] };
+  /**
+   * La categoría que se propone para cada movimiento de un extracto, en el mismo orden: por las
+   * reglas o por los movimientos parecidos ya clasificados (ADR-0018); `null` si ninguna.
+   */
+  suggestCategories: {
+    params: SuggestionRequest;
+    result: readonly (CategorySuggestion | null)[];
+  };
   /** Guarda un lote revisado, entero o nada. */
   commitImport: { params: ImportBatchInput; result: ImportBatchResult };
 }

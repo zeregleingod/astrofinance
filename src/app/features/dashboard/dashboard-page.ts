@@ -1,14 +1,22 @@
+import { NgTemplateOutlet } from '@angular/common';
 import { Component, computed, inject, input, resource, signal } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
+import { RouterLink } from '@angular/router';
 import { TEXTS } from '@core/i18n/texts';
 import { injectMonthSelection } from '@core/period/month-selection';
 import { DbService } from '@data/db/db-service';
 import { EmptyState } from '@shared/empty-state/empty-state';
 import { CentsPipe } from '@shared/format/cents-pipe';
+import type { CategoryGroup } from '@domain/reports/month-report';
 import { MonthNav } from '@shared/month-nav/month-nav';
+import { cardLayout } from './card-layout';
 import { MovementList } from './movement-list';
+
+/** Una tarjeta del Resumen: una categoría o lo que no tiene categoría. */
+type DashboardCard =
+  { readonly kind: 'group'; readonly group: CategoryGroup } | { readonly kind: 'uncategorized' };
 
 type FoldStep = 'plegar-todo' | 'abrir-categorias' | 'abrir-todo';
 
@@ -33,6 +41,8 @@ const FOLD_BUTTON: Record<FoldStep, { readonly label: string; readonly icon: str
     MatTooltipModule,
     MonthNav,
     MovementList,
+    NgTemplateOutlet,
+    RouterLink,
   ],
   templateUrl: './dashboard-page.html',
   styleUrl: './dashboard-page.scss',
@@ -52,6 +62,18 @@ export class DashboardPage {
       return this.db.ready() && period ? { period, version: this.db.dataVersion() } : undefined;
     },
     loader: ({ params, abortSignal }) => this.db.monthReport(params.period, abortSignal),
+  });
+
+  /**
+   * Las tarjetas en orden (las categorías y, al final, lo que no tiene categoría si hay algo),
+   * repartidas por columnas de tres; las que no caben van debajo, de tres en tres por fila.
+   */
+  protected readonly layout = computed(() => {
+    const report = this.report.value();
+    if (!report) return cardLayout<DashboardCard>([]);
+    const cards: DashboardCard[] = report.groups.map((group) => ({ kind: 'group', group }));
+    if (report.uncategorized.count > 0) cards.push({ kind: 'uncategorized' });
+    return cardLayout(cards);
   });
 
   /**

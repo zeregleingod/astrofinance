@@ -26,6 +26,20 @@ describe('DashboardPage', () => {
   const text = (el: Element | null | undefined) =>
     el?.textContent?.replace(/[ \t\r\n]+/g, ' ').trim();
 
+  it('cada total lleva a los movimientos que lo forman en ese mes', async () => {
+    const element = await setup({ demo: true, mes: '2026-08' });
+    const links = [...element.querySelectorAll<HTMLAnchorElement>('.kpi dd a')];
+    expect(links.map((a) => a.getAttribute('href'))).toEqual(
+      ['ingresos', 'gastos', 'ahorro', 'balance', 'pendiente'].map(
+        (origen) => `/movimientos?mes=2026-08&origen=${origen}`,
+      ),
+    );
+    // El enlace se llama como la cifra; lo que hace va en su descripción, que comparten todos.
+    const description = element.querySelector(`#${links[0]?.getAttribute('aria-describedby')}`);
+    expect(text(description)).toBe('Ver sus movimientos');
+    expect(links.every((a) => a.getAttribute('aria-describedby') === description?.id)).toBe(true);
+  });
+
   it('muestra el estado vacío', async () => {
     const element = await setup({ demo: false });
     expect(text(element.querySelector('h2'))).toBe('Resumen');

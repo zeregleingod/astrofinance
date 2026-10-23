@@ -52,11 +52,46 @@
       color: inherit;
     }
   }
+
+  // Toda la tarjeta lleva a los movimientos del total: el enlace es la cifra, pero ocupa la
+  // tarjeta entera. Bajo el cursor la tarjeta se tiñe del color del texto, como un botón.
+  position: relative;
+
+  a {
+    color: inherit;
+    text-decoration: none;
+
+    &::after {
+      content: '';
+      position: absolute;
+      inset: 0;
+      border-radius: 16px;
+    }
+
+    &:focus-visible {
+      outline: none;
+
+      &::after {
+        outline: 2px solid var(--mat-sys-primary);
+        outline-offset: 2px;
+      }
+    }
+  }
+
+  &:has(a:hover) {
+    background: color-mix(in srgb, currentColor 6%, var(--mat-sys-surface-container-lowest));
+  }
+
+  &.highlight:has(a:hover) {
+    background: color-mix(in srgb, currentColor 8%, var(--mat-sys-primary-container));
+  }
 }
 
+// Arriba, las columnas de tarjetas; debajo, las que no caben, de tres en tres por fila. Las dos
+// rejillas comparten columnas: tres; en pantallas estrechas, dos y luego una.
+.columns,
 .groups {
   display: grid;
-  // Tres tarjetas por fila; en pantallas estrechas, dos y luego una.
   grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: 16px;
   align-items: start;
@@ -68,6 +103,18 @@
   @media (width < 760px) {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+// Cada columna apila sus tarjetas, sin huecos aunque las de al lado sean más altas.
+.column {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  min-width: 0;
+}
+
+.columns + .groups {
+  margin-top: 16px;
 }
 
 .group {

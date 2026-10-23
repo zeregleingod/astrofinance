@@ -31,6 +31,52 @@ export type TransactionCard = TransactionRow & { readonly tags: readonly string[
                 [class.negative]="row.amountCents < 0"
                 >{{ row.amountCents | cents }}</span
               >
+              @if (row.refundable) {
+                <button
+                  mat-icon-button
+                  type="button"
+                  class="refund"
+                  [attr.aria-label]="
+                    (row.refunds.length > 0
+                      ? texts.transactions.refunds.manage
+                      : texts.transactions.refunds.open) +
+                    ': ' +
+                    row.description +
+                    ', ' +
+                    (row.bookedDate | isoDate)
+                  "
+                  [title]="
+                    row.refunds.length > 0
+                      ? texts.transactions.refunds.manage
+                      : texts.transactions.refunds.open
+                  "
+                  (click)="refund.emit(row)"
+                >
+                  <mat-icon fontIcon="undo" aria-hidden="true" />
+                </button>
+              }
+              <button
+                mat-icon-button
+                type="button"
+                class="split"
+                [attr.aria-label]="
+                  (row.splits.length > 0
+                    ? texts.transactions.splits.manage
+                    : texts.transactions.splits.open) +
+                  ': ' +
+                  row.description +
+                  ', ' +
+                  (row.bookedDate | isoDate)
+                "
+                [title]="
+                  row.splits.length > 0
+                    ? texts.transactions.splits.manage
+                    : texts.transactions.splits.open
+                "
+                (click)="split.emit(row)"
+              >
+                <mat-icon fontIcon="call_split" aria-hidden="true" />
+              </button>
               <button
                 mat-icon-button
                 type="button"
@@ -75,6 +121,50 @@ export type TransactionCard = TransactionRow & { readonly tags: readonly string[
             @if (row.note) {
               <p class="notes">{{ row.note }}</p>
             }
+            @if (row.splits.length > 0) {
+              <ul class="splits">
+                @for (part of row.splits; track part.id) {
+                  <!-- Los espacios separan los datos también para los lectores de pantalla. -->
+                  <li>
+                    <span class="visually-hidden">{{ texts.transactions.splits.partOf }}</span
+                    >{{ ' ' }}<span class="split-description">{{ part.description }}</span
+                    >{{ ' '
+                    }}<span
+                      class="amount"
+                      [class.positive]="part.amountCents > 0"
+                      [class.negative]="part.amountCents < 0"
+                      >{{ part.amountCents | cents }}</span
+                    >{{ ' ' }}
+                    <span class="split-place">
+                      {{ part.categoryName ?? texts.dashboard.uncategorized }}
+                      @if (part.subcategoryName) {
+                        › {{ part.subcategoryName }}
+                      }
+                      @if (part.shared) {
+                        <span class="badge">{{ texts.transactions.shared }}</span>
+                      }
+                      @if (part.refundsTo.length > 0) {
+                        <span class="badge">{{ texts.transactions.splits.refunds }}</span>
+                        {{ part.refundsTo.join(', ') }}
+                      }
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
+            @if (row.refunds.length > 0) {
+              <ul class="splits refunds">
+                @for (item of row.refunds; track item.transactionId) {
+                  <li>
+                    <span class="visually-hidden">{{ texts.transactions.refunds.partOf }}</span
+                    >{{ ' ' }}<span class="split-description">{{ item.description }}</span
+                    >{{ ' ' }}<span class="amount positive">{{ item.amountCents | cents }}</span
+                    >{{ ' ' }}
+                    <span class="split-place">{{ item.date | isoDate }}</span>
+                  </li>
+                }
+              </ul>
+            }
           </li>
         } @empty {
           <li class="card empty">{{ texts.transactions.noResults }}</li>
@@ -100,7 +190,7 @@ export type TransactionCard = TransactionRow & { readonly tags: readonly string[
     ul {
       display: flex;
       flex-direction: column;
-      gap: 8px;
+      gap: 6px;
       margin: 0;
       padding: 0;
       list-style: none;
@@ -109,8 +199,8 @@ export type TransactionCard = TransactionRow & { readonly tags: readonly string[
     .card {
       display: flex;
       flex-direction: column;
-      gap: 4px;
-      padding: 12px 16px;
+      gap: 2px;
+      padding: 10px 14px;
       border-radius: 16px;
       background: var(--mat-sys-surface-container-lowest);
     }
@@ -195,12 +285,43 @@ export type TransactionCard = TransactionRow & { readonly tags: readonly string[
       overflow-wrap: anywhere;
     }
 
+    // Los submovimientos, sangrados bajo una línea, con su concepto e importe.
+    .splits {
+      gap: 4px;
+      margin-top: 4px;
+      padding: 8px 0 0 12px;
+      border-top: 1px solid var(--mat-sys-outline-variant);
+
+      li {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) auto;
+        gap: 0 8px;
+        font: var(--mat-sys-body-small);
+      }
+
+      .amount {
+        font: var(--mat-sys-body-small);
+        font-weight: 600;
+      }
+
+      .split-description {
+        overflow-wrap: anywhere;
+      }
+
+      .split-place {
+        grid-column: 1 / -1;
+        color: var(--mat-sys-on-surface-variant);
+      }
+    }
+
     .empty {
       text-align: center;
       color: var(--mat-sys-on-surface-variant);
     }
 
-    .edit {
+    .edit,
+    .split,
+    .refund {
       --mat-icon-button-state-layer-size: 32px;
       --mat-icon-button-icon-size: 18px;
 
@@ -235,4 +356,8 @@ export class TransactionCards {
   readonly showMore = output();
   /** Se pide editar un movimiento. */
   readonly edit = output<TransactionCard>();
+  /** Se pide dividir un movimiento en submovimientos. */
+  readonly split = output<TransactionCard>();
+  /** Se piden las devoluciones de un gasto. */
+  readonly refund = output<TransactionCard>();
 }

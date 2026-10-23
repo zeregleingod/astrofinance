@@ -1,0 +1,177 @@
+<h2 mat-dialog-title>{{ texts.transactions.refunds.title }}</h2>
+
+<mat-dialog-content>
+  <!-- El gasto que te devuelven: lo que viene del banco no se cambia aquí. -->
+  <section class="movement" [attr.aria-label]="texts.transactions.refunds.movement">
+    <div class="movement-text">
+      <p class="movement-description">{{ row.description }}</p>
+      <p class="movement-meta">{{ row.bookedDate | isoDate }} · {{ place }}</p>
+    </div>
+    <p class="movement-amount">
+      <span class="movement-kind">{{ texts.transactions.refunds.expense }}</span>
+      {{ totalCents | cents }}
+    </p>
+  </section>
+
+  <!-- Lo devuelto, siempre a la vista; se anuncia al cambiar sin mover el foco. -->
+  <div class="progress" [class.over]="check().exceeds">
+    <p class="progress-text" aria-live="polite">
+      <span>
+        {{ texts.transactions.refunds.refunded }}
+        <strong>{{ check().refundedCents | cents }}</strong>
+        {{ texts.transactions.refunds.of }} {{ totalCents | cents }}
+      </span>
+      <span class="progress-rest">
+        @if (check().exceeds) {
+          {{ texts.transactions.refunds.over }} {{ restCents() | cents }}
+        } @else {
+          {{ texts.transactions.refunds.cost }} {{ restCents() | cents }}
+        }
+      </span>
+    </p>
+    <progress
+      class="bar"
+      aria-hidden="true"
+      [max]="totalCents"
+      [value]="check().refundedCents"
+    ></progress>
+  </div>
+
+  @if (linked().length === 0) {
+    @if (!loading()) {
+      <div class="empty">
+        <mat-icon fontIcon="undo" aria-hidden="true" />
+        <p>{{ texts.transactions.refunds.empty }}</p>
+      </div>
+    }
+  } @else {
+    <h3 class="section-title">{{ texts.transactions.refunds.linked }}</h3>
+    <ol class="items">
+      @for (link of linked(); track link.key; let index = $index) {
+        <li class="item">
+          <div class="cells">
+            <div class="income">
+              <span class="visually-hidden">{{ texts.transactions.refunds.partOf }}</span>
+              <span class="income-description">{{ link.income.description }}</span>
+              <span class="income-meta"
+                >{{ link.income.date | isoDate }} · {{ link.income.accountName }}</span
+              >
+            </div>
+            <!-- El importe del ingreso (o lo que tenía libre): no se escribe. -->
+            <span class="linked-amount">{{ link.amountCents | cents }}</span>
+            <button
+              mat-icon-button
+              type="button"
+              class="remove"
+              [id]="removeId(link.key)"
+              [attr.aria-label]="texts.transactions.refunds.remove + ': ' + link.income.description"
+              [title]="texts.transactions.refunds.remove"
+              (click)="remove(index)"
+            >
+              <mat-icon fontIcon="delete" aria-hidden="true" />
+            </button>
+          </div>
+        </li>
+      }
+
+      <!-- Lo que el gasto cuesta de verdad, una vez descontado lo devuelto. -->
+      <li class="item rest" [class.over]="check().exceeds">
+        <div class="cells">
+          <span class="rest-title">
+            @if (check().exceeds) {
+              {{ texts.transactions.refunds.errors.exceeds }}
+            } @else {
+              {{ texts.transactions.refunds.cost }}
+            }
+          </span>
+          <span class="rest-amount">
+            @if (check().exceeds) {
+              {{ texts.transactions.refunds.over }}
+            }
+            {{ restCents() | cents }}
+          </span>
+        </div>
+      </li>
+    </ol>
+  }
+
+  <!-- Los ingresos que se pueden vincular: los de fecha más cercana al gasto, o los buscados. -->
+  <section class="candidates" aria-labelledby="refund-add-title">
+    <h3 id="refund-add-title" class="section-title">{{ texts.transactions.refunds.add }}</h3>
+    <mat-form-field class="search" appearance="outline" subscriptSizing="dynamic">
+      <mat-label>{{ texts.transactions.refunds.search }}</mat-label>
+      <input
+        #search
+        id="refund-search"
+        matInput
+        type="search"
+        autocomplete="off"
+        [placeholder]="texts.transactions.refunds.searchPlaceholder"
+        [value]="query()"
+        (input)="query.set(search.value)"
+        (keydown.enter)="$event.preventDefault()"
+      />
+      <mat-icon matSuffix fontIcon="search" aria-hidden="true" />
+    </mat-form-field>
+
+    @if (loading()) {
+      <p class="hint">{{ texts.transactions.refunds.loading }}</p>
+    } @else {
+      <ul class="candidate-list">
+        @for (income of shown(); track income.key) {
+          <li class="candidate">
+            <div class="income">
+              <span class="income-description">{{ income.description }}</span>
+              <span class="income-meta"
+                >{{ income.date | isoDate }} · {{ income.accountName }}</span
+              >
+            </div>
+            <span class="candidate-amount">
+              <span class="candidate-label">{{ texts.transactions.refunds.available }}</span>
+              {{ income.availableCents | cents }}
+            </span>
+            <button
+              mat-stroked-button
+              type="button"
+              [attr.aria-label]="
+                texts.transactions.refunds.link +
+                ': ' +
+                income.description +
+                ', ' +
+                (income.date | isoDate)
+              "
+              (click)="add(income)"
+            >
+              <mat-icon fontIcon="add_link" aria-hidden="true" />
+              {{ texts.transactions.refunds.link }}
+            </button>
+          </li>
+        } @empty {
+          <li class="hint">{{ texts.transactions.refunds.noCandidates }}</li>
+        }
+      </ul>
+      @if (hidden() > 0) {
+        <p class="hint">{{ texts.transactions.refunds.more }}</p>
+      }
+    }
+  </section>
+
+  @if (error(); as message) {
+    <p class="alert" role="alert">{{ message }}</p>
+  }
+</mat-dialog-content>
+
+<mat-dialog-actions align="end">
+  <button mat-button type="button" mat-dialog-close>
+    {{ texts.transactions.refunds.cancel }}
+  </button>
+  <button
+    mat-flat-button
+    type="button"
+    [disabled]="loading() || saving() || !check().valid"
+    (click)="save()"
+  >
+    <mat-icon fontIcon="save" aria-hidden="true" />
+    {{ texts.transactions.refunds.save }}
+  </button>
+</mat-dialog-actions>

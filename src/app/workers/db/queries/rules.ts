@@ -138,8 +138,9 @@ export function applyRules(db: SqlDb): number {
   });
 }
 
-function currentMatches(db: SqlDb): RuleMatch[] {
-  const rules: Rule[] = db
+/** Todas las reglas, en el orden en que se aplican, tal como las usa el motor. */
+export function loadRules(db: SqlDb): Rule[] {
+  return db
     .rows(
       `SELECT id, operator, pattern, category_id, enabled, sign, min_amount_cents,
               max_amount_cents, account_id
@@ -156,6 +157,10 @@ function currentMatches(db: SqlDb): RuleMatch[] {
       maxAmountCents: numberOrNull(row['max_amount_cents']),
       accountId: numberOrNull(row['account_id']),
     }));
+}
+
+function currentMatches(db: SqlDb): RuleMatch[] {
+  const rules = loadRules(db);
   if (rules.length === 0) return [];
 
   // Las reglas leen el concepto del banco, que no cambia aunque se edite el visible (ADR-0007).

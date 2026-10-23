@@ -1,3 +1,5 @@
+import type { CategorySource } from '../suggestions/category-suggestion';
+
 /** Movimiento revisado por el usuario, listo para guardarse. */
 export interface ImportRowInput {
   readonly opDate: string;
@@ -11,6 +13,10 @@ export interface ImportRowInput {
   readonly note: string | null;
   readonly bankReference: string | null;
   readonly categoryId: number | null;
+  /** `ninguna` si y solo si no hay categoría. */
+  readonly categorySource: CategorySource;
+  /** La regla que propuso la categoría; solo con `categorySource = 'regla'`. */
+  readonly ruleId: number | null;
   readonly dedupeHash: string;
 }
 

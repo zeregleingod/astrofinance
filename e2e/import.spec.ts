@@ -51,6 +51,35 @@ test('importar un extracto: revisar, editar, guardar y verlo en movimientos', as
   await expect(movements.item(page, 'ABONO PROMOCIÓN')).toHaveCount(0);
 });
 
+test('la categoría viene propuesta por las reglas y se puede cambiar', async ({ page }) => {
+  await page.goto('/configuracion/reglas-de-categoria');
+  await page.getByRole('textbox', { name: 'Texto', exact: true }).fill('recibo luz');
+  await page
+    .getByRole('combobox', { name: 'Categoría', exact: true })
+    .selectOption({ label: 'Suministros › Luz' });
+  await page.getByRole('button', { name: 'Añadir regla' }).click();
+  await expect(page.getByRole('status').filter({ hasText: 'Regla añadida' })).toBeVisible();
+
+  // Sin recargar: la BD de esta pestaña vive en memoria.
+  await openNav(page);
+  await page.getByRole('link', { name: 'Importar extracto' }).click();
+  await chooseStatement(page);
+
+  const light = page.getByRole('combobox', { name: 'Categoría: ADEUDO RECIBO LUZ DEMO' });
+  await expect(light.locator('option:checked')).toHaveText('Suministros › Luz');
+  await expect(page.getByRole('row', { name: /ADEUDO RECIBO LUZ DEMO/ })).toContainText(
+    'Propuesta por una regla',
+  );
+  await expect(page.getByText(/Categorías propuestas: 1 por tus reglas/)).toBeVisible();
+
+  // Cambiada la única propuesta, ya no queda ninguna que revisar.
+  await light.selectOption({ label: 'Variables › Hogar' });
+  await expect(page.getByText(/Categorías propuestas/)).toHaveCount(0);
+  await expect(page.getByRole('row', { name: /ADEUDO RECIBO LUZ DEMO/ })).not.toContainText(
+    'Propuesta por una regla',
+  );
+});
+
 test('reimportar el mismo extracto no duplica movimientos', async ({ page }) => {
   await page.goto('/importar');
   await chooseStatement(page);

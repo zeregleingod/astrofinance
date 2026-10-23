@@ -10,17 +10,20 @@ import { BANK_PROFILES } from '@domain/imports/bank-profiles';
 import { statementErrorCode } from '@domain/imports/bank-statement';
 import type { CategoryOption, ImportBatchResult } from '@domain/imports/import-batch';
 import {
+  countSuggested,
   createDraft,
   draftErrors,
   draftToBatch,
   editDraft,
   isEdited,
   summarizeDraft,
+  suggestionInUse,
   type DraftEdit,
   type DraftRow,
 } from '@domain/imports/import-draft';
 import { statementPeriod, type ImportedStatement } from '@domain/imports/imported-statement';
 import { centsToInput } from '@domain/money/parse-cents';
+import type { CategorySuggestion } from '@domain/suggestions/category-suggestion';
 import { IsoDatePipe } from '@shared/format/iso-date-pipe';
 import { PeriodLabelPipe } from '@shared/format/period-label-pipe';
 
@@ -35,6 +38,13 @@ const STATUS_LABELS: Readonly<Record<RowStatus, string>> = {
   duplicate: t.statusDuplicate,
   excluded: t.statusExcluded,
   invalid: t.statusInvalid,
+};
+
+const SUGGESTION_LABELS: Readonly<
+  Record<CategorySuggestion['source'], { icon: string; label: string }>
+> = {
+  regla: { icon: 'rule', label: t.suggestionRule },
+  sugerencia: { icon: 'auto_awesome', label: t.suggestionHistory },
 };
 
 /**
@@ -79,10 +89,12 @@ export class ImportPage {
     this.draft().map((row) => {
       const errors = draftErrors(row);
       const status = rowStatus(row, errors.length > 0);
+      const suggestion = suggestionInUse(row);
       return {
         row,
         status,
         statusLabel: STATUS_LABELS[status],
+        suggestion: suggestion && SUGGESTION_LABELS[suggestion.source],
         edited: isEdited(row),
         descriptionInvalid: errors.includes('description'),
         amountInvalid: errors.includes('amount'),
@@ -92,6 +104,7 @@ export class ImportPage {
   );
 
   protected readonly summary = computed(() => summarizeDraft(this.draft()));
+  protected readonly suggested = computed(() => countSuggested(this.draft()));
   protected readonly canSave = computed(
     () => !this.saving() && this.summary().invalid === 0 && this.summary().toSave > 0,
   );
@@ -107,17 +120,36 @@ export class ImportPage {
     try {
       const statement = await this.reader.read(file);
       if (!this.db.ready()) await this.db.openLocal();
-      const [existing, categories] = await Promise.all([
+      const [existing, categories, suggestions] = await Promise.all([
         this.db.existingHashes(statement.movements.map((movement) => movement.dedupeHash)),
         this.db.categoryOptions(),
+        this.suggestions(statement),
       ]);
       this.statement.set(statement);
       this.categories.set(categories);
-      this.draft.set(createDraft(statement, new Set(existing)));
+      this.draft.set(createDraft(statement, new Set(existing), suggestions));
       this.step.set('revisar');
     } catch (error) {
       this.error.set(t.errors[statementErrorCode(error) ?? 'desconocido']);
       this.step.set('elegir');
+    }
+  }
+
+  /** Las categorías propuestas (ADR-0018). Si fallan, se revisa igual, sin propuestas. */
+  private async suggestions(
+    statement: ImportedStatement,
+  ): Promise<readonly (CategorySuggestion | null)[]> {
+    try {
+      return await this.db.suggestCategories({
+        institution: statement.institution,
+        ibanLast4: statement.ibanLast4,
+        movements: statement.movements.map((movement) => ({
+          text: movement.description,
+          amountCents: movement.amountCents,
+        })),
+      });
+    } catch {
+      return [];
     }
   }
 

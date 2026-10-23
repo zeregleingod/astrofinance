@@ -122,6 +122,11 @@ export function deleteCategory(db: SqlDb, id: number): number {
        WHERE category_id IN (${SELF_AND_CHILDREN})`,
       both,
     );
+    db.run(
+      `UPDATE transaction_splits SET category_id = NULL
+       WHERE category_id IN (${SELF_AND_CHILDREN})`,
+      both,
+    );
     // Una regla sin categoría de destino no clasifica nada.
     db.run(`DELETE FROM rules WHERE category_id IN (${SELF_AND_CHILDREN})`, both);
     db.run(`UPDATE loans SET category_id = NULL WHERE category_id IN (${SELF_AND_CHILDREN})`, both);

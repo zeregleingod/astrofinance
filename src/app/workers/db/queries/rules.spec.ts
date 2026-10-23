@@ -195,6 +195,21 @@ describe('consultas de reglas', () => {
       expect(applyRules(db)).toBe(0);
     });
 
+    it('cambia lo sugerido por el historial, pero nunca lo clasificado a mano', () => {
+      tx('SUPERMERCADO DEL BARRIO 2', -1500, LUZ, 'sugerencia');
+      const market = createRule(db, {
+        operator: 'contiene',
+        pattern: 'supermercado',
+        categoryId: COMIDA,
+      });
+
+      expect(applyRules(db)).toBe(2);
+      expect(state()).toMatchObject({
+        'SUPERMERCADO DEL BARRIO 2': [COMIDA, 'regla', market],
+        'SUPERMERCADO EN VACACIONES': [LUZ, 'manual', null],
+      });
+    });
+
     it('vuelve a clasificar lo que puso una regla si la regla cambia', () => {
       const id = createRule(db, {
         operator: 'contiene',

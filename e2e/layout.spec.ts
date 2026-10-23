@@ -93,13 +93,24 @@ test('todas las tablas resaltan la fila bajo el cursor, como el resumen anual', 
   expect(colors.size).toBe(1);
 });
 
-test('el resumen muestra tres tarjetas por fila', async ({ page }) => {
+test('el resumen coloca las tarjetas por columnas, tres en cada una', async ({ page }) => {
   const groups = page.locator('main .group');
-  await expect(groups.nth(3)).toBeVisible();
-  const tops = await groups.evaluateAll((els) =>
-    els.slice(0, 4).map((el) => Math.round(el.getBoundingClientRect().top)),
+  await expect(groups.nth(6)).toBeVisible();
+  const boxes = await groups.evaluateAll((els) =>
+    els.slice(0, 7).map((el) => {
+      const { left, top } = el.getBoundingClientRect();
+      return { left: Math.round(left), top: Math.round(top) };
+    }),
   );
-  expect(tops[1]).toBe(tops[0]);
-  expect(tops[2]).toBe(tops[0]);
-  expect(tops[3]).toBeGreaterThan(tops[0] ?? 0);
+  const [first, second, third, fourth, , , seventh] = boxes;
+  // La primera columna: las tres primeras, una debajo de otra.
+  expect(second?.left).toBe(first?.left);
+  expect(third?.left).toBe(first?.left);
+  expect(second?.top).toBeGreaterThan(first?.top ?? 0);
+  expect(third?.top).toBeGreaterThan(second?.top ?? 0);
+  // La cuarta y la séptima empiezan arriba de la segunda y la tercera columna.
+  expect(fourth?.top).toBe(first?.top);
+  expect(fourth?.left).toBeGreaterThan(first?.left ?? 0);
+  expect(seventh?.top).toBe(first?.top);
+  expect(seventh?.left).toBeGreaterThan(fourth?.left ?? 0);
 });

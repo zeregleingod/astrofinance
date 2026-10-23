@@ -1,4 +1,5 @@
 import { isIsoDate } from '@domain/dates/period';
+import type { CategorySource } from '@domain/suggestions/category-suggestion';
 import type {
   CategoryOption,
   ImportBatchInput,
@@ -8,6 +9,7 @@ import type {
 import type { SqlDb } from '../sql-db';
 
 const MAX_ROWS = 20_000;
+const CATEGORY_SOURCES: readonly CategorySource[] = ['manual', 'regla', 'sugerencia', 'ninguna'];
 const HASH = /^[0-9a-f]{64}$/;
 /** Por debajo del límite de variables de SQLite. */
 const CHUNK = 500;
@@ -87,8 +89,9 @@ export function commitImport(db: SqlDb, batch: ImportBatchInput): ImportBatchRes
       db.run(
         `INSERT INTO transactions (account_id, op_date, value_date, amount_cents,
            balance_after_cents, description, original_description, note, bank_reference,
-           category_id, category_source, origin, import_batch_id, dedupe_hash)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'importado', ?, ?)`,
+           category_id, category_source, rule_id, origin, import_batch_id, dedupe_hash)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT id FROM rules WHERE id = ?),
+           'importado', ?, ?)`,
         [
           account.id,
           row.opDate,
@@ -100,7 +103,9 @@ export function commitImport(db: SqlDb, batch: ImportBatchInput): ImportBatchRes
           row.note,
           row.bankReference,
           row.categoryId,
-          row.categoryId === null ? 'ninguna' : 'manual',
+          row.categorySource,
+          // Si la regla se ha borrado durante la revisión, la categoría se queda sin ella.
+          row.ruleId,
           batchId,
           row.dedupeHash,
         ],
@@ -122,7 +127,10 @@ interface Account {
 }
 
 /** La cuenta del extracto: misma entidad y mismos cuatro últimos dígitos del IBAN. */
-function findAccount(db: SqlDb, batch: ImportBatchInput): Account | undefined {
+export function findAccount(
+  db: SqlDb,
+  batch: Pick<ImportBatchInput, 'institution' | 'ibanLast4'>,
+): Account | undefined {
   const [existing] = db.rows(
     'SELECT id, name FROM accounts WHERE institution = ? AND iban_last4 IS ? ORDER BY id LIMIT 1',
     [batch.institution, batch.ibanLast4],
@@ -183,6 +191,13 @@ function rowParam(value: unknown): ImportRowInput {
   const row = record(value);
   const amountCents = row['amountCents'];
   if (!Number.isSafeInteger(amountCents) || amountCents === 0) throw invalid('amountCents');
+  const categoryId = nullable<number>(row, 'categoryId', isId);
+  const categorySource = CATEGORY_SOURCES.find((source) => source === row['categorySource']);
+  if (!categorySource || (categorySource === 'ninguna') !== (categoryId === null)) {
+    throw invalid('categorySource');
+  }
+  const ruleId = nullable<number>(row, 'ruleId', isId);
+  if (ruleId !== null && categorySource !== 'regla') throw invalid('ruleId');
   return {
     opDate: date(row, 'opDate'),
     valueDate: nullable(row, 'valueDate', isIsoDate),
@@ -192,7 +207,9 @@ function rowParam(value: unknown): ImportRowInput {
     originalDescription: text(row, 'originalDescription', 500),
     note: nullable(row, 'note', (v) => typeof v === 'string' && v.length > 0 && v.length <= 500),
     bankReference: nullable(row, 'bankReference', (v) => typeof v === 'string' && v.length <= 100),
-    categoryId: nullable(row, 'categoryId', (v) => Number.isSafeInteger(v) && Number(v) > 0),
+    categoryId,
+    categorySource,
+    ruleId,
     dedupeHash: hash(row, 'dedupeHash'),
   };
 }
@@ -201,12 +218,14 @@ type Fields = Readonly<Record<string, unknown>>;
 
 const invalid = (field: string) => new RangeError(`Lote de importación no válido (${field}).`);
 
-function record(value: unknown): Fields {
+const isId = (value: unknown) => Number.isSafeInteger(value) && Number(value) > 0;
+
+export function record(value: unknown): Fields {
   if (typeof value !== 'object' || value === null) throw invalid('forma');
   return value as Fields;
 }
 
-function text(fields: Fields, key: string, max: number): string {
+export function text(fields: Fields, key: string, max: number): string {
   const value = fields[key];
   if (typeof value !== 'string' || value.trim() === '' || value.length > max) throw invalid(key);
   return value;
@@ -230,7 +249,11 @@ function count(fields: Fields, key: string): number {
   return value as number;
 }
 
-function nullable<T>(fields: Fields, key: string, isValid: (value: unknown) => boolean): T | null {
+export function nullable<T>(
+  fields: Fields,
+  key: string,
+  isValid: (value: unknown) => boolean,
+): T | null {
   const value = fields[key] ?? null;
   if (value !== null && !isValid(value)) throw invalid(key);
   return value as T | null;

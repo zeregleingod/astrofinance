@@ -30,7 +30,12 @@ yarn-error.log
 .history/*
 
 # Miscellaneous
-/.angular/cache
+/.angular
+*.tsbuildinfo
+.eslintcache
+*.log
+.env
+.env.*
 .sass-cache/
 /connect.lock
 /coverage
@@ -42,6 +47,11 @@ __screenshots__/
 # System files
 .DS_Store
 Thumbs.db
+desktop.ini
+
+# Configuración local de herramientas de IA
+/.impeccable
+.claude/settings.local.json
 
 # Extractos bancarios reales (nunca se versionan; los fixtures van anonimizados)
 /private

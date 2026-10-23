@@ -22,7 +22,10 @@ describe('TransactionsPage', () => {
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
 
-    const rows = () => [...element.querySelectorAll('tbody tr')];
+    // Las filas de los movimientos; las de sus submovimientos y devoluciones van aparte.
+    const rows = () => [...element.querySelectorAll('tbody tr:not(.split-row):not(.refund-row)')];
+    const refundRows = () => [...element.querySelectorAll('tbody tr.refund-row')];
+    const splitRows = () => [...element.querySelectorAll('tbody tr.split-row')];
     const column = (index: number) => rows().map((r) => text(r.querySelectorAll('td')[index]));
     const header = (name: string) =>
       [...element.querySelectorAll('thead th')].find((th) => text(th) === name);
@@ -78,6 +81,8 @@ describe('TransactionsPage', () => {
     return {
       element,
       rows,
+      splitRows,
+      refundRows,
       column,
       header,
       sortBy,
@@ -107,11 +112,9 @@ describe('TransactionsPage', () => {
     const { element } = await setup(true);
     expect([...element.querySelectorAll('thead th:not(.actions)')].map(text)).toEqual([
       'Fecha',
-      'Fecha original',
       'Descripción',
       'Etiquetas',
       'Categoría',
-      'Subcategoría',
       'Cuenta',
       'Importe',
       'Observaciones',
@@ -126,22 +129,28 @@ describe('TransactionsPage', () => {
     expect([...months].sort()).toEqual(['07/2026', '08/2026', '09/2026']);
     const first = rows().find((r) => text(r)?.includes('Alex - Cortinas'));
     expect([...(first?.querySelectorAll('td:not(.actions)') ?? [])].map(text)).toEqual([
-      '28/09/2026 (fecha modificada)',
-      '03/10/2026',
+      // La fecha original va en la misma celda (y en su título) cuando difiere.
+      '28/09/2026 (fecha modificada; original 03/10/2026)',
       'Bizum recibido - Alex - Cortinas',
       'Reembolso',
-      'Variables',
-      'Hogar',
+      'Variables › Hogar',
       'Cuenta principal',
       '65,47 €',
       'Llega en octubre, pero devuelve un gasto de septiembre.',
     ]);
+    expect(first?.querySelector('td')?.getAttribute('title')).toBe('Fecha original: 03/10/2026');
 
     const kitchen = rows().find((r) => text(r)?.includes('Financiación cocina'));
-    expect(text(kitchen?.querySelectorAll('td')[3])).toBe('Compartido Cuota 10/10');
-    expect(text(kitchen?.querySelectorAll('td')[4])).toBe('Préstamos y financiaciones');
-    expect(text(kitchen?.querySelectorAll('td')[5])).toBe('Financiaciones');
-    expect(rows().some((r) => text(r.querySelectorAll('td')[4]) === 'Sin categoría')).toBe(true);
+    // Cabe una etiqueta; las demás, en un «+n» con todas en el título y para lectores de pantalla.
+    const tags = kitchen?.querySelectorAll('td')[2];
+    expect(text(tags?.querySelector('.badge'))).toBe('Compartido');
+    expect(text(tags?.querySelector('.badge.more'))).toBe('+1');
+    expect(text(tags?.querySelector('.visually-hidden'))).toBe('Cuota 10/10');
+    expect(tags?.getAttribute('title')).toBe('Compartido, Cuota 10/10');
+    expect(text(kitchen?.querySelectorAll('td')[3])).toBe(
+      'Préstamos y financiaciones › Financiaciones',
+    );
+    expect(rows().some((r) => text(r.querySelectorAll('td')[3]) === 'Sin categoría')).toBe(true);
 
     for (const cell of element.querySelectorAll('td.num')) {
       expect(cell.classList.contains('negative'), text(cell)).toBe(text(cell)?.startsWith('-'));
@@ -153,8 +162,8 @@ describe('TransactionsPage', () => {
     const booked = rows().map((r) => r.querySelectorAll('td')[0]);
     const changed = booked.filter((cell) => cell?.classList.contains('date-changed'));
 
-    expect(changed.map(text)).toContain('28/09/2026 (fecha modificada)');
-    expect(changed.every((cell) => text(cell)?.endsWith('(fecha modificada)'))).toBe(true);
+    expect(changed.map(text)).toContain('28/09/2026 (fecha modificada; original 03/10/2026)');
+    expect(changed.every((cell) => text(cell)?.includes('(fecha modificada; original'))).toBe(true);
     const unchanged = booked.find((cell) => !cell?.classList.contains('date-changed'));
     expect(text(unchanged)).toMatch(/^\d{2}\/\d{2}\/\d{4}$/);
   });
@@ -164,8 +173,9 @@ describe('TransactionsPage', () => {
     const cells = rows()
       .find((r) => text(r)?.includes('Alex - Cortinas'))
       ?.querySelectorAll('td');
-    expect(cells?.[2]?.getAttribute('title')).toBe('Bizum recibido - Alex - Cortinas');
-    expect(cells?.[8]?.getAttribute('title')).toBe(
+    expect(cells?.[1]?.getAttribute('title')).toBe('Bizum recibido - Alex - Cortinas');
+    expect(cells?.[3]?.getAttribute('title')).toBe('Variables › Hogar');
+    expect(cells?.[6]?.getAttribute('title')).toBe(
       'Llega en octubre, pero devuelve un gasto de septiembre.',
     );
     expect(
@@ -185,7 +195,7 @@ describe('TransactionsPage', () => {
     it('ordena por la columna pulsada, ascendente y luego descendente', async () => {
       const { column, header, sortBy } = await setup(true);
       const amounts = () =>
-        column(7).map((a) =>
+        column(5).map((a) =>
           Number(
             a
               ?.replace(/[^\d,-]/g, '')
@@ -207,7 +217,7 @@ describe('TransactionsPage', () => {
     it('ordena textos alfabéticamente', async () => {
       const { column, sortBy } = await setup(true);
       await sortBy('Descripción');
-      const descriptions = column(2) as string[];
+      const descriptions = column(1) as string[];
       expect(descriptions).toEqual(
         [...descriptions].sort((a, b) =>
           a.localeCompare(b, 'es', { sensitivity: 'base', numeric: true }),
@@ -241,14 +251,14 @@ describe('TransactionsPage', () => {
 
       fixture.debugElement
         .query((el) => el.name === 'tr' && el.parent?.name === 'thead')
-        .triggerEventHandler('cdkDropListDropped', { previousIndex: 7, currentIndex: 0 });
+        .triggerEventHandler('cdkDropListDropped', { previousIndex: 5, currentIndex: 0 });
       await fixture.whenStable();
 
-      expect(headers(element).slice(0, 3)).toEqual(['Importe', 'Fecha', 'Fecha original']);
+      expect(headers(element).slice(0, 3)).toEqual(['Importe', 'Fecha', 'Descripción']);
       expect(cells().slice(0, 3)).toEqual([
         '65,47 €',
-        '28/09/2026 (fecha modificada)',
-        '03/10/2026',
+        '28/09/2026 (fecha modificada; original 03/10/2026)',
+        'Bizum recibido - Alex - Cortinas',
       ]);
       expect(element.querySelectorAll('colgroup col')[0]?.classList.contains('col-amount')).toBe(
         true,
@@ -260,12 +270,12 @@ describe('TransactionsPage', () => {
       header('Fecha')?.querySelector('button')?.focus();
 
       await press(fixture, header('Fecha'), 'ArrowRight');
-      expect(headers(element).slice(0, 2)).toEqual(['Fecha original', 'Fecha']);
+      expect(headers(element).slice(0, 2)).toEqual(['Descripción', 'Fecha']);
       expect(document.activeElement).toBe(header('Fecha')?.querySelector('button'));
 
       await press(fixture, header('Fecha'), 'ArrowLeft');
       await press(fixture, header('Fecha'), 'ArrowLeft');
-      expect(headers(element).slice(0, 2)).toEqual(['Fecha', 'Fecha original']);
+      expect(headers(element).slice(0, 2)).toEqual(['Fecha', 'Descripción']);
     });
 
     it('se mantiene al filtrar', async () => {
@@ -315,7 +325,7 @@ describe('TransactionsPage', () => {
       const { column, sortBy, search } = await setup(true);
       await sortBy('Importe');
       await search('bizum');
-      const amounts = column(7).map((a) =>
+      const amounts = column(5).map((a) =>
         Number(
           a
             ?.replace(/[^\d,-]/g, '')
@@ -354,6 +364,7 @@ describe('TransactionsPage', () => {
         'Reembolso',
         'Traspaso',
         'Cuota',
+        'Dividido',
       ]);
       expect(filterOptions('Categoría')).toContain('Variables');
       expect(filterOptions('Categoría').at(-1)).toBe('Sin categoría');
@@ -378,8 +389,8 @@ describe('TransactionsPage', () => {
       expect(rows().length).toBeGreaterThan(0);
       expect(rows().length).toBeLessThan(total);
       expect(caption()).toBe(`Movimientos (${rows().length} de ${total})`);
-      expect(new Set(column(4))).toEqual(new Set(['Variables']));
-      expect(Math.min(...amounts(column(7)))).toBeGreaterThanOrEqual(50);
+      expect(column(3).every((place) => place?.startsWith('Variables'))).toBe(true);
+      expect(Math.min(...amounts(column(5)))).toBeGreaterThanOrEqual(50);
     });
 
     it('filtra por rango de fechas, con los extremos incluidos', async () => {
@@ -402,7 +413,7 @@ describe('TransactionsPage', () => {
       await setFilter('Etiqueta', 'Reembolso');
       await applyFilters();
       expect(rows().length).toBeGreaterThan(0);
-      expect(column(3).every((tags) => tags?.includes('Reembolso'))).toBe(true);
+      expect(column(2).every((tags) => tags?.includes('Reembolso'))).toBe(true);
 
       filterButton('Limpiar').click();
       await fixture.whenStable();
@@ -412,15 +423,15 @@ describe('TransactionsPage', () => {
       await setFilter('Importe máximo', '20,00');
       await applyFilters();
       expect(rows().length).toBeGreaterThan(0);
-      expect(new Set(column(5))).toEqual(new Set(['Comida']));
-      expect(Math.max(...amounts(column(7)))).toBeLessThanOrEqual(20);
+      expect(new Set(column(3))).toEqual(new Set(['Variables › Comida']));
+      expect(Math.max(...amounts(column(5)))).toBeLessThanOrEqual(20);
 
       filterButton('Limpiar').click();
       await fixture.whenStable();
       await setFilter('Categoría', 'Sin categoría');
       await applyFilters();
       expect(rows().length).toBeGreaterThan(0);
-      expect(new Set(column(4))).toEqual(new Set(['Sin categoría']));
+      expect(new Set(column(3))).toEqual(new Set(['Sin categoría']));
     });
 
     it('al elegir categoría, las subcategorías son solo las suyas', async () => {
@@ -539,6 +550,64 @@ describe('TransactionsPage', () => {
     });
   });
 
+  describe('llegar desde un total del resumen', () => {
+    it('enseña justo los movimientos que forman el total, sin filtrar por fechas', async () => {
+      const { element, fixture, rows, caption, filterField } = await setup(true);
+      const total = rows().length;
+      const ids = await TestBed.inject(DbService).summaryTransactionIds({
+        period: '2026-09',
+        total: 'gastos',
+      });
+
+      fixture.componentRef.setInput('mes', '2026-09');
+      fixture.componentRef.setInput('origen', 'gastos');
+      await fixture.whenStable();
+
+      expect(text(element.querySelector('.origin'))).toContain(
+        'Del resumen: Gastos de septiembre de 2026',
+      );
+      expect(rows().length).toBe(ids.length);
+      expect(caption()).toBe(`Movimientos (${ids.length} de ${total})`);
+      // Hay Bizums que suman en un mes aunque lleguen en otro: no se acota por fechas.
+      expect(filterField('Desde').value).toBe('');
+    });
+
+    it('lo pendiente de cobrar son gastos compartidos', async () => {
+      const { fixture, rows, column } = await setup(true);
+      fixture.componentRef.setInput('mes', '2026-09');
+      fixture.componentRef.setInput('origen', 'pendiente');
+      await fixture.whenStable();
+
+      expect(rows().length).toBeGreaterThan(0);
+      expect(column(2).every((tags) => tags?.includes('Compartido'))).toBe(true);
+    });
+
+    it('el origen se quita y vuelven todos los movimientos', async () => {
+      const { element, fixture, rows } = await setup(true);
+      const total = rows().length;
+      fixture.componentRef.setInput('mes', '2026-09');
+      fixture.componentRef.setInput('origen', 'ingresos');
+      await fixture.whenStable();
+      expect(rows().length).toBeLessThan(total);
+
+      element.querySelector<HTMLButtonElement>('.origin button')?.click();
+      await fixture.whenStable();
+
+      expect(element.querySelector('.origin')).toBeNull();
+      expect(rows().length).toBe(total);
+    });
+
+    it('un total desconocido se ignora y queda el filtro del mes', async () => {
+      const { element, fixture, filterField } = await setup(true);
+      fixture.componentRef.setInput('mes', '2026-09');
+      fixture.componentRef.setInput('origen', 'otros');
+      await fixture.whenStable();
+
+      expect(element.querySelector('.origin')).toBeNull();
+      expect(filterField('Desde').value).toBe('01/09/2026');
+    });
+  });
+
   describe('listas largas', () => {
     it('pinta los movimientos por tandas y deja pedir más', async () => {
       const { element, rows, fixture, caption, search } = await setup(true);
@@ -566,7 +635,7 @@ describe('TransactionsPage', () => {
 
   describe('en móvil', () => {
     const cards = (element: HTMLElement) => [
-      ...element.querySelectorAll('app-transaction-cards li'),
+      ...element.querySelectorAll('app-transaction-cards li.card'),
     ];
     const amounts = (element: HTMLElement) =>
       cards(element).map((card) => text(card.querySelector('.amount')));
@@ -706,8 +775,8 @@ describe('TransactionsPage', () => {
       );
       const row = rows().find((r) => text(r)?.includes('Gasolina del coche'));
       const cells = [...(row?.querySelectorAll('td') ?? [])].map(text);
-      expect(cells.slice(4, 6)).toEqual(['Variables', 'Ocio']);
-      expect(cells[8]).toBe('Viaje a la playa');
+      expect(cells[3]).toBe('Variables › Ocio');
+      expect(cells[6]).toBe('Viaje a la playa');
       const saved = (await TestBed.inject(DbService).allTransactions()).find(
         (tx) => tx.description === 'Gasolina del coche',
       );
@@ -762,6 +831,313 @@ describe('TransactionsPage', () => {
       expect(button.getAttribute('aria-label')).toMatch(/^Editar movimiento: Gasolinera Demo, /);
       dialogButton('Cancelar').click();
       await settled(() => expect(dialog()).toBeNull());
+    });
+  });
+
+  describe('dividir en submovimientos', () => {
+    const dialog = () => document.querySelector('mat-dialog-container');
+    /** Las filas de los submovimientos del diálogo (sin la del resto). */
+    const items = () => [...(dialog()?.querySelectorAll('li.item:not(.rest)') ?? [])];
+    /** Un campo de un submovimiento del diálogo por su nombre accesible. */
+    const itemField = (index: number, label: string) => {
+      const control = items()[index]?.querySelector<HTMLInputElement | HTMLSelectElement>(
+        `[aria-label="${label}"]`,
+      );
+      if (!control) throw new Error(`Sin campo ${label} en el submovimiento ${index + 1}`);
+      return control;
+    };
+    const type = (index: number, label: string, value: string) => {
+      const control = itemField(index, label);
+      if (control instanceof HTMLSelectElement) {
+        const option = [...control.options].find((o) => text(o) === value);
+        if (!option) throw new Error(`Sin opción ${value} en ${label}`);
+        control.value = option.value;
+      } else {
+        control.value = value;
+      }
+      control.dispatchEvent(new Event('input', { bubbles: true }));
+      control.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    const dialogButton = (name: string) => {
+      const found = [...(dialog()?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find(
+        (b) => text(b) === name,
+      );
+      if (!found) throw new Error(`Sin botón ${name}`);
+      return found;
+    };
+    const progress = () => text(dialog()?.querySelector('.progress-text'));
+    const rest = () => text(dialog()?.querySelector('li.rest'));
+
+    async function open(description: string, compact = false) {
+      const page = await setup(true, compact);
+      const settled = async (assertion: () => void) => {
+        await vi.waitFor(async () => {
+          await page.fixture.whenStable();
+          assertion();
+        });
+      };
+      const container = compact ? '.card' : 'tbody tr:not(.split-row):not(.refund-row)';
+      const button = [...page.element.querySelectorAll(container)]
+        .find((r) => text(r)?.includes(description))
+        ?.querySelector<HTMLButtonElement>('button.split');
+      if (!button) throw new Error(`Sin botón de dividir para ${description}`);
+      button.click();
+      await settled(() => expect(dialog()).not.toBeNull());
+      return { ...page, button, settled };
+    }
+
+    it('enseña los submovimientos debajo de su movimiento, que lleva la etiqueta «Dividido»', async () => {
+      const { rows, splitRows } = await setup(true);
+
+      const bazaar = rows().find((r) => text(r)?.includes('Bazar Demo - Organizadores'));
+      expect(text(bazaar?.querySelectorAll('td')[2])).toContain('Dividido');
+      const parts = splitRows().map((r) => [...r.querySelectorAll('td')].map(text));
+      expect(parts.map((cells) => [cells[1], cells[2], cells[3]])).toEqual([
+        ['Submovimiento: ORGANIZADORES', 'Compartido', 'Variables › Hogar'],
+        ['Submovimiento: PAPEL DE REGALO', '', 'Variables › Regalos'],
+      ]);
+      expect(parts[0]?.[5]).toMatch(/^-8,80\s€$/);
+      expect(parts[1]?.[5]).toMatch(/^-3,00\s€$/);
+      // Van justo debajo de su movimiento.
+      expect(bazaar?.nextElementSibling).toBe(splitRows()[0]);
+    });
+
+    it('cualquier movimiento se puede dividir: también un Bizum vinculado y las dos patas de un traspaso', async () => {
+      const { rows } = await setup(true);
+      expect(rows().every((r) => r.querySelector('button.split'))).toBe(true);
+    });
+
+    it('divide un movimiento en varios submovimientos y lo que sobra se queda en él', async () => {
+      const { button, rows, splitRows, settled } = await open('Gasolinera Demo');
+      expect(button.getAttribute('aria-label')).toMatch(
+        /^Dividir en submovimientos: Gasolinera Demo, \d\d\/\d\d\/2026$/,
+      );
+      expect(text(dialog()?.querySelector('h2'))).toBe('Dividir en submovimientos');
+      // El movimiento, sin signo y con lo que es: un gasto de 55 €.
+      expect(text(dialog()?.querySelector('.movement-amount'))).toMatch(/^Gasto 55,00\s€$/);
+      expect(text(dialog()?.querySelector('.empty'))).toContain('Lo que no repartas se queda');
+      expect(progress()).toMatch(/^Repartido 0,00\s€ de 55,00\s€ Sin dividir 55,00\s€$/);
+
+      dialogButton('Añadir submovimiento').click();
+      // El nuevo propone lo que queda sin dividir y su concepto recibe el foco.
+      await settled(() => expect(items()).toHaveLength(1));
+      await settled(() => expect(document.activeElement).toBe(itemField(0, 'Concepto')));
+      expect((itemField(0, 'Importe') as HTMLInputElement).value).toBe('55,00');
+      expect(text(items()[0]?.querySelector('legend'))).toBe('Submovimiento 1');
+
+      // Sin concepto no se guarda.
+      dialogButton('Guardar').click();
+      await settled(() => expect(text(dialog())).toContain('Escribe un concepto.'));
+      expect(itemField(0, 'Concepto').getAttribute('aria-invalid')).toBe('true');
+
+      type(0, 'Concepto', 'gasolina coche');
+      type(0, 'Importe', '30');
+      await settled(() =>
+        expect(rest()).toMatch(/^Resto sin dividir Se queda en Transporte › Gasolina 25,00\s€$/),
+      );
+      expect(progress()).toMatch(/Repartido 30,00\s€ de 55,00\s€ Sin dividir 25,00\s€/);
+
+      dialogButton('Añadir submovimiento').click();
+      await settled(() => expect(items()).toHaveLength(2));
+      type(1, 'Concepto', 'Lavado');
+      type(1, 'Subcategoría', 'Transporte › Coche');
+      type(1, 'Importe', '30');
+      await settled(() => expect(progress()).toMatch(/Sobran 5,00\s€$/));
+      expect(rest()).toMatch(/^Los submovimientos suman más que el movimiento Sobran 5,00\s€$/);
+      dialogButton('Guardar').click();
+      await settled(() => expect(dialog()).not.toBeNull());
+
+      type(1, 'Importe', '20,50');
+      dialogButton('Guardar').click();
+      await settled(() => expect(dialog()).toBeNull());
+
+      await settled(() => expect(splitRows().length).toBe(4));
+      const gas = rows().find((r) => text(r)?.includes('Gasolinera Demo'));
+      expect(text(gas?.nextElementSibling)).toContain('GASOLINA COCHE');
+      const saved = (await TestBed.inject(DbService).allTransactions()).find((tx) =>
+        tx.splits.some((s) => s.description === 'LAVADO'),
+      );
+      expect(saved?.splits.map((s) => [s.description, s.amountCents, s.subcategoryName])).toEqual([
+        ['GASOLINA COCHE', -3000, 'Gasolina'],
+        ['LAVADO', -2050, 'Coche'],
+      ]);
+    });
+
+    it('abre los submovimientos guardados y deja quitarlos', async () => {
+      const { button, splitRows, settled } = await open('Bazar Demo - Organizadores');
+      expect(button.getAttribute('aria-label')).toMatch(/^Editar submovimientos: Bazar Demo/);
+
+      expect(items()).toHaveLength(2);
+      expect((itemField(0, 'Concepto') as HTMLInputElement).value).toBe('ORGANIZADORES');
+      expect((itemField(0, 'Importe') as HTMLInputElement).value).toBe('8,80');
+      expect(text(items()[0]?.querySelector('.note'))).toContain('Compartido');
+      expect(progress()).toMatch(/Todo repartido$/);
+
+      items()[0]?.querySelector<HTMLButtonElement>('button.remove')?.click();
+      await settled(() => expect(items()).toHaveLength(1));
+      // El foco pasa al que ocupa su sitio.
+      await settled(() => expect(document.activeElement).toBe(itemField(0, 'Concepto')));
+      expect((itemField(0, 'Concepto') as HTMLInputElement).value).toBe('PAPEL DE REGALO');
+      expect(rest()).toMatch(/Se queda en Variables › Hogar 8,80\s€$/);
+      dialogButton('Guardar').click();
+
+      await settled(() => expect(dialog()).toBeNull());
+      await settled(() => expect(splitRows().length).toBe(1));
+    });
+
+    it('en móvil la tarjeta enseña sus submovimientos y tiene su botón', async () => {
+      const { button, element, settled } = await open('Bazar Demo - Organizadores', true);
+      expect(button.getAttribute('aria-label')).toMatch(/^Editar submovimientos: Bazar Demo/);
+      dialogButton('Cancelar').click();
+      await settled(() => expect(dialog()).toBeNull());
+
+      const card = [...element.querySelectorAll('.card')].find((c) =>
+        text(c)?.includes('Bazar Demo - Organizadores'),
+      );
+      const lines = [...(card?.querySelectorAll('.splits li') ?? [])].map(text);
+      expect(lines[0]).toMatch(
+        /^Submovimiento: ORGANIZADORES -8,80\s€ Variables › Hogar Compartido$/,
+      );
+      expect(lines[1]).toMatch(/^Submovimiento: PAPEL DE REGALO -3,00\s€ Variables › Regalos$/);
+    });
+  });
+
+  describe('devoluciones de un gasto', () => {
+    const dialog = () => document.querySelector('mat-dialog-container');
+    const linked = () => [...(dialog()?.querySelectorAll('li.item:not(.rest)') ?? [])];
+    const candidates = () => [...(dialog()?.querySelectorAll('li.candidate') ?? [])];
+    const progress = () => text(dialog()?.querySelector('.progress-text'));
+    const dialogButton = (name: string) => {
+      const found = [...(dialog()?.querySelectorAll<HTMLButtonElement>('button') ?? [])].find(
+        (b) => text(b) === name,
+      );
+      if (!found) throw new Error(`Sin botón ${name}`);
+      return found;
+    };
+    const linkButton = (description: string) => {
+      const found = candidates()
+        .find((c) => text(c)?.includes(description))
+        ?.querySelector<HTMLButtonElement>('button');
+      if (!found) throw new Error(`Sin candidato ${description}`);
+      return found;
+    };
+
+    async function open(description: string) {
+      const page = await setup(true);
+      const settled = async (assertion: () => void) => {
+        await vi.waitFor(async () => {
+          await page.fixture.whenStable();
+          assertion();
+        });
+      };
+      const button = page
+        .rows()
+        .find((r) => text(r)?.includes(description))
+        ?.querySelector<HTMLButtonElement>('button.refund');
+      if (!button) throw new Error(`Sin botón de devoluciones para ${description}`);
+      button.click();
+      await settled(() => expect(dialog()).not.toBeNull());
+      await settled(() => expect(candidates().length).toBeGreaterThan(0));
+      return { ...page, button, settled };
+    }
+
+    it('enseña cada devolución justo debajo de su gasto, en positivo', async () => {
+      const { rows, refundRows } = await setup(true);
+      const curtains = rows().find((r) => text(r)?.includes('Tienda de muebles Demo - Cortinas'));
+      const refund = curtains?.nextElementSibling;
+      expect(refundRows()).toContain(refund);
+      const cells = [...(refund?.querySelectorAll('td') ?? [])].map(text);
+      expect(cells[0]).toBe('28/09/2026');
+      expect(cells[1]).toBe('Devolución: Bizum recibido - Alex - Cortinas');
+      expect(cells[5]).toMatch(/^65,47\s€$/);
+    });
+
+    it('solo los gastos ofrecen vincular devoluciones', async () => {
+      const { rows } = await setup(true);
+      const button = (description: string) =>
+        rows()
+          .find((r) => text(r)?.includes(description))
+          ?.querySelector('button.refund');
+      expect(button('Pizzería Demo')?.getAttribute('aria-label')).toMatch(
+        /^Vincular devoluciones: Pizzería Demo, /,
+      );
+      expect(button('Tienda de muebles Demo - Cortinas')?.getAttribute('aria-label')).toMatch(
+        /^Editar devoluciones: /,
+      );
+      expect(button('Bizum recibido - Familia - Regalo')).toBeNull();
+    });
+
+    it('vincula un ingreso por su importe, sin poder cambiarlo, y lo guarda', async () => {
+      const { rows, refundRows, settled } = await open('Pizzería Demo');
+
+      expect(text(dialog()?.querySelector('h2'))).toBe('Devoluciones del gasto');
+      expect(text(dialog()?.querySelector('.empty'))).toContain('amigos de una cena');
+      expect(progress()).toMatch(/^Devuelto 0,00\s€ de 32,40\s€ Te cuesta 32,40\s€$/);
+      // Solo se ofrecen ingresos que caben en el gasto: no la nómina ni el Bizum de 180 €.
+      const offered = () => candidates().map((c) => text(c.querySelector('.income-description')));
+      expect(offered()).toContain('Transferencia recibida - Concepto pendiente');
+      expect(offered()).toContain('Devolución Tienda de ropa Demo');
+      expect(offered()).not.toContain('Bizum recibido - Familia - Regalo');
+      expect(offered()).not.toContain('Nómina - Empresa Demo S.L.');
+
+      linkButton('Transferencia recibida').click();
+      await settled(() => expect(linked()).toHaveLength(1));
+      // El importe es el del ingreso, como texto: no hay campo para cambiarlo.
+      expect(linked()[0]?.querySelector('input')).toBeNull();
+      expect(text(linked()[0]?.querySelector('.linked-amount'))).toMatch(/^25,00\s€$/);
+      await settled(() =>
+        expect(document.activeElement).toBe(linked()[0]?.querySelector('button.remove')),
+      );
+      expect(progress()).toMatch(/Devuelto 25,00\s€ de 32,40\s€ Te cuesta 7,40\s€/);
+      // Lo que queda (7,40 €) ya no da para los 18 € de la devolución de la tienda de ropa.
+      expect(offered()).not.toContain('Devolución Tienda de ropa Demo');
+      expect(text(dialog()?.querySelector('.candidate-list'))).toContain(
+        'Ningún ingreso cabe en lo que falta por devolver',
+      );
+
+      dialogButton('Guardar').click();
+      await settled(() => expect(dialog()).toBeNull());
+
+      await settled(() =>
+        expect(
+          text(rows().find((r) => text(r)?.includes('Pizzería Demo'))?.nextElementSibling),
+        ).toContain('Transferencia recibida'),
+      );
+      expect(refundRows().length).toBeGreaterThan(0);
+      const saved = (await TestBed.inject(DbService).allTransactions()).find(
+        (tx) => tx.description === 'Pizzería Demo',
+      );
+      expect(saved?.refunds.map((r) => r.amountCents)).toEqual([2500]);
+    });
+
+    it('deja quitar lo vinculado y vuelve a ofrecerlo', async () => {
+      const { settled } = await open('Pizzería Demo');
+
+      linkButton('Devolución Tienda de ropa Demo').click();
+      await settled(() => expect(linked()).toHaveLength(1));
+      expect(progress()).toMatch(/Te cuesta 14,40\s€$/);
+
+      linked()[0]?.querySelector<HTMLButtonElement>('button.remove')?.click();
+      await settled(() => expect(linked()).toHaveLength(0));
+      await settled(() =>
+        expect(document.activeElement).toBe(dialog()?.querySelector('#refund-search')),
+      );
+      expect(candidates().some((c) => text(c)?.includes('Devolución Tienda de ropa Demo'))).toBe(
+        true,
+      );
+    });
+
+    it('busca entre los ingresos que se pueden vincular', async () => {
+      const { settled } = await open('Pizzería Demo');
+      const search = dialog()?.querySelector<HTMLInputElement>('#refund-search');
+      if (!search) throw new Error('Sin buscador');
+      search.value = 'ropa';
+      search.dispatchEvent(new Event('input'));
+      await settled(() =>
+        expect(candidates().map((c) => text(c.querySelector('.income-description')))).toEqual([
+          'Devolución Tienda de ropa Demo',
+        ]),
+      );
     });
   });
 });

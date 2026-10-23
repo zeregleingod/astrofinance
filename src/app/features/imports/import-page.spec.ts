@@ -4,6 +4,7 @@ import { DB_WORKER_FACTORY, DbService } from '@data/db/db-service';
 import { IMPORT_WORKER_FACTORY } from '@data/imports/statement-reader';
 import { inProcessDbWorker } from '../../../testing/in-process-db-worker';
 import { inProcessImportWorker, sabadellFile } from '../../../testing/in-process-import-worker';
+import { sabadellSheet } from '../../../testing/sabadell-sheet';
 import { ImportPage } from './import-page';
 
 describe('ImportPage', () => {
@@ -160,6 +161,65 @@ describe('ImportPage', () => {
       subcategoryName: 'Nómina',
     });
     expect(saved.some((tx) => tx.description === 'ABONO PROMOCIÓN')).toBe(false);
+  });
+
+  it('propone la categoría por las reglas y por los movimientos parecidos ya guardados', async () => {
+    const { element, db, choose, type, field, row, button, settled } = await setup();
+    const CAFE = 'COMPRA TARJ. 4000XXXXXXXX0001 CAFETERIA DEMO-BARCELONA';
+    await db.openLocal();
+    const options = await db.categoryOptions();
+    const idOf = (label: string) => String(options.find((o) => o.label === label)?.id);
+    await db.createRule({
+      operator: 'contiene',
+      pattern: 'LUZ',
+      categoryId: Number(idOf('Suministros › Luz')),
+    });
+
+    // Un extracto anterior en el que el usuario clasificó la cafetería a mano.
+    await choose(
+      sabadellFile(
+        sabadellSheet([
+          ['20/12/2025', 'COMPRA TARJ. 4000XXXXXXXX0001 CAFETERIA DEMO-SANTS', '20/12/2025', -2],
+        ]),
+        'diciembre.xls',
+      ),
+    );
+    await type(
+      'COMPRA TARJ. 4000XXXXXXXX0001 CAFETERIA DEMO-SANTS',
+      'Categoría',
+      idOf('Variables › Restaurantes'),
+    );
+    button('Guardar')?.click();
+    await settled(() => expect(text(element)).toContain('Movimientos guardados: 1.'));
+    button('Importar otro extracto')?.click();
+    await settled(() => expect(element.querySelector('input[type="file"]')).not.toBeNull());
+
+    await choose(sabadellFile());
+
+    expect(field(LUZ, 'Categoría').value).toBe(idOf('Suministros › Luz'));
+    expect(text(row(LUZ).querySelector('.suggested'))).toBe('Propuesta por una regla');
+    expect(field(CAFE, 'Categoría').value).toBe(idOf('Variables › Restaurantes'));
+    expect(text(row(CAFE).querySelector('.suggested'))).toBe('Sugerida por movimientos parecidos');
+    expect(field(CAFE, 'Categoría').getAttribute('aria-describedby')).toBe(
+      row(CAFE).querySelector('.suggested')?.id,
+    );
+    expect(field(NOMINA, 'Categoría').value).toBe('');
+    expect(row(NOMINA).querySelector('.suggested')).toBeNull();
+    expect(text(element)).toContain(
+      'Categorías propuestas: 1 por tus reglas · 2 por movimientos parecidos.',
+    );
+
+    // Cambiar la propuesta la hace del usuario: deja de marcarse como propuesta.
+    await type(LUZ, 'Categoría', idOf('Variables › Hogar'));
+    expect(row(LUZ).querySelector('.suggested')).toBeNull();
+    expect(field(LUZ, 'Categoría').hasAttribute('aria-describedby')).toBe(false);
+    expect(text(element)).toContain('Categorías propuestas: 0 por tus reglas');
+
+    button('Guardar')?.click();
+    await settled(() => expect(text(element)).toContain('Movimientos guardados: 8.'));
+    const saved = await db.transactions('2026-01');
+    expect(saved.filter((tx) => tx.subcategoryName === 'Restaurantes')).toHaveLength(2);
+    expect(saved.find((tx) => tx.description === LUZ)?.subcategoryName).toBe('Hogar');
   });
 
   it('restaura el concepto y el importe del banco', async () => {

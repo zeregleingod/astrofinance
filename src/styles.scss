@@ -84,6 +84,24 @@ html {
   );
 }
 
+// Los campos en los que se escribe o se elige van en blanco (en oscuro, el tono de las tarjetas):
+// se distinguen a la primera de la superficie lavanda que los rodea. Los deshabilitados no.
+.mat-mdc-form-field.mat-form-field-appearance-outline:not(.mat-form-field-disabled)
+  .mat-mdc-text-field-wrapper {
+  border-radius: var(--mat-sys-corner-extra-small);
+  background-color: var(--mat-sys-surface-container-lowest);
+}
+
+// Botones de icono: el icono mide lo que pide el token del botón. Material solo lo aplica a los
+// iconos SVG; los de fuente (`fontIcon`) se quedaban en 24 px, y en los botones compactos de las
+// tablas (relleno calculado para 18 o 20 px) sobresalían y quedaban descentrados en el círculo.
+.mat-mdc-icon-button .mat-icon {
+  width: var(--mat-icon-button-icon-size, 24px);
+  height: var(--mat-icon-button-icon-size, 24px);
+  font-size: var(--mat-icon-button-icon-size, 24px);
+  line-height: var(--mat-icon-button-icon-size, 24px);
+}
+
 // Cabecera de todas las páginas: el título y, a la derecha, el selector de mes o año si lo hay.
 // Con el alto del selector siempre reservado, el título y el contenido no saltan al cambiar de
 // página.

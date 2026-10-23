@@ -1,6 +1,7 @@
 import { sabadellSheet } from '../../../testing/sabadell-sheet';
 import { parseStatement } from './bank-profiles';
 import {
+  countSuggested,
   createDraft,
   draftAmountCents,
   draftErrors,
@@ -8,6 +9,7 @@ import {
   editDraft,
   isEdited,
   summarizeDraft,
+  suggestionInUse,
 } from './import-draft';
 import { prepareImport } from './imported-statement';
 
@@ -29,6 +31,7 @@ describe('borrador de importación', () => {
       description: 'PRESTAMOS ADEUDO CUOTA N.0000000001 31/01/26',
       amountText: '-557,46',
       categoryId: null,
+      suggestion: null,
       note: '',
     });
     expect(draft.every((row) => draftErrors(row).length === 0 && !isEdited(row))).toBe(true);
@@ -124,6 +127,8 @@ describe('borrador de importación', () => {
       note: 'Revisar',
       bankReference: 'REF-LUZ',
       categoryId: 12,
+      categorySource: 'manual',
+      ruleId: null,
       dedupeHash: hashOf(5),
     });
     expect(batch.rows[0]).toMatchObject({
@@ -131,6 +136,50 @@ describe('borrador de importación', () => {
       originalDescription: 'PRESTAMOS ADEUDO CUOTA N.0000000001 31/01/26',
       note: null,
       categoryId: null,
+      categorySource: 'ninguna',
+      ruleId: null,
+    });
+  });
+
+  describe('categorías propuestas', () => {
+    const byRule = { source: 'regla', categoryId: 3, ruleId: 9 } as const;
+    const byHistory = { source: 'sugerencia', categoryId: 5 } as const;
+    const suggested = () =>
+      createDraft(statement, new Set([hashOf(1)]), [byRule, byHistory, null, byHistory]);
+    const rowOf = (draft: ReturnType<typeof suggested>, index: number) =>
+      draftToBatch(statement, draft).rows.find((row) => row.dedupeHash === hashOf(index));
+
+    it('vienen puestas, salvo en los ya guardados, y se guardan con su origen', () => {
+      const draft = suggested();
+
+      expect(draft.slice(0, 4).map((row) => row.categoryId)).toEqual([3, null, null, 5]);
+      expect(draft[1]?.suggestion).toBeNull();
+      expect(countSuggested(draft)).toEqual({ byRule: 1, byHistory: 1 });
+      expect(rowOf(draft, 0)).toMatchObject({ categoryId: 3, categorySource: 'regla', ruleId: 9 });
+      expect(rowOf(draft, 2)).toMatchObject({ categoryId: null, categorySource: 'ninguna' });
+      expect(rowOf(draft, 3)).toMatchObject({
+        categoryId: 5,
+        categorySource: 'sugerencia',
+        ruleId: null,
+      });
+    });
+
+    it('si el usuario cambia la propuesta, la categoría pasa a ser suya', () => {
+      let draft = editDraft(suggested(), 3, { categoryId: 8 });
+      expect(draft[3] && suggestionInUse(draft[3])).toBeNull();
+      expect(countSuggested(draft)).toEqual({ byRule: 1, byHistory: 0 });
+      expect(rowOf(draft, 3)).toMatchObject({ categoryId: 8, categorySource: 'manual' });
+
+      // Volver a la propuesta la recupera; quitar la categoría la deja sin ninguna.
+      draft = editDraft(draft, 3, { categoryId: 5 });
+      expect(rowOf(draft, 3)).toMatchObject({ categorySource: 'sugerencia' });
+      draft = editDraft(draft, 0, { categoryId: null });
+      expect(rowOf(draft, 0)).toMatchObject({ categorySource: 'ninguna', ruleId: null });
+    });
+
+    it('las filas descartadas no cuentan como propuestas', () => {
+      const draft = editDraft(suggested(), 0, { included: false });
+      expect(countSuggested(draft)).toEqual({ byRule: 0, byHistory: 1 });
     });
   });
 });

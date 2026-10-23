@@ -16,8 +16,9 @@ export interface CategoryTotalRow {
 }
 
 /**
- * Un movimiento tal y como cuenta en el mes (ADR-0013): un movimiento normal, o la parte de un
- * reembolso que se ha repartido a esta categoría.
+ * Un movimiento tal y como cuenta en el mes (ADR-0013, ADR-0019): un movimiento normal (lo que
+ * no se ha dividido), uno de sus submovimientos o la parte de un reembolso que se ha repartido a
+ * esta categoría.
  */
 export interface MonthMovementRow {
   /** Única en el mes: distingue las partes de un mismo reembolso. */
@@ -31,8 +32,11 @@ export interface MonthMovementRow {
   readonly amountCents: number;
   /** Parte de un reembolso de la otra persona. */
   readonly reimbursed: boolean;
-  /** Si es la parte enlazada a un gasto, el movimiento de ese gasto. */
-  readonly expenseId: number | null;
+  /**
+   * Si es la parte enlazada a un gasto, la clave (`key`) de ese gasto: la de su movimiento o la
+   * de su submovimiento.
+   */
+  readonly expenseKey: string | null;
 }
 
 /** Fila de una línea del resumen: fecha, concepto e importe. */
@@ -175,11 +179,11 @@ function ordered(rows: readonly MonthMovementRow[]): MonthMovementRow[] {
   const byDate = [...rows].sort(
     (a, b) => a.date.localeCompare(b.date) || a.transactionId - b.transactionId,
   );
-  const ids = new Set(rows.filter((r) => r.expenseId === null).map((r) => r.transactionId));
-  const follows = (r: MonthMovementRow) => r.expenseId !== null && ids.has(r.expenseId);
+  const keys = new Set(rows.filter((r) => r.expenseKey === null).map((r) => r.key));
+  const follows = (r: MonthMovementRow) => r.expenseKey !== null && keys.has(r.expenseKey);
   return byDate
     .filter((r) => !follows(r))
-    .flatMap((r) => [r, ...byDate.filter((p) => follows(p) && p.expenseId === r.transactionId)]);
+    .flatMap((r) => [r, ...byDate.filter((p) => follows(p) && p.expenseKey === r.key)]);
 }
 
 function shownReimbursed(category: CategoryTotalRow): number {

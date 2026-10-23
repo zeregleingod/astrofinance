@@ -9,8 +9,10 @@ import {
   listPeriods,
   monthReport,
   monthTransactions,
+  summaryTransactionIds,
   yearReport,
 } from './reports';
+import { SUMMARY_TOTALS } from '@domain/reports/summary-origin';
 
 describe('consultas de informes (sobre la demo)', () => {
   let sqlite3: Sqlite3Static;
@@ -68,7 +70,8 @@ describe('consultas de informes (sobre la demo)', () => {
         count: 1,
         reimbursedCents: 0,
       });
-      expect(monthReport(db, '2026-08').pendingReimbursementCents).toBe(9210);
+      // El seguro del hogar y la mitad de los organizadores del bazar (un submovimiento).
+      expect(monthReport(db, '2026-08').pendingReimbursementCents).toBe(9210 + 440);
       expect(monthReport(db, '2026-09').pendingReimbursementCents).toBe(3929);
     });
 
@@ -130,6 +133,75 @@ describe('consultas de informes (sobre la demo)', () => {
       expect(empty.monthsWithData.some(Boolean)).toBe(false);
       expect(empty.balance.totalCents).toBe(0);
       expect(empty.groups.length).toBe(yearReport(db, 2026).groups.length);
+    });
+  });
+
+  describe('summaryTransactionIds', () => {
+    /** El movimiento de cada línea del resumen: el propio o, en una parte, su Bizum. */
+    const transactionOf = (key: string) => {
+      // `t12`, `s12`, `r12` o, el trozo de un Bizum en un submovimiento, `r12s3`.
+      const id = Number.parseInt(key.slice(1), 10);
+      if (key.startsWith('t')) return id;
+      const sql = key.startsWith('s')
+        ? 'SELECT transaction_id FROM transaction_splits WHERE id = ?'
+        : 'SELECT reimbursement_tx_id FROM reimbursements WHERE id = ?';
+      return Number(db.value(sql, [id]));
+    };
+    const kindOf = (categoryId: number) =>
+      db.value('SELECT kind FROM categories WHERE id = ?', [categoryId]);
+    const sorted = (ids: Iterable<number>) => [...new Set(ids)].sort((a, b) => a - b);
+
+    it('da los movimientos que el resumen del mes suma en cada total', () => {
+      for (const period of listPeriods(db)) {
+        const report = monthReport(db, period);
+        const lines = report.groups.flatMap((g) => g.lines);
+        const ofKind = (kind: string) =>
+          sorted(
+            lines
+              .filter((l) => kindOf(l.id) === kind)
+              .flatMap((l) => l.movements.map((m) => transactionOf(m.key))),
+          );
+        expect(summaryTransactionIds(db, period, 'ingresos'), period).toEqual(ofKind('ingreso'));
+        expect(summaryTransactionIds(db, period, 'gastos'), period).toEqual(ofKind('gasto'));
+        expect(summaryTransactionIds(db, period, 'ahorro'), period).toEqual(ofKind('ahorro'));
+        expect(summaryTransactionIds(db, period, 'balance'), period).toEqual(
+          sorted(
+            [...lines.flatMap((l) => l.movements), ...report.uncategorized.movements].map((m) =>
+              transactionOf(m.key),
+            ),
+          ),
+        );
+      }
+    });
+
+    it('lo pendiente de cobrar son los gastos compartidos del mes a los que les falta algo', () => {
+      for (const period of listPeriods(db)) {
+        const ids = summaryTransactionIds(db, period, 'pendiente');
+        const pending = ids.length
+          ? db.value(
+              `SELECT sum(pending_cents)
+               FROM (SELECT transaction_id, pending_cents FROM shared_expense_status
+                     UNION ALL
+                     SELECT transaction_id, pending_cents FROM shared_split_status)
+               WHERE transaction_id IN (${ids.map(() => '?').join(', ')})`,
+              ids,
+            )
+          : 0;
+        expect(pending, period).toBe(monthReport(db, period).pendingReimbursementCents);
+        expect(
+          ids.every(
+            (id) => db.value('SELECT period FROM transactions WHERE id = ?', [id]) === period,
+          ),
+          period,
+        ).toBe(true);
+      }
+      expect(summaryTransactionIds(db, '2026-09', 'pendiente').length).toBeGreaterThan(0);
+    });
+
+    it('acepta todos los totales del resumen', () => {
+      for (const total of SUMMARY_TOTALS) {
+        expect(Array.isArray(summaryTransactionIds(db, '2026-09', total))).toBe(true);
+      }
     });
   });
 
@@ -327,6 +399,32 @@ describe('consultas de informes: reembolsos repartidos', () => {
     // Del Bizum solo queda en su categoría lo que no se ha repartido.
     expect(line(july, 'Ingresos extra')?.movements.map((m) => m.amountCents)).toEqual([2404]);
     expect(july.uncategorized.movements).toEqual([]);
+  });
+
+  it('cada total lleva los Bizums que suman en él, aunque sean de otro mes', () => {
+    const id = (date: string) =>
+      Number(db.value('SELECT id FROM transactions WHERE op_date = ?', [date]));
+    const [cetelem, loose, groceries, bizum, looseBizum] = [
+      '2026-06-05',
+      '2026-06-10',
+      '2026-07-01',
+      '2026-07-02',
+      '2026-07-03',
+    ].map(id);
+    const ids = (period: string, total: Parameters<typeof summaryTransactionIds>[2]) =>
+      summaryTransactionIds(db, period, total);
+
+    // Junio: la cuota y el Bizum de julio que la devuelve; el gasto suelto no tiene tipo.
+    expect(ids('2026-06', 'gastos')).toEqual([cetelem, bizum].sort((a, b) => (a ?? 0) - (b ?? 0)));
+    expect(ids('2026-06', 'balance')).toEqual(
+      [cetelem, loose, bizum, looseBizum].sort((a, b) => (a ?? 0) - (b ?? 0)),
+    );
+    expect(ids('2026-06', 'pendiente')).toEqual([]);
+    // Julio: la compra y la parte del Bizum repartida a la comida; lo que queda, en ingresos.
+    // El Bizum que devuelve entero el gasto de junio no suma nada en julio.
+    expect(ids('2026-07', 'gastos')).toEqual([groceries, bizum]);
+    expect(ids('2026-07', 'ingresos')).toEqual([bizum]);
+    expect(ids('2026-07', 'balance')).toEqual([groceries, bizum]);
   });
 
   it('el dinero solo cambia de sitio: entre los meses el balance suma todos los movimientos', () => {

@@ -187,7 +187,7 @@ select {
   padding: 6px 8px;
   border: 1px solid var(--mat-sys-outline);
   border-radius: 8px;
-  background: var(--mat-sys-surface);
+  background: var(--mat-sys-surface-container-lowest);
   color: var(--mat-sys-on-surface);
   font: var(--mat-sys-body-medium);
 
@@ -224,6 +224,22 @@ input[type='checkbox'] {
   text-overflow: ellipsis;
   font: var(--mat-sys-body-small);
   color: var(--mat-sys-on-surface-variant);
+}
+
+.suggested {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+
+  mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+    color: var(--mat-sys-primary);
+  }
 }
 
 .badge {

@@ -13,6 +13,7 @@ const labels: TableLabels = {
   reimbursement: 'Reembolso',
   transfer: 'Traspaso',
   installment: 'Cuota',
+  split: 'Dividido',
   uncategorized: 'Sin categoría',
 };
 
@@ -34,6 +35,10 @@ function row(overrides: Partial<TransactionRow> & Pick<TransactionRow, 'id'>): T
     installment: null,
     originalDescription: null,
     categoryId: null,
+    splits: [],
+    refundingCents: 0,
+    refunds: [],
+    refundable: false,
     ...overrides,
   };
 }
@@ -134,8 +139,9 @@ describe('sortTransactions', () => {
     expect(sort('bookedDate', 'asc')).toEqual([2, 4, 1, 3]);
   });
 
-  it('ordena por fecha original', () => {
-    expect(sort('opDate', 'desc')).toEqual([3, 4, 2, 1]);
+  it('ordena por categoría y, dentro de ella, por subcategoría', () => {
+    expect(sort('category', 'asc')).toEqual([2, 3, 1, 4]);
+    expect(sort('category', 'desc')).toEqual([1, 3, 2, 4]);
   });
 
   it('ordena importes como números', () => {
@@ -148,8 +154,6 @@ describe('sortTransactions', () => {
   });
 
   it('deja siempre al final las celdas vacías', () => {
-    expect(sort('subcategory', 'asc')).toEqual([3, 2, 1, 4]);
-    expect(sort('subcategory', 'desc')).toEqual([1, 2, 3, 4]);
     expect(sort('notes', 'desc')).toEqual([3, 4, 2, 1]);
     expect(sort('tags', 'asc')).toEqual([1, 2, 3, 4]);
   });
@@ -175,5 +179,53 @@ describe('nextSort', () => {
       key: 'amount',
       direction: 'asc',
     });
+  });
+});
+
+describe('movimientos divididos en la tabla', () => {
+  const divided = row({
+    id: 30,
+    description: 'BAZAR DEMO',
+    splits: [
+      {
+        id: 1,
+        description: 'PAPEL DE REGALO',
+        amountCents: -300,
+        categoryId: 9,
+        categoryName: 'Variables',
+        subcategoryName: 'Regalos',
+        shared: false,
+        refundsTo: [],
+      },
+    ],
+  });
+
+  it('llevan la etiqueta «Dividido»', () => {
+    expect(transactionTags(divided, labels)).toEqual(['Dividido']);
+  });
+
+  it('se encuentran por el concepto y la subcategoría de sus submovimientos', () => {
+    expect(
+      filterTransactions([row({ id: 31 }), divided], 'papel', labels).map((r) => r.id),
+    ).toEqual([30]);
+    expect(
+      filterTransactions([row({ id: 31 }), divided], 'regalos', labels).map((r) => r.id),
+    ).toEqual([30]);
+  });
+});
+
+describe('gastos con devoluciones en la tabla', () => {
+  it('se encuentran por el concepto del ingreso que los devuelve', () => {
+    const dinner = row({
+      id: 40,
+      description: 'RESTAURANTE LA PLAZA',
+      refundable: true,
+      refunds: [
+        { transactionId: 41, date: '2026-09-11', description: 'BIZUM ANA', amountCents: 3000 },
+      ],
+    });
+    expect(
+      filterTransactions([row({ id: 42 }), dinner], 'bizum ana', labels).map((r) => r.id),
+    ).toEqual([40]);
   });
 });

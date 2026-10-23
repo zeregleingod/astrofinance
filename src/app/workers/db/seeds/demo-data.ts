@@ -399,7 +399,13 @@ class DemoBuilder {
       if (m === 2) this.tx(main, d(13), -3240, 'Pizzería Demo', 'Restaurantes');
 
       if (m === 0) this.tx(main, d(16), -1855, 'Ferretería Demo', 'Hogar');
-      if (m === 1) this.tx(main, d(20), -1180, 'Bazar Demo - Organizadores', 'Hogar');
+      if (m === 1) {
+        // Una sola compra con cosas de dos subcategorías: se divide en submovimientos, y lo de
+        // casa es a medias con Alex, que aún no ha devuelto su parte (ADR-0019).
+        const bazaar = this.tx(main, d(20), -1180, 'Bazar Demo - Organizadores', 'Hogar');
+        this.split(bazaar, 'ORGANIZADORES', 'Hogar', -880, { person: alex, expected: 440 });
+        this.split(bazaar, 'PAPEL DE REGALO', 'Regalos', -300);
+      }
       if (m === 2) {
         const curtains = this.tx(main, d(28), -13093, 'Tienda de muebles Demo - Cortinas', 'Hogar');
         this.share(curtains, alex, 6547);
@@ -637,6 +643,28 @@ class DemoBuilder {
         [expense, reimbursement, cents],
       );
     }
+  }
+
+  private split(
+    parent: number,
+    description: string,
+    category: string,
+    cents: number,
+    shared?: { readonly person: number; readonly expected: number },
+  ): void {
+    this.db.run(
+      `INSERT INTO transaction_splits (transaction_id, description, category_id, amount_cents,
+         shared_person_id, shared_expected_cents)
+       VALUES (?, ?, ?, ?, ?, ?)`,
+      [
+        parent,
+        description,
+        this.category(category),
+        cents,
+        shared?.person ?? null,
+        shared?.expected ?? null,
+      ],
+    );
   }
 
   private reimburseToCategory(reimbursement: number, category: string, cents: number): void {

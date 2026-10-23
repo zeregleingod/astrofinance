@@ -12,10 +12,17 @@ import type {
   ImportBatchResult,
 } from '@domain/imports/import-batch';
 import type { MonthReport } from '@domain/reports/month-report';
+import type { SummaryOrigin } from '@domain/reports/summary-origin';
 import type { TransactionRow } from '@domain/reports/transaction-row';
 import type { YearReport } from '@domain/reports/year-report';
 import type { NewRule, RuleChange, RuleRow, RuleUpdate } from '@domain/rules/rule';
+import type {
+  CategorySuggestion,
+  SuggestionRequest,
+} from '@domain/suggestions/category-suggestion';
 import type { TransactionEdit } from '@domain/transactions/transaction-edit';
+import type { ExpenseRefundOptions, ExpenseRefunds } from '@domain/transactions/refund';
+import type { TransactionSplits } from '@domain/transactions/transaction-split';
 import type { DbApi } from '@workers/db/db-api';
 import type { RpcEndpoint } from '@workers/rpc/protocol';
 import { RpcClient } from '../rpc/rpc-client';
@@ -173,9 +180,31 @@ export class DbService {
     );
   }
 
+  /** Los movimientos que forman un total del resumen del mes (ids, de menor a mayor). */
+  summaryTransactionIds(origin: SummaryOrigin, signal?: AbortSignal): Promise<readonly number[]> {
+    return this.call((c) => c.call('summaryTransactionIds', origin, { signal }));
+  }
+
   /** Guarda lo que el usuario cambia de un movimiento y avisa de que hay datos nuevos. */
   async updateTransaction(edit: TransactionEdit): Promise<void> {
     await this.call((c) => c.call('updateTransaction', edit));
+    this.dataChanged();
+  }
+
+  /** Guarda los submovimientos de un movimiento y avisa de que hay datos nuevos. */
+  async saveSplits(splits: TransactionSplits): Promise<void> {
+    await this.call((c) => c.call('saveSplits', splits));
+    this.dataChanged();
+  }
+
+  /** Los ingresos que devuelven un gasto o pueden devolverlo. */
+  expenseRefundOptions(expenseId: number, signal?: AbortSignal): Promise<ExpenseRefundOptions> {
+    return this.call((c) => c.call('expenseRefundOptions', { expenseId }, { signal }));
+  }
+
+  /** Guarda las devoluciones de un gasto y avisa de que hay datos nuevos. */
+  async saveRefunds(refunds: ExpenseRefunds): Promise<void> {
+    await this.call((c) => c.call('saveRefunds', refunds));
     this.dataChanged();
   }
 
@@ -255,6 +284,16 @@ export class DbService {
 
   existingHashes(hashes: readonly string[], signal?: AbortSignal): Promise<readonly string[]> {
     return this.call((c) => c.call('existingHashes', { hashes }, { signal }));
+  }
+
+  /** La categoría que se propone para cada movimiento de un extracto, en el mismo orden. */
+  suggestCategories(
+    request: SuggestionRequest,
+    signal?: AbortSignal,
+  ): Promise<readonly (CategorySuggestion | null)[]> {
+    return this.call((c) =>
+      c.call('suggestCategories', request, { signal, timeoutMs: OPEN_TIMEOUT_MS }),
+    );
   }
 
   /** Guarda un lote de importación revisado y avisa a las consultas de que hay datos nuevos. */

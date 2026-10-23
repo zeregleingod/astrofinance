@@ -33,6 +33,27 @@
   background: var(--mat-sys-surface-container-lowest);
 }
 
+// El total del resumen del que se viene, en una línea propia bajo los filtros, con su botón
+// para quitarlo al lado (en móvil salta debajo si no cabe).
+.origin {
+  display: flex;
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px 8px;
+  margin: 0;
+  padding-left: 4px;
+  font: var(--mat-sys-body-medium);
+
+  > mat-icon {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+    color: var(--mat-sys-primary);
+  }
+}
+
 // La búsqueda, más ancha que los filtros: se lee el texto de ayuda.
 .search {
   flex: 2 1 320px;
@@ -88,75 +109,113 @@ thead th {
 // Columnas de contenido corto: ancho fijo para que nunca se recorten.
 // Caben la fecha y el icono de fecha modificada.
 .col-bookedDate {
-  width: 124px;
-}
-
-.col-opDate {
-  width: 140px;
+  width: 132px;
 }
 
 .col-tags {
-  width: 112px;
+  width: 148px;
 }
 
 .col-amount {
   width: 108px;
 }
 
-// Columnas de texto libre: se reparten el resto y recortan con «…».
+// Columnas de texto libre: se reparten el resto y recortan con «…». La descripción es lo que se
+// lee primero: la más ancha.
 .col-description {
-  width: 17%;
+  width: 21%;
 }
 
 .col-category {
-  width: 9%;
-}
-
-.col-subcategory {
-  width: 10%;
+  width: 17%;
 }
 
 .col-account {
-  width: 8%;
+  width: 12.5%;
 }
 
 // .col-notes: el ancho restante.
 
-// El botón de editar, al final de cada fila.
+// Dividir y editar, al final de cada fila.
+// Caben los tres botones: devoluciones, dividir y editar.
 .col-actions {
-  width: 48px;
+  width: 100px;
 }
 
 td.actions {
   padding: 0 4px;
+  white-space: nowrap;
+  text-align: end;
 }
 
-.edit {
-  --mat-icon-button-state-layer-size: 32px;
+// Los submovimientos, debajo de su movimiento: con una flecha, en color atenuado y sobre un fondo
+// apenas tintado que los agrupa con él. La letra es la de las demás filas, para que todas ocupen
+// una sola línea de la misma altura.
+.split-row > td,
+.refund-row > td {
+  color: var(--mat-sys-on-surface-variant);
+  background: color-mix(
+    in srgb,
+    var(--mat-sys-primary) 3%,
+    var(--mat-sys-surface-container-lowest)
+  );
+}
 
-  padding: 4px;
+// Lo devuelto es dinero que vuelve: en verde también en la fila atenuada.
+.refund-row > td.positive {
+  color: var(--af-positive);
+}
+
+.split-row .split-icon,
+.refund-row .split-icon {
+  margin-left: 4px;
+}
+
+.split-icon {
+  width: 16px;
+  height: 16px;
+  font-size: 16px;
+  vertical-align: -3px;
+}
+
+.edit,
+.split,
+.refund {
+  --mat-icon-button-state-layer-size: 28px;
+  --mat-icon-button-icon-size: 18px;
+
+  padding: 5px;
+  margin-inline: -1px;
 }
 
 caption {
-  padding: 16px 20px 8px;
+  padding: 14px 12px 10px;
   text-align: left;
   font: var(--mat-sys-title-small);
 }
 
 // Una sola línea por fila y por cabecera: lo largo se recorta con «…» (texto completo en `title`).
+// Una sola línea por fila: 34 px, lo justo para leer cómodo y ver más movimientos de un vistazo.
 th,
 td {
-  padding: 10px;
+  padding: 7px 12px;
   overflow: hidden;
   text-align: left;
   vertical-align: middle;
   white-space: nowrap;
   text-overflow: ellipsis;
-  border-bottom: 1px solid var(--mat-sys-outline-variant);
+  border-bottom: 1px solid color-mix(in srgb, var(--mat-sys-outline-variant) 55%, transparent);
 }
 
+td {
+  line-height: 20px;
+}
+
+// La cabecera, en pequeño y atenuada: es guía, no contenido. Una línea algo más marcada la separa.
 th {
-  font: var(--mat-sys-label-large);
+  padding-block: 8px;
+  border-bottom-color: var(--mat-sys-outline-variant);
+  font: var(--mat-sys-label-medium);
   color: var(--mat-sys-on-surface-variant);
 
   &[aria-sort='ascending'],
@@ -248,14 +307,25 @@ tbody tr:last-child td {
   color: var(--mat-sys-on-surface-variant);
 }
 
-.notes {
+// Lo que se lee primero es el concepto; la cuenta y las observaciones acompañan.
+.description {
+  font-weight: 500;
+}
+
+.notes,
+.account,
+.muted,
+.parent {
   color: var(--mat-sys-on-surface-variant);
 }
 
 .date,
 .num {
   font-variant-numeric: tabular-nums;
-  font-weight: 500;
+}
+
+.num {
+  font-weight: 600;
 }
 
 .num {
@@ -277,10 +347,10 @@ tbody tr:last-child td {
 }
 
 .changed-icon {
-  width: 18px;
-  height: 18px;
+  width: 16px;
+  height: 16px;
   margin-left: 4px;
-  font-size: 18px;
+  font-size: 16px;
   vertical-align: -3px;
 }
 
@@ -296,14 +366,23 @@ tbody tr:last-child td {
 .badge {
   display: inline-block;
   margin-right: 4px;
-  padding: 1px 8px;
+  padding: 0 7px;
   border-radius: 999px;
   font: var(--mat-sys-label-small);
+  line-height: 18px;
   background: var(--mat-sys-secondary-container);
   color: var(--mat-sys-on-secondary-container);
 }
 
-.more {
+// El «+n» de las etiquetas que no caben: más discreto que una etiqueta.
+.badge.more {
+  margin-right: 0;
+  padding: 0 5px;
+  background: var(--mat-sys-surface-container-highest);
+  color: var(--mat-sys-on-surface-variant);
+}
+
+button.more {
   margin: 16px;
 }
 

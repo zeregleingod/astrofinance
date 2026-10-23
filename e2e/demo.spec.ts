@@ -34,13 +34,19 @@ test('la demo carga datos ficticios en memoria y se puede recorrer', async ({ pa
   await openNav(page);
   await page.getByRole('link', { name: 'Movimientos' }).click();
   await expect(movements.count(page)).toHaveText(/Movimientos \(\d+\)/);
-  const curtains = movements.item(page, /Bizum recibido - Alex - Cortinas/);
+  const curtains = movements.byDescription(page, /Bizum recibido - Alex - Cortinas/);
   if (isMobile) {
     await expect(curtains.locator('.date')).toHaveText('28/09/2026 (fecha modificada)');
     await expect(curtains).toContainText('Fecha original: 03/10/2026');
   } else {
-    await expect(curtains.getByRole('cell').nth(0)).toHaveText('28/09/2026 (fecha modificada)');
-    await expect(curtains.getByRole('cell').nth(1)).toHaveText('03/10/2026');
+    // La fecha original va en la propia celda de la fecha cuando difiere.
+    await expect(curtains.getByRole('cell').nth(0)).toHaveText(
+      '28/09/2026 (fecha modificada; original 03/10/2026)',
+    );
+    await expect(curtains.getByRole('cell').nth(0)).toHaveAttribute(
+      'title',
+      'Fecha original: 03/10/2026',
+    );
   }
 });
 
@@ -61,8 +67,10 @@ test('la tabla se ordena por columna y se filtra al escribir', async ({ page, is
   await expect(amount).toHaveAttribute('aria-sort', 'descending');
   await expect(table.locator('tbody tr').first()).toContainText('Nómina');
 
+  // Dos movimientos (la compra y el Bizum que la devuelve, que además sale debajo de ella).
   await page.getByRole('searchbox', { name: 'Buscar' }).fill('cortinas');
-  await expect(table.locator('tbody tr')).toHaveCount(2);
+  await expect(movements.items(page)).toHaveCount(2);
+  await expect(movements.refunds(page)).toHaveCount(1);
   await expect(table).toContainText('(2 de');
 });
 

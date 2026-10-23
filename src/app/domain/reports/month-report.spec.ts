@@ -111,7 +111,7 @@ describe('buildMonthReport', () => {
       description: 'Movimiento',
       amountCents: -100,
       reimbursed: false,
-      expenseId: null,
+      expenseKey: null,
       ...overrides,
     });
     const withMovements = buildMonthReport({
@@ -147,7 +147,7 @@ describe('buildMonthReport', () => {
           date: '2026-07-02',
           amountCents: 5596,
           reimbursed: true,
-          expenseId: 1,
+          expenseKey: 't1',
         }),
         movement({
           key: 'r2',
@@ -156,7 +156,7 @@ describe('buildMonthReport', () => {
           date: '2026-07-02',
           amountCents: 6796,
           reimbursed: true,
-          expenseId: 2,
+          expenseKey: 't2',
         }),
         movement({ key: 't4', transactionId: 4, categoryId: 4, amountCents: -10000 }),
         movement({ key: 't5', transactionId: 5, categoryId: null, amountCents: 2500 }),
@@ -176,6 +176,31 @@ describe('buildMonthReport', () => {
         ['t1', -11192, false],
         ['r1', 5596, true],
       ]);
+    });
+
+    it('pone el Bizum de un submovimiento bajo ese submovimiento, no bajo sus hermanos', () => {
+      const report = buildMonthReport({
+        period: '2026-07',
+        categories: [
+          row({ id: 1, name: 'Variables' }),
+          row({ id: 2, parentId: 1, name: 'Hogar', totalCents: -5000, count: 3 }),
+        ],
+        uncategorized: { totalCents: 0, count: 0 },
+        pendingReimbursementCents: 0,
+        movements: [
+          movement({ key: 's1', transactionId: 7, categoryId: 2, amountCents: -3000 }),
+          movement({ key: 's2', transactionId: 7, categoryId: 2, amountCents: -3000 }),
+          movement({
+            key: 'r5',
+            transactionId: 8,
+            categoryId: 2,
+            amountCents: 1000,
+            reimbursed: true,
+            expenseKey: 's2',
+          }),
+        ],
+      });
+      expect(report.groups[0]?.lines[0]?.movements.map((m) => m.key)).toEqual(['s1', 's2', 'r5']);
     });
 
     it('el ahorro apartado se enseña en positivo también en sus movimientos', () => {

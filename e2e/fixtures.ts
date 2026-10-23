@@ -52,9 +52,26 @@ export { expect };
 export const movements = {
   /** «Movimientos (40)» o «Movimientos (12 de 40)». */
   count: (page: Page) => page.locator('main caption, main app-transaction-cards h3'),
-  /** Cada movimiento: su fila o su tarjeta. */
-  items: (page: Page) => page.locator('main tbody tr, main app-transaction-cards li'),
+  /** Cada movimiento: su fila o su tarjeta (sin las de sus submovimientos). */
+  items: (page: Page) =>
+    page.locator(
+      'main tbody tr:not(.split-row):not(.refund-row), main app-transaction-cards li.card',
+    ),
+  /** Las devoluciones de los gastos: sus filas, debajo del gasto, o su lista en la tarjeta. */
+  refunds: (page: Page) =>
+    page.locator('main tbody tr.refund-row, main app-transaction-cards .refunds li'),
+  /** Los submovimientos: sus filas, debajo del movimiento, o su lista dentro de la tarjeta. */
+  splits: (page: Page) =>
+    page.locator('main tbody tr.split-row, main app-transaction-cards .splits:not(.refunds) li'),
   item: (page: Page, text: string | RegExp) => movements.items(page).filter({ hasText: text }),
+  /**
+   * El movimiento con ese concepto. A diferencia de `item`, no lo confunde con un gasto que lleva
+   * debajo ese concepto como devolución o submovimiento.
+   */
+  byDescription: (page: Page, text: string | RegExp) =>
+    movements
+      .items(page)
+      .filter({ has: page.locator('td.description, .main .description', { hasText: text }) }),
   /** En móvil los filtros van plegados: los despliega si hace falta. */
   openFilters: async (page: Page) => {
     const toggle = page.getByRole('button', { name: /^Filtros/ });

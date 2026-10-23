@@ -1,10 +1,18 @@
 import type { Database, Sqlite3Static } from '@sqlite.org/sqlite-wasm';
 import { isPeriod } from '@domain/dates/period';
+import { isSummaryTotal, type SummaryTotal } from '@domain/reports/summary-origin';
 import type { RpcHandlers } from '../rpc/protocol';
 import { exportDatabase, openDatabaseFile } from './backup';
 import type { DbApi } from './db-api';
 import { migrate } from './migrate';
 import { MIGRATIONS } from './migrations';
+import {
+  expenseIdParam,
+  expenseRefundOptions,
+  expenseRefundsParam,
+  saveRefunds,
+} from './queries/refunds';
+import { saveSplits, transactionSplitsParam } from './queries/splits';
 import { transactionEditParam, updateTransaction } from './queries/transactions';
 import {
   categoryIdParam,
@@ -29,6 +37,7 @@ import {
   listPeriods,
   monthReport,
   monthTransactions,
+  summaryTransactionIds,
   yearReport,
 } from './queries/reports';
 import {
@@ -42,6 +51,7 @@ import {
   ruleUpdateParam,
   updateRule,
 } from './queries/rules';
+import { suggestCategoriesFor, suggestionRequestParam } from './queries/suggestions';
 import { categoryTemplateStatements } from './seeds/category-template';
 import { loadDemoData } from './seeds/demo-data';
 import { wrapDatabase, type SqlDb } from './sql-db';
@@ -102,7 +112,12 @@ export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcH
     yearReport: (params) => yearReport(requireDb(), yearParam(params)),
     transactions: (params) => monthTransactions(requireDb(), periodParam(params)),
     allTransactions: () => allTransactions(requireDb()),
+    summaryTransactionIds: (params) =>
+      summaryTransactionIds(requireDb(), periodParam(params), summaryTotalParam(params)),
     updateTransaction: (params) => updateTransaction(requireDb(), transactionEditParam(params)),
+    saveSplits: (params) => saveSplits(requireDb(), transactionSplitsParam(params)),
+    expenseRefundOptions: (params) => expenseRefundOptions(requireDb(), expenseIdParam(params)),
+    saveRefunds: (params) => saveRefunds(requireDb(), expenseRefundsParam(params)),
     categoryOptions: () => categoryOptions(requireDb()),
     categoryTree: () => categoryTree(requireDb()),
     createCategory: (params) => createCategory(requireDb(), newCategoryParam(params)),
@@ -116,6 +131,8 @@ export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcH
     previewRules: () => previewRules(requireDb()),
     applyRules: () => applyRules(requireDb()),
     existingHashes: (params) => existingDedupeHashes(requireDb(), hashesParam(params)),
+    suggestCategories: (params) =>
+      suggestCategoriesFor(requireDb(), suggestionRequestParam(params)),
     commitImport: (params) => commitImport(requireDb(), importBatchParam(params)),
   };
 }
@@ -127,6 +144,15 @@ function periodParam(params: unknown): string {
       : undefined;
   if (!isPeriod(period)) throw new RangeError('Periodo no válido (AAAA-MM).');
   return period;
+}
+
+function summaryTotalParam(params: unknown): SummaryTotal {
+  const total: unknown =
+    typeof params === 'object' && params !== null
+      ? (params as { total?: unknown }).total
+      : undefined;
+  if (!isSummaryTotal(total)) throw new RangeError('Total del resumen no válido.');
+  return total;
 }
 
 function yearParam(params: unknown): number {

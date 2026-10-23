@@ -1,4 +1,5 @@
 import { centsToInput, parseCents } from '../money/parse-cents';
+import type { CategorySuggestion } from '../suggestions/category-suggestion';
 import type { ImportBatchInput, ImportRowInput } from './import-batch';
 import type { ImportedMovement, ImportedStatement } from './imported-statement';
 
@@ -15,6 +16,8 @@ export interface DraftRow {
   /** Importe tal como está escrito en la casilla (es-ES). */
   readonly amountText: string;
   readonly categoryId: number | null;
+  /** La categoría que se propuso al leer el extracto (ADR-0018), aunque el usuario la cambie. */
+  readonly suggestion: CategorySuggestion | null;
   readonly note: string;
 }
 
@@ -34,22 +37,48 @@ export interface DraftSummary {
   readonly invalid: number;
 }
 
+/** Movimientos incluidos que conservan la categoría propuesta, según de dónde salió. */
+export interface SuggestedCount {
+  readonly byRule: number;
+  readonly byHistory: number;
+}
+
+/**
+ * El borrador de la revisión. `suggestions` va en el orden de los movimientos: la categoría
+ * propuesta para cada uno viene ya puesta, salvo en los que ya estaban guardados.
+ */
 export function createDraft(
   statement: Pick<ImportedStatement, 'movements'>,
   existingHashes: ReadonlySet<string>,
+  suggestions: readonly (CategorySuggestion | null)[] = [],
 ): DraftRow[] {
-  return statement.movements.map((movement) => {
+  return statement.movements.map((movement, i) => {
     const duplicate = existingHashes.has(movement.dedupeHash);
+    const suggestion = duplicate ? null : (suggestions[i] ?? null);
     return {
       movement,
       duplicate,
       included: !duplicate,
       description: movement.description,
       amountText: centsToInput(movement.amountCents),
-      categoryId: null,
+      categoryId: suggestion?.categoryId ?? null,
+      suggestion,
       note: '',
     };
   });
+}
+
+/** La propuesta, si la fila aún tiene la categoría propuesta; si el usuario la cambió, `null`. */
+export function suggestionInUse(row: DraftRow): CategorySuggestion | null {
+  return row.suggestion && row.suggestion.categoryId === row.categoryId ? row.suggestion : null;
+}
+
+export function countSuggested(rows: readonly DraftRow[]): SuggestedCount {
+  const sources = rows.filter((row) => row.included).map((row) => suggestionInUse(row)?.source);
+  return {
+    byRule: sources.filter((source) => source === 'regla').length,
+    byHistory: sources.filter((source) => source === 'sugerencia').length,
+  };
 }
 
 /** Aplica un cambio a una fila sin mutar el borrador. Un duplicado nunca pasa a incluido. */
@@ -123,6 +152,7 @@ export function draftToBatch(
 
 function toRowInput(row: DraftRow): ImportRowInput {
   const { movement } = row;
+  const suggestion = suggestionInUse(row);
   return {
     opDate: movement.opDate,
     valueDate: movement.valueDate,
@@ -133,6 +163,9 @@ function toRowInput(row: DraftRow): ImportRowInput {
     note: row.note.trim() || null,
     bankReference: movement.reference,
     categoryId: row.categoryId,
+    // Lo que el usuario elige a mano es suyo; lo propuesto conserva su origen (ADR-0018).
+    categorySource: row.categoryId === null ? 'ninguna' : (suggestion?.source ?? 'manual'),
+    ruleId: suggestion?.source === 'regla' ? suggestion.ruleId : null,
     dedupeHash: movement.dedupeHash,
   };
 }

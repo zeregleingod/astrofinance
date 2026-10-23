@@ -26,7 +26,26 @@ const row = (id: number, extra: Partial<TransactionRow> = {}): TransactionRow =>
   installment: null,
   originalDescription: null,
   categoryId: null,
+  splits: [],
+  refundingCents: 0,
+  refunds: [],
+  refundable: false,
   ...extra,
+});
+
+const part = (
+  description: string,
+  categoryName: string | null,
+  subcategoryName: string | null,
+) => ({
+  id: 1,
+  description,
+  amountCents: -100,
+  categoryId: null,
+  categoryName,
+  subcategoryName,
+  shared: false,
+  refundsTo: [],
 });
 
 const ROWS: readonly TransactionRow[] = [
@@ -159,5 +178,45 @@ describe('monthFilter', () => {
   it('sin mes, o con uno que no vale, no filtra', () => {
     expect(monthFilter(undefined)).toBe(NO_FILTER);
     expect(monthFilter('2026-13')).toBe(NO_FILTER);
+  });
+
+  describe('con submovimientos', () => {
+    const divided = row(20, {
+      categoryName: 'Variables',
+      subcategoryName: 'Comida',
+      splits: [part('REGALO', 'Variables', 'Regalos'), part('PILAS', null, null)],
+    });
+    const rows = [row(21), divided];
+
+    it('la etiqueta «Dividido» deja los que tienen submovimientos', () => {
+      expect(applyTransactionFilter(rows, { ...NO_FILTER, tag: 'split' }).map((r) => r.id)).toEqual(
+        [20],
+      );
+    });
+
+    it('la subcategoría de un submovimiento encuentra su movimiento', () => {
+      const filter: TransactionFilter = {
+        ...NO_FILTER,
+        subcategory: { category: 'Variables', name: 'Regalos' },
+      };
+      expect(applyTransactionFilter(rows, filter).map((r) => r.id)).toEqual([20]);
+    });
+
+    it('también la categoría, y un submovimiento sin categoría cuenta como «sin categoría»', () => {
+      expect(
+        applyTransactionFilter(rows, { ...NO_FILTER, category: { name: null } }).map((r) => r.id),
+      ).toEqual([20]);
+      expect(
+        applyTransactionFilter(rows, { ...NO_FILTER, category: { name: 'Variables' } }).map(
+          (r) => r.id,
+        ),
+      ).toEqual([21, 20]);
+    });
+
+    it('ofrece en los filtros las subcategorías de los submovimientos', () => {
+      const options = transactionFilterOptions([divided]);
+      expect(options.subcategories).toContainEqual({ category: 'Variables', name: 'Regalos' });
+      expect(options.uncategorized).toBe(true);
+    });
   });
 });

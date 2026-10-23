@@ -16,6 +16,7 @@ import {
   importBatchParam,
 } from './imports';
 import { listPeriods, monthTransactions } from './reports';
+import { createRule, deleteRule } from './rules';
 
 describe('consultas de importación', () => {
   let sqlite3: Sqlite3Static;
@@ -124,6 +125,60 @@ describe('consultas de importación', () => {
     ]);
   });
 
+  it('guarda la categoría propuesta con su origen: regla, sugerencia o del usuario', () => {
+    const [luz, nomina, otra] = categoryOptions(db).map((option) => option.id);
+    if (!luz || !nomina || !otra) throw new Error('Faltan categorías');
+    const ruleId = createRule(db, { operator: 'contiene', pattern: 'LUZ', categoryId: luz });
+    let draft = createDraft(statement, new Set(), [
+      null,
+      null,
+      { source: 'sugerencia', categoryId: nomina },
+      { source: 'sugerencia', categoryId: nomina },
+      null,
+      { source: 'regla', categoryId: luz, ruleId },
+    ]);
+    draft = editDraft(draft, 3, { categoryId: otra });
+
+    commitImport(db, draftToBatch(statement, draft));
+
+    const sources = db.rows(
+      `SELECT original_description, category_id, category_source, rule_id FROM transactions
+       WHERE category_id IS NOT NULL ORDER BY id`,
+    );
+    expect(sources).toEqual([
+      {
+        original_description: 'NOMINA DE EMPRESA DEMO SL',
+        category_id: nomina,
+        category_source: 'sugerencia',
+        rule_id: null,
+      },
+      {
+        original_description: 'COMPRA TARJ. 4000XXXXXXXX0001 CAFETERIA DEMO-BARCELONA',
+        category_id: otra,
+        category_source: 'manual',
+        rule_id: null,
+      },
+      {
+        original_description: 'ADEUDO RECIBO LUZ DEMO',
+        category_id: luz,
+        category_source: 'regla',
+        rule_id: ruleId,
+      },
+    ]);
+  });
+
+  it('si la regla se borra durante la revisión, la categoría se guarda sin ella', () => {
+    const luz = categoryOptions(db)[0]?.id ?? 0;
+    const ruleId = createRule(db, { operator: 'contiene', pattern: 'LUZ', categoryId: luz });
+    const draft = createDraft(statement, new Set(), [{ source: 'regla', categoryId: luz, ruleId }]);
+    deleteRule(db, ruleId);
+
+    expect(commitImport(db, draftToBatch(statement, draft)).inserted).toBe(8);
+    expect(
+      db.rows('SELECT category_source, rule_id FROM transactions WHERE category_id = ?', [luz]),
+    ).toEqual([{ category_source: 'regla', rule_id: null }]);
+  });
+
   it('reimportar el mismo fichero no añade nada', () => {
     commitImport(db, batch());
     const hashes = statement.movements.map((m) => m.dedupeHash);
@@ -167,7 +222,9 @@ describe('consultas de importación', () => {
     const good = batch();
     const broken = {
       ...good,
-      rows: good.rows.map((row, i) => (i === 4 ? { ...row, categoryId: 999_999 } : row)),
+      rows: good.rows.map((row, i) =>
+        i === 4 ? { ...row, categoryId: 999_999, categorySource: 'manual' as const } : row,
+      ),
     };
 
     expect(() => commitImport(db, broken)).toThrow(/FOREIGN KEY/i);
@@ -233,6 +290,22 @@ describe('consultas de importación', () => {
       ['concepto enorme', (b: ImportBatchInput) => withRow(b, { description: 'x'.repeat(501) })],
       ['fecha valor inválida', (b: ImportBatchInput) => withRow(b, { valueDate: 'ayer' })],
       ['categoría no numérica', (b: ImportBatchInput) => withRow(b, { categoryId: '3' })],
+      ['origen desconocido', (b: ImportBatchInput) => withRow(b, { categorySource: 'adivinado' })],
+      [
+        'categoría sin origen',
+        (b: ImportBatchInput) => withRow(b, { categoryId: 3, categorySource: 'ninguna' }),
+      ],
+      ['origen sin categoría', (b: ImportBatchInput) => withRow(b, { categorySource: 'manual' })],
+      [
+        'regla sin origen de regla',
+        (b: ImportBatchInput) =>
+          withRow(b, { categoryId: 3, categorySource: 'sugerencia', ruleId: 4 }),
+      ],
+      [
+        'regla no numérica',
+        (b: ImportBatchInput) =>
+          withRow(b, { categoryId: 3, categorySource: 'regla', ruleId: 'x' }),
+      ],
       ['huella inválida', (b: ImportBatchInput) => withRow(b, { dedupeHash: 'zz' })],
     ])('rechaza un lote con %s', (_name, alter) => {
       expect(() => importBatchParam(alter(batch()))).toThrow(RangeError);

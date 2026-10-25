@@ -51,8 +51,29 @@
           }
         </app-transaction-filters>
 
-        <!-- Se llega desde un total del resumen: solo sus movimientos, hasta que se quita. -->
-        @if (origin(); as origin) {
+        <!--
+          Desde un movimiento vinculado, solo él y los suyos (ADR-0022); si no, al llegar desde un
+          total del resumen, solo sus movimientos. Hasta que se quita.
+        -->
+        @if (linkedRow(); as linked) {
+          <p class="origin">
+            <mat-icon fontIcon="link" aria-hidden="true" />
+            <span
+              >{{ texts.transactions.links.label }}: {{ linked.description }} ({{
+                linked.bookedDate | isoDate
+              }})</span
+            >
+            <button
+              mat-button
+              type="button"
+              [attr.aria-label]="texts.transactions.links.removeLabel"
+              (click)="removeLinked()"
+            >
+              <mat-icon fontIcon="close" aria-hidden="true" />
+              {{ texts.transactions.links.remove }}
+            </button>
+          </p>
+        } @else if (origin(); as origin) {
           <p class="origin">
             <mat-icon fontIcon="filter_alt" aria-hidden="true" />
             <span
@@ -113,6 +134,7 @@
         (edit)="edit($event)"
         (split)="split($event)"
         (refund)="refund($event)"
+        (linked)="showLinked($event)"
       />
     } @else {
       <!-- La tabla crece con sus filas: se desplaza la página y la cabecera se queda a la vista. -->
@@ -203,7 +225,28 @@
                       </td>
                     }
                     @case ('description') {
-                      <td class="description" [title]="row.description">{{ row.description }}</td>
+                      <!-- Si está vinculado, delante un botón que enseña con cuáles (ADR-0022). -->
+                      <td class="description" [title]="row.description">
+                        @if (row.links.length > 0) {
+                          <button
+                            type="button"
+                            class="linked"
+                            [attr.data-id]="row.id"
+                            [attr.aria-label]="
+                              texts.transactions.links.show +
+                              ' ' +
+                              row.description +
+                              ': ' +
+                              row.linkTexts.join('; ')
+                            "
+                            [title]="row.linkTexts.join('\n')"
+                            (click)="showLinked(row)"
+                          >
+                            <mat-icon fontIcon="link" aria-hidden="true" />
+                          </button>
+                        }
+                        {{ row.description }}
+                      </td>
                     }
                     @case ('tags') {
                       <!--

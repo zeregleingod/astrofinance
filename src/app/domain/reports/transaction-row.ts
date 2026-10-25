@@ -28,6 +28,27 @@ export interface RefundRow {
   readonly amountCents: number;
 }
 
+/**
+ * Cómo se vincula un movimiento con otro (ADR-0022): lo devuelve un ingreso, devuelve un gasto o
+ * es la otra pata de su traspaso.
+ */
+export type TransactionLinkKind = 'refundedBy' | 'refunds' | 'transfer';
+
+/** Otro movimiento vinculado con este, visto desde este. */
+export interface TransactionLink {
+  readonly kind: TransactionLinkKind;
+  readonly transactionId: number;
+  /** Su fecha imputada. */
+  readonly date: string;
+  readonly description: string;
+  readonly accountName: string;
+  /**
+   * En las devoluciones, lo devuelto entre los dos, en positivo; en un traspaso, el importe de
+   * la otra pata, con su signo.
+   */
+  readonly amountCents: number;
+}
+
 /** Movimiento listo para mostrarse en la lista de movimientos. */
 export interface TransactionRow {
   readonly id: number;
@@ -70,4 +91,6 @@ export interface TransactionRow {
   readonly refunds: readonly RefundRow[];
   /** Es un gasto: se le pueden vincular devoluciones. */
   readonly refundable: boolean;
+  /** Los movimientos vinculados con este, por fecha; vacío si no tiene. */
+  readonly links: readonly TransactionLink[];
 }

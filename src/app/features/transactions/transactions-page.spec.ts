@@ -1140,4 +1140,82 @@ describe('TransactionsPage', () => {
       );
     });
   });
+
+  describe('movimientos vinculados', () => {
+    const CURTAINS = 'Tienda de muebles Demo - Cortinas';
+    const BIZUM = 'Bizum recibido - Alex - Cortinas';
+    const linkButton = (row: Element | undefined) =>
+      row?.querySelector<HTMLButtonElement>('button.linked') ?? null;
+    const notice = (element: HTMLElement) => text(element.querySelector('.origin'));
+
+    it('un movimiento vinculado tiene un botón que dice con cuáles', async () => {
+      const { rows } = await setup(true);
+      const bizum = rows().find((r) => text(r)?.includes(BIZUM));
+      expect(linkButton(bizum)?.getAttribute('aria-label')).toMatch(
+        new RegExp(`^Ver vinculados con ${BIZUM}: Devuelve: ${CURTAINS}, 28/09/2026, 65,47\\s€$`),
+      );
+      expect(linkButton(bizum)?.title).toMatch(/^Devuelve: Tienda de muebles Demo - Cortinas, /);
+      expect(linkButton(rows().find((r) => text(r)?.includes('Pizzería Demo')))).toBeNull();
+    });
+
+    it('al pulsarlo enseña solo el movimiento y los vinculados, hasta que se quita', async () => {
+      const { element, fixture, rows, caption } = await setup(true);
+      const total = rows().length;
+
+      linkButton(rows().find((r) => text(r)?.includes(BIZUM)))?.click();
+      await fixture.whenStable();
+
+      expect(column(rows(), 1).sort()).toEqual([BIZUM, CURTAINS]);
+      expect(notice(element)).toContain(`Vinculados con: ${BIZUM} (28/09/2026)`);
+      expect(caption()).toBe(`Movimientos (2 de ${total})`);
+
+      element.querySelector<HTMLButtonElement>('.origin button')?.click();
+      await fixture.whenStable();
+
+      expect(element.querySelector('.origin')).toBeNull();
+      expect(rows().length).toBe(total);
+      // El foco vuelve al botón del movimiento del que se partió.
+      expect(document.activeElement).toBe(linkButton(rows().find((r) => text(r)?.includes(BIZUM))));
+    });
+
+    it('las dos patas de un traspaso se enlazan entre sí', async () => {
+      const { fixture, rows, column: columnOf } = await setup(true);
+      const leg = rows().find((r) => text(r.querySelectorAll('td')[2]) === 'Traspaso');
+      expect(linkButton(leg)?.title).toMatch(/^Traspaso con: /);
+
+      linkButton(leg)?.click();
+      await fixture.whenStable();
+
+      expect(columnOf(2)).toEqual(['Traspaso', 'Traspaso']);
+      expect(new Set(columnOf(4)).size).toBe(2);
+    });
+
+    it('buscar o filtrar vuelve a la lista de siempre', async () => {
+      const { element, fixture, rows, search } = await setup(true);
+      linkButton(rows().find((r) => text(r)?.includes(BIZUM)))?.click();
+      await fixture.whenStable();
+
+      await search('Pizzería');
+
+      expect(element.querySelector('.origin')).toBeNull();
+      expect(column(rows(), 1).every((d) => d?.includes('Pizzería'))).toBe(true);
+    });
+
+    it('en móvil la tarjeta tiene el mismo botón', async () => {
+      const { element, fixture } = await setup(true, true);
+      const card = [...element.querySelectorAll('app-transaction-cards li.card')].find((c) =>
+        text(c.querySelector('.description'))?.includes(CURTAINS),
+      );
+      linkButton(card)?.click();
+      await fixture.whenStable();
+
+      expect(
+        [...element.querySelectorAll('app-transaction-cards li.card .description')].map(text),
+      ).toEqual(expect.arrayContaining([BIZUM, CURTAINS]));
+      expect(element.querySelectorAll('app-transaction-cards li.card')).toHaveLength(2);
+    });
+
+    const column = (rows: Element[], index: number) =>
+      rows.map((r) => text(r.querySelectorAll('td')[index]));
+  });
 });

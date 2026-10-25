@@ -83,6 +83,19 @@ export const TEXTS = {
       removeLabel: 'Quitar el filtro del resumen',
       removed: 'Filtro del resumen quitado. Movimientos:',
     },
+    /** Los movimientos vinculados con otro (ADR-0022). */
+    links: {
+      refundedBy: 'Devuelto por',
+      refunds: 'Devuelve',
+      transfer: 'Traspaso con',
+      /** El botón de la fila; le sigue el concepto del movimiento. */
+      show: 'Ver vinculados con',
+      label: 'Vinculados con',
+      remove: 'Quitar',
+      removeLabel: 'Quitar el filtro de vinculados',
+      shown: 'Movimiento y vinculados:',
+      removed: 'Filtro de vinculados quitado. Movimientos:',
+    },
     sortBy: 'Ordenar por',
     direction: { asc: 'Orden ascendente', desc: 'Orden descendente' },
     filters: {

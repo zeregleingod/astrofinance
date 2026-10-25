@@ -6,8 +6,11 @@ import type { TransactionRow } from '@domain/reports/transaction-row';
 import { CentsPipe } from '@shared/format/cents-pipe';
 import { IsoDatePipe } from '@shared/format/iso-date-pipe';
 
-/** Un movimiento con sus etiquetas ya traducidas. */
-export type TransactionCard = TransactionRow & { readonly tags: readonly string[] };
+/** Un movimiento con sus etiquetas y sus vínculos ya traducidos. */
+export type TransactionCard = TransactionRow & {
+  readonly tags: readonly string[];
+  readonly linkTexts: readonly string[];
+};
 
 /**
  * Los movimientos en pantallas estrechas: una tarjeta por movimiento, con el concepto y el
@@ -24,6 +27,30 @@ export type TransactionCard = TransactionRow & { readonly tags: readonly string[
         @for (row of rows(); track row.id) {
           <li class="card">
             <div class="main">
+              @if (row.links.length > 0) {
+                <button
+                  mat-icon-button
+                  type="button"
+                  class="linked"
+                  [attr.data-id]="row.id"
+                  [attr.aria-label]="
+                    texts.transactions.links.show +
+                    ' ' +
+                    row.description +
+                    ': ' +
+                    row.linkTexts.join('; ')
+                  "
+                  [title]="
+                    row.linkTexts.join(
+                      '
+'
+                    )
+                  "
+                  (click)="linked.emit(row)"
+                >
+                  <mat-icon fontIcon="link" aria-hidden="true" />
+                </button>
+              }
               <span class="description">{{ row.description }}</span>
               <span
                 class="amount"
@@ -360,4 +387,6 @@ export class TransactionCards {
   readonly split = output<TransactionCard>();
   /** Se piden las devoluciones de un gasto. */
   readonly refund = output<TransactionCard>();
+  /** Se piden solo el movimiento y los vinculados con él. */
+  readonly linked = output<TransactionCard>();
 }

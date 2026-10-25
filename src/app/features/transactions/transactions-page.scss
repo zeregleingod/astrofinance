@@ -312,6 +312,40 @@ tbody tr:last-child td {
   font-weight: 500;
 }
 
+// Delante del concepto de un movimiento vinculado (ADR-0022): 24 px, el mínimo para pulsar, sin
+// hacer más alta la fila.
+button.linked {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  margin: -2px 4px -2px -4px;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--mat-sys-primary);
+  // Arriba y con −2 px por cada lado ocupa justo la línea: centrado por la línea base la estira.
+  vertical-align: top;
+  cursor: pointer;
+
+  &:hover {
+    background: color-mix(in srgb, var(--mat-sys-primary) 10%, transparent);
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 1px;
+  }
+
+  mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+  }
+}
+
 .notes,
 .account,
 .muted,

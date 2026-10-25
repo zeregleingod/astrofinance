@@ -39,9 +39,12 @@ import {
 import type { TransactionRow } from '@domain/reports/transaction-row';
 import {
   filterTransactions,
+  linkDescriptions,
+  linkedIds,
   nextSort,
   sortTransactions,
   transactionTags,
+  type LinkLabels,
   type TableLabels,
   type TransactionSort,
   type TransactionSortKey,
@@ -82,11 +85,18 @@ const LABELS: TableLabels = {
   uncategorized: TEXTS.dashboard.uncategorized,
 };
 
+const LINK_LABELS: LinkLabels = {
+  refundedBy: t.links.refundedBy,
+  refunds: t.links.refunds,
+  transfer: t.links.transfer,
+};
+
 /**
  * Lista de todos los movimientos, con filtros que se aplican al pulsar «Filtrar», búsqueda al
  * escribir y orden por columna. Cada movimiento se edita en un diálogo (T5.2, ADR-0016) y se
  * puede dividir en submovimientos, que se ven debajo de él (ADR-0019). A un gasto se le vinculan
- * los ingresos que lo devuelven, que también se ven debajo (ADR-0021).
+ * los ingresos que lo devuelven, que también se ven debajo (ADR-0021). Desde un movimiento
+ * vinculado se ven solo él y los vinculados con él (ADR-0022).
  */
 @Component({
   selector: 'app-transactions-page',
@@ -121,11 +131,12 @@ export class TransactionsPage {
   protected readonly filtersOpen = signal(false);
   private readonly filtersToggle = viewChild('filtersToggle', { read: ElementRef });
   private readonly toolbar = viewChild('toolbar', { read: ElementRef });
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   constructor() {
     // La cabecera de la tabla se queda fija justo debajo de la barra de búsqueda y filtros, cuyo
     // alto cambia cuando los filtros saltan de línea, se despliegan o explican un error.
-    const host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
+    const host = this.host;
     effect((onCleanup) => {
       const toolbar = this.toolbar()?.nativeElement as HTMLElement | undefined;
       const view = host.ownerDocument.defaultView;
@@ -153,6 +164,15 @@ export class TransactionsPage {
   );
 
   protected readonly originName = (total: SummaryTotal) => SUMMARY_TOTAL_NAMES[total];
+
+  /**
+   * El movimiento del que se enseñan solo él y sus vinculados (ADR-0022), por encima de los
+   * filtros y la búsqueda; buscar, filtrar o cambiar de origen lo quita.
+   */
+  private readonly linkedTo = linkedSignal<unknown, number | null>({
+    source: () => [this.query(), this.filter(), this.origin()],
+    computation: () => null,
+  });
 
   /** Filas que se pintan de entrada y cada vez que se pide ver más. */
   readonly pageSize = signal(200);
@@ -211,8 +231,20 @@ export class TransactionsPage {
   protected readonly total = computed(() => this.all()?.length ?? 0);
   protected readonly options = computed(() => transactionFilterOptions(this.all() ?? []));
 
-  /** Los que cumplen los filtros y la búsqueda, ya ordenados. */
+  /** El movimiento de la vista de vinculados, ya recargado si ha cambiado. */
+  protected readonly linkedRow = computed(() => {
+    const id = this.linkedTo();
+    return id === null ? null : (this.all()?.find((row) => row.id === id) ?? null);
+  });
+
+  /** Los que cumplen los filtros y la búsqueda (o los vinculados), ya ordenados. */
   private readonly matching = computed(() => {
+    const linked = this.linkedRow();
+    if (linked) {
+      const shown = linkedIds(linked);
+      const rows = (this.all() ?? []).filter((row) => shown.has(row.id));
+      return sortTransactions(rows, this.sort(), LABELS);
+    }
     const ids = this.origin() && this.originIds.hasValue() ? new Set(this.originIds.value()) : null;
     const all = this.all() ?? [];
     const fromOrigin = this.origin() ? all.filter((row) => ids?.has(row.id)) : all;
@@ -230,14 +262,18 @@ export class TransactionsPage {
   protected readonly rows = computed(() =>
     this.matching()
       .slice(0, this.limit())
-      .map((row) => ({ ...row, tags: transactionTags(row, LABELS) })),
+      .map((row) => ({
+        ...row,
+        tags: transactionTags(row, LABELS),
+        linkTexts: linkDescriptions(row, LINK_LABELS),
+      })),
   );
 
   /** Movimientos que cumplen los filtros pero aún no se han pintado. */
   protected readonly remaining = computed(() => this.matching().length - this.rows().length);
 
   protected readonly filtering = computed(
-    () => this.origin() !== null || isFiltering(this.filter()),
+    () => this.linkedRow() !== null || this.origin() !== null || isFiltering(this.filter()),
   );
 
   /** «40» o, con filtros o búsqueda, «12 de 40». */
@@ -262,6 +298,29 @@ export class TransactionsPage {
   protected removeOrigin(): void {
     this.origin.set(null);
     void this.announcer.announce(`${t.origin.removed} ${this.matching().length}`);
+  }
+
+  /** Enseña solo el movimiento y los vinculados con él, y anuncia cuántos son. */
+  protected showLinked(row: TransactionRow): void {
+    this.linkedTo.set(row.id);
+    void this.announcer.announce(`${t.links.shown} ${this.matching().length}`);
+    this.focusLinkButton(row.id);
+  }
+
+  /** Vuelve a la lista de antes; el foco, al botón del movimiento del que se partió. */
+  protected removeLinked(): void {
+    const id = this.linkedTo();
+    this.linkedTo.set(null);
+    void this.announcer.announce(`${t.links.removed} ${this.matching().length}`);
+    if (id !== null) this.focusLinkButton(id);
+  }
+
+  /** Al rehacer la lista el navegador puede quitarle el foco al botón: se le devuelve. */
+  private focusLinkButton(id: number): void {
+    afterNextRender(
+      () => this.host.querySelector<HTMLElement>(`button.linked[data-id="${id}"]`)?.focus(),
+      { injector: this.injector },
+    );
   }
 
   /** Abre el movimiento para editarlo; al guardar la lista se recarga sola. */

@@ -1,9 +1,12 @@
 import {
   filterTransactions,
+  linkDescriptions,
+  linkedIds,
   nextSort,
   normalizeSearch,
   sortTransactions,
   transactionTags,
+  type LinkLabels,
   type TableLabels,
 } from './transaction-table';
 import type { TransactionRow } from './transaction-row';
@@ -39,6 +42,7 @@ function row(overrides: Partial<TransactionRow> & Pick<TransactionRow, 'id'>): T
     refundingCents: 0,
     refunds: [],
     refundable: false,
+    links: [],
     ...overrides,
   };
 }
@@ -227,5 +231,72 @@ describe('gastos con devoluciones en la tabla', () => {
     expect(
       filterTransactions([row({ id: 42 }), dinner], 'bizum ana', labels).map((r) => r.id),
     ).toEqual([40]);
+  });
+});
+
+describe('movimientos vinculados en la tabla', () => {
+  const linkLabels: LinkLabels = {
+    refundedBy: 'Devuelto por',
+    refunds: 'Devuelve',
+    transfer: 'Traspaso con',
+  };
+  const dinner = row({
+    id: 40,
+    links: [
+      {
+        kind: 'refundedBy',
+        transactionId: 41,
+        date: '2026-09-11',
+        description: 'BIZUM ANA',
+        accountName: 'Cuenta principal',
+        amountCents: 3000,
+      },
+      {
+        kind: 'refundedBy',
+        transactionId: 42,
+        date: '2026-09-12',
+        description: 'BIZUM LUIS',
+        accountName: 'Cuenta principal',
+        amountCents: 2000,
+      },
+    ],
+  });
+
+  it('describe cada vínculo con su tipo, concepto, fecha e importe', () => {
+    expect(linkDescriptions(dinner, linkLabels)).toEqual([
+      'Devuelto por: BIZUM ANA, 11/09/2026, 30,00 €',
+      'Devuelto por: BIZUM LUIS, 12/09/2026, 20,00 €',
+    ]);
+  });
+
+  it('en un traspaso nombra la cuenta de la otra pata', () => {
+    const leg = row({
+      id: 8,
+      links: [
+        {
+          kind: 'transfer',
+          transactionId: 9,
+          date: '2026-07-11',
+          description: 'DESDE CUENTA',
+          accountName: 'Hucha',
+          amountCents: 2000,
+        },
+      ],
+    });
+    expect(linkDescriptions(leg, linkLabels)).toEqual([
+      'Traspaso con: Hucha, DESDE CUENTA, 11/07/2026, 20,00 €',
+    ]);
+  });
+
+  it('el movimiento y los vinculados con él, sin repetir', () => {
+    const twice = row({
+      id: 7,
+      links: [
+        ...dinner.links,
+        ...dinner.links.map((link) => ({ ...link, kind: 'refunds' as const })),
+      ],
+    });
+    expect([...linkedIds(dinner)]).toEqual([40, 41, 42]);
+    expect([...linkedIds(twice)]).toEqual([7, 41, 42]);
   });
 });

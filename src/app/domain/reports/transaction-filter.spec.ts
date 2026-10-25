@@ -30,6 +30,7 @@ const row = (id: number, extra: Partial<TransactionRow> = {}): TransactionRow =>
   refundingCents: 0,
   refunds: [],
   refundable: false,
+  links: [],
   ...extra,
 });
 

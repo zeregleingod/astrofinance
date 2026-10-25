@@ -1,7 +1,13 @@
 import type { CategoryKind } from '@domain/categories/category-kind';
 import { buildMonthReport, type MonthReport } from '@domain/reports/month-report';
 import type { SummaryTotal } from '@domain/reports/summary-origin';
-import type { RefundRow, SplitRow, TransactionRow } from '@domain/reports/transaction-row';
+import type {
+  RefundRow,
+  SplitRow,
+  TransactionLink,
+  TransactionLinkKind,
+  TransactionRow,
+} from '@domain/reports/transaction-row';
 import { buildYearReport, type YearReport } from '@domain/reports/year-report';
 import type { SqlDb, SqlRow } from '../sql-db';
 
@@ -344,6 +350,7 @@ export function allTransactions(db: SqlDb): TransactionRow[] {
 function transactionRows(db: SqlDb, where: string, bind: readonly string[]): TransactionRow[] {
   const splits = splitRows(db, where, bind);
   const refunds = refundRows(db, where, bind);
+  const links = linkRows(db, where, bind);
   return db
     .rows(
       `SELECT t.id, t.op_date, coalesce(t.booked_date, t.op_date) AS booked_date,
@@ -393,7 +400,62 @@ function transactionRows(db: SqlDb, where: string, bind: readonly string[]): Tra
       refundingCents: num(r, 'refunding_cents'),
       refunds: refunds.get(num(r, 'id')) ?? [],
       refundable: num(r, 'amount_cents') < 0,
+      links: links.get(num(r, 'id')) ?? [],
     }));
+}
+
+/**
+ * Los movimientos vinculados con los que cumplen `where` (ADR-0022), agrupados por movimiento:
+ * los gastos que devuelve un ingreso (entero, desde sus submovimientos o a los del gasto), los
+ * ingresos que devuelven un gasto y la otra pata de cada traspaso.
+ */
+function linkRows(
+  db: SqlDb,
+  where: string,
+  bind: readonly string[],
+): Map<number, TransactionLink[]> {
+  const byTransaction = new Map<number, TransactionLink[]>();
+  const rows = db.rows(
+    `WITH refund_pairs (expense_id, income_id, cents) AS (
+       SELECT coalesce(r.expense_tx_id, es.transaction_id), r.reimbursement_tx_id,
+              sum(r.amount_cents)
+       FROM reimbursements r LEFT JOIN transaction_splits es ON es.id = r.expense_split_id
+       WHERE r.category_id IS NULL
+       GROUP BY 1, 2
+     ),
+     pairs (tx_id, other_id, kind, cents) AS (
+       SELECT expense_id, income_id, 'refundedBy', cents FROM refund_pairs
+       UNION ALL
+       SELECT income_id, expense_id, 'refunds', cents FROM refund_pairs
+       UNION ALL
+       SELECT outgoing_tx_id, incoming_tx_id, 'transfer', NULL FROM transfers
+       UNION ALL
+       SELECT incoming_tx_id, outgoing_tx_id, 'transfer', NULL FROM transfers
+     )
+     SELECT p.tx_id, p.kind, o.id, coalesce(o.booked_date, o.op_date) AS date, o.description,
+            a.name AS account_name, coalesce(p.cents, o.amount_cents) AS amount_cents
+     FROM pairs p
+     JOIN transactions t ON t.id = p.tx_id
+     JOIN transactions o ON o.id = p.other_id
+     JOIN accounts a ON a.id = o.account_id
+     ${where}
+     ORDER BY date, o.id`,
+    bind,
+  );
+  for (const r of rows) {
+    const id = num(r, 'tx_id');
+    const list = byTransaction.get(id) ?? [];
+    list.push({
+      kind: str(r, 'kind') as TransactionLinkKind,
+      transactionId: num(r, 'id'),
+      date: str(r, 'date'),
+      description: str(r, 'description'),
+      accountName: str(r, 'account_name'),
+      amountCents: num(r, 'amount_cents'),
+    });
+    byTransaction.set(id, list);
+  }
+  return byTransaction;
 }
 
 /** Los ingresos que devuelven los gastos que cumplen `where` (ADR-0021), agrupados por gasto. */

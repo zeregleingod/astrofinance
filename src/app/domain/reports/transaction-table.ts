@@ -1,6 +1,6 @@
 import { formatIsoDate } from '../dates/period';
 import { formatCents } from '../money/format-cents';
-import type { TransactionRow } from './transaction-row';
+import type { TransactionLinkKind, TransactionRow } from './transaction-row';
 
 /** Columnas por las que se puede ordenar la tabla de movimientos. */
 export type TransactionSortKey =
@@ -31,6 +31,28 @@ export function transactionTags(row: TransactionRow, labels: TableLabels): strin
     ...(row.installment ? [`${labels.installment} ${row.installment}`] : []),
     ...(row.splits.length > 0 ? [labels.split] : []),
   ];
+}
+
+/** Cómo se presenta cada tipo de vínculo (vienen de la capa de textos). */
+export type LinkLabels = Readonly<Record<TransactionLinkKind, string>>;
+
+/**
+ * Un texto por movimiento vinculado (ADR-0022): «Devuelto por: BIZUM ANA, 11/09/2026, 30,00 €»;
+ * en un traspaso, con la cuenta de la otra pata delante.
+ */
+export function linkDescriptions(row: TransactionRow, labels: LinkLabels): string[] {
+  return row.links.map((link) =>
+    [
+      `${labels[link.kind]}: ${link.kind === 'transfer' ? `${link.accountName}, ` : ''}${link.description}`,
+      formatIsoDate(link.date),
+      formatCents(Math.abs(link.amountCents)),
+    ].join(', '),
+  );
+}
+
+/** El movimiento y los vinculados con él, sin repetir: los que enseña la vista de vínculos. */
+export function linkedIds(row: TransactionRow): ReadonlySet<number> {
+  return new Set([row.id, ...row.links.map((link) => link.transactionId)]);
 }
 
 /** Minúsculas, sin tildes y con los espacios (también los duros) colapsados. */

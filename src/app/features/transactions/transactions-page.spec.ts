@@ -633,6 +633,47 @@ describe('TransactionsPage', () => {
     });
   });
 
+  describe('vista compacta o detallada', () => {
+    const viewButton = (element: HTMLElement, name: string) => {
+      const found = [...element.querySelectorAll<HTMLButtonElement>('.view-toggle button')].find(
+        (b) => text(b) === name,
+      );
+      if (!found) throw new Error(`Sin botón ${name}`);
+      return found;
+    };
+
+    it('empieza en la compacta, con la tabla', async () => {
+      const { element } = await setup(true);
+      expect(viewButton(element, 'Compacta').getAttribute('aria-checked')).toBe('true');
+      expect(viewButton(element, 'Detallada').getAttribute('aria-checked')).toBe('false');
+      expect(element.querySelector('table')).not.toBeNull();
+      expect(element.querySelector('app-transaction-cards')).toBeNull();
+    });
+
+    it('en la detallada, una ficha por movimiento con el orden en un desplegable', async () => {
+      const { element, fixture, rows } = await setup(true);
+      const total = rows().length;
+
+      viewButton(element, 'Detallada').click();
+      await fixture.whenStable();
+      expect(viewButton(element, 'Detallada').getAttribute('aria-checked')).toBe('true');
+      expect(element.querySelector('table')).toBeNull();
+      expect(element.querySelector('app-transaction-cards.detailed')).not.toBeNull();
+      expect(element.querySelectorAll('app-transaction-cards li.card')).toHaveLength(total);
+      expect(element.querySelector('.sort-bar select')).not.toBeNull();
+
+      viewButton(element, 'Compacta').click();
+      await fixture.whenStable();
+      expect(element.querySelector('table')).not.toBeNull();
+    });
+
+    it('sin sitio para la tabla no se ofrece: siempre fichas', async () => {
+      const { element } = await setup(true, true);
+      expect(element.querySelector('.view-toggle')).toBeNull();
+      expect(element.querySelector('app-transaction-cards.detailed')).toBeNull();
+    });
+  });
+
   describe('en móvil', () => {
     const cards = (element: HTMLElement) => [
       ...element.querySelectorAll('app-transaction-cards li.card'),
@@ -902,9 +943,24 @@ describe('TransactionsPage', () => {
       expect(bazaar?.nextElementSibling).toBe(splitRows()[0]);
     });
 
-    it('cualquier movimiento se puede dividir: también un Bizum vinculado y las dos patas de un traspaso', async () => {
+    it('un movimiento vinculado sin submovimientos no se puede dividir', async () => {
       const { rows } = await setup(true);
-      expect(rows().every((r) => r.querySelector('button.split'))).toBe(true);
+      const button = (r: Element) => r.querySelector<HTMLButtonElement>('button.split');
+      expect(rows().every((r) => button(r))).toBe(true);
+      const linked = rows().filter((r) => r.querySelector('button.linked'));
+      expect(linked.length).toBeGreaterThan(0);
+      for (const row of linked) {
+        if (row.nextElementSibling?.matches('.split-row')) continue;
+        expect(button(row)?.getAttribute('aria-disabled')).toBe('true');
+        expect(button(row)?.getAttribute('aria-label')).toMatch(
+          /^No se puede dividir un movimiento vinculado: /,
+        );
+      }
+      expect(
+        rows().some(
+          (r) => !r.querySelector('button.linked') && !button(r)?.hasAttribute('aria-disabled'),
+        ),
+      ).toBe(true);
     });
 
     it('divide un movimiento en varios submovimientos y lo que sobra se queda en él', async () => {

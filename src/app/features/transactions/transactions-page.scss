@@ -139,7 +139,7 @@ thead th {
 // Dividir y editar, al final de cada fila.
 // Caben los tres botones: devoluciones, dividir y editar.
 .col-actions {
-  width: 100px;
+  width: 112px;
 }
 
 td.actions {
@@ -172,17 +172,18 @@ td.actions {
 }
 
 .split-icon {
-  width: 16px;
-  height: 16px;
-  font-size: 16px;
-  vertical-align: -3px;
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+  vertical-align: -4px;
 }
 
+// 32 px: caben en la fila de 34 px sin hacerla más alta.
 .edit,
 .split,
 .refund {
-  --mat-icon-button-state-layer-size: 28px;
-  --mat-icon-button-icon-size: 18px;
+  --mat-icon-button-state-layer-size: 32px;
+  --mat-icon-button-icon-size: 22px;
 
   padding: 5px;
   margin-inline: -1px;
@@ -312,21 +313,21 @@ tbody tr:last-child td {
   font-weight: 500;
 }
 
-// Delante del concepto de un movimiento vinculado (ADR-0022): 24 px, el mínimo para pulsar, sin
-// hacer más alta la fila.
+// Delante del concepto de un movimiento vinculado (ADR-0022): 28 px, más que el mínimo para
+// pulsar, sin hacer más alta la fila.
 button.linked {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 24px;
-  height: 24px;
-  margin: -2px 4px -2px -4px;
+  width: 28px;
+  height: 28px;
+  margin: -4px 2px -4px -6px;
   padding: 0;
   border: none;
   border-radius: 999px;
   background: transparent;
   color: var(--mat-sys-primary);
-  // Arriba y con −2 px por cada lado ocupa justo la línea: centrado por la línea base la estira.
+  // Arriba y con −4 px por cada lado ocupa justo la línea: centrado por la línea base la estira.
   vertical-align: top;
   cursor: pointer;
 
@@ -340,9 +341,9 @@ button.linked {
   }
 
   mat-icon {
-    width: 18px;
-    height: 18px;
-    font-size: 18px;
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
   }
 }
 
@@ -381,11 +382,11 @@ button.linked {
 }
 
 .changed-icon {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   margin-left: 4px;
-  font-size: 16px;
-  vertical-align: -3px;
+  font-size: 18px;
+  vertical-align: -4px;
 }
 
 .visually-hidden {

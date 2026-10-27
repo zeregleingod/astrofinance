@@ -36,8 +36,12 @@ test('la demo carga datos ficticios en memoria y se puede recorrer', async ({ pa
   await expect(movements.count(page)).toHaveText(/Movimientos \(\d+\)/);
   const curtains = movements.byDescription(page, /Bizum recibido - Alex - Cortinas/);
   if (isMobile) {
-    await expect(curtains.locator('.date')).toHaveText('28/09/2026 (fecha modificada)');
-    await expect(curtains).toContainText('Fecha original: 03/10/2026');
+    // En la ficha, la fecha va en un bloque y la original en el panel de detalles.
+    await expect(curtains.locator('.date .visually-hidden')).toHaveText(
+      '28/09/2026 (fecha modificada)',
+    );
+    await expect(curtains.locator('.original-date dt')).toHaveText('Fecha original');
+    await expect(curtains.locator('.original-date dd')).toHaveText('03/10/2026');
   } else {
     // La fecha original va en la propia celda de la fecha cuando difiere.
     await expect(curtains.getByRole('cell').nth(0)).toHaveText(

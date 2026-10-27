@@ -91,10 +91,26 @@ export const TEXTS = {
       /** El botón de la fila; le sigue el concepto del movimiento. */
       show: 'Ver vinculados con',
       label: 'Vinculados con',
+      /** La lista de vínculos de una ficha, para lectores de pantalla. */
+      list: 'Movimientos vinculados',
       remove: 'Quitar',
       removeLabel: 'Quitar el filtro de vinculados',
       shown: 'Movimiento y vinculados:',
       removed: 'Filtro de vinculados quitado. Movimientos:',
+    },
+    /** Las fichas de movimiento: títulos de sus apartados y textos de sus botones. */
+    cards: {
+      link: 'Vínculo',
+      splits: 'Submovimientos',
+      refunds: 'Devoluciones',
+      split: 'Dividir',
+      edit: 'Editar',
+    },
+    /** Tabla compacta o una ficha por movimiento, con todo a la vista. */
+    view: {
+      label: 'Vista de los movimientos',
+      compact: 'Compacta',
+      detailed: 'Detallada',
     },
     sortBy: 'Ordenar por',
     direction: { asc: 'Orden ascendente', desc: 'Orden descendente' },
@@ -150,6 +166,8 @@ export const TEXTS = {
       open: 'Dividir en submovimientos',
       /** El botón de un movimiento que ya tiene submovimientos. */
       manage: 'Editar submovimientos',
+      /** El botón, desactivado, de un movimiento vinculado con otro. */
+      linked: 'No se puede dividir un movimiento vinculado',
       title: 'Dividir en submovimientos',
       movement: 'Movimiento que se divide',
       expense: 'Gasto',

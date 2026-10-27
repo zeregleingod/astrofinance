@@ -88,23 +88,16 @@ test('no deja guardar si los submovimientos suman más que el movimiento', async
   await expect(movements.splits(page).filter({ hasText: 'DEMASIADO' })).toHaveCount(0);
 });
 
-test('la salida de un traspaso también se divide', async ({ page }) => {
+test('un movimiento vinculado no se divide: el botón dice por qué', async ({ page }) => {
   await openTransactions(page);
   const transfer = movements
     .item(page, 'Traspaso a Hucha viajes')
     .filter({ hasText: 'Cuenta principal' })
     .first();
-  await transfer.getByRole('button', { name: /^Dividir en submovimientos: / }).click();
-  const dialog = page.getByRole('dialog', { name: 'Dividir en submovimientos' });
-
-  await dialog.getByRole('button', { name: 'Añadir submovimiento' }).click();
-  const item = dialog.getByRole('group', { name: 'Submovimiento 1' });
-  await item.getByRole('textbox', { name: 'Concepto' }).fill('Para el viaje de verano');
-  await item.getByRole('textbox', { name: 'Importe' }).fill('40');
-  await dialog.getByRole('button', { name: 'Guardar' }).click();
-
-  await expect(dialog).toHaveCount(0);
-  await expect(movements.splits(page).filter({ hasText: 'PARA EL VIAJE DE VERANO' })).toHaveCount(
-    1,
-  );
+  const split = transfer.getByRole('button', {
+    name: /^No se puede dividir un movimiento vinculado: /,
+  });
+  await expect(split).toHaveAttribute('aria-disabled', 'true');
+  await split.click({ force: true });
+  await expect(page.getByRole('dialog', { name: 'Dividir en submovimientos' })).toHaveCount(0);
 });

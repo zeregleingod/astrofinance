@@ -40,6 +40,15 @@ reglas cuentan con que cada fila de `transactions` es una línea del extracto.
   - lo dividido más lo que el movimiento devuelve con lo no dividido (ADR-0021) no pasa de su
     importe, y el diálogo solo reparte lo que queda libre;
   - los submovimientos de la entrada de un traspaso no cuentan en los informes, como ella.
+
+  **Enmienda (2026-10-27):** en la práctica, dividir un movimiento ya vinculado (un traspaso o
+  una devolución, ADR-0022) acababa en un diálogo que no dejaba guardar. Ahora «Dividir» se
+  desactiva en los movimientos vinculados que no tienen submovimientos, con el motivo en su
+  título y en su nombre accesible («No se puede dividir un movimiento vinculado»). Sigue
+  enfocable (`disabledInteractive`) para que se pueda leer. Si ya tenía submovimientos, se pueden
+  seguir editando. Para repartir un ingreso entre varios gastos, primero se divide y luego se
+  vincula cada parte.
+
 - **Un submovimiento de un ingreso puede ser una devolución** (ADR-0021): el Bizum de suministros
   dividido en luz, agua y gas devuelve cada factura con su parte. Cuenta neto de lo que devuelve, y
   en la lista lleva la etiqueta «Devuelve» con los gastos que devuelve.

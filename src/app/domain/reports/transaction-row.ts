@@ -94,3 +94,11 @@ export interface TransactionRow {
   /** Los movimientos vinculados con este, por fecha; vacío si no tiene. */
   readonly links: readonly TransactionLink[];
 }
+
+/**
+ * Un movimiento vinculado con otro (devolución o traspaso) no se divide: lo vinculado cuenta
+ * entero. Si ya tenía submovimientos, se pueden seguir editando.
+ */
+export function canSplit(row: Pick<TransactionRow, 'links' | 'splits'>): boolean {
+  return row.links.length === 0 || row.splits.length > 0;
+}

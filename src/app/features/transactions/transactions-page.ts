@@ -16,6 +16,7 @@ import {
 } from '@angular/core';
 import { NgTemplateOutlet } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
+import { MatButtonToggleModule } from '@angular/material/button-toggle';
 import { MatDialog } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatIconModule } from '@angular/material/icon';
@@ -36,7 +37,7 @@ import {
   transactionFilterOptions,
   type TransactionFilter,
 } from '@domain/reports/transaction-filter';
-import type { TransactionRow } from '@domain/reports/transaction-row';
+import { canSplit, type TransactionRow } from '@domain/reports/transaction-row';
 import {
   filterTransactions,
   linkDescriptions,
@@ -58,6 +59,9 @@ import { TransactionEditDialog, type TransactionEditData } from './transaction-e
 import { TransactionFilters } from './transaction-filters';
 import { TransactionRefundDialog, type TransactionRefundData } from './transaction-refund-dialog';
 import { TransactionSplitDialog, type TransactionSplitData } from './transaction-split-dialog';
+
+/** Tabla de una línea por movimiento o una ficha por movimiento con todo a la vista. */
+type Density = 'compact' | 'detailed';
 
 interface Column {
   readonly key: TransactionSortKey;
@@ -107,6 +111,7 @@ const LINK_LABELS: LinkLabels = {
     EmptyState,
     IsoDatePipe,
     MatButtonModule,
+    MatButtonToggleModule,
     MatFormFieldModule,
     MatIconModule,
     MatInputModule,
@@ -120,6 +125,7 @@ const LINK_LABELS: LinkLabels = {
 })
 export class TransactionsPage {
   protected readonly texts = TEXTS;
+  protected readonly canSplit = canSplit;
   protected readonly db = inject(DbService);
   private readonly announcer = inject(LiveAnnouncer);
   private readonly injector = inject(Injector);
@@ -129,6 +135,15 @@ export class TransactionsPage {
   protected readonly viewport = inject(Viewport);
   protected readonly compact = this.viewport.compact;
   protected readonly filtersOpen = signal(false);
+
+  /**
+   * Con sitio para la tabla, el usuario elige entre ella y las fichas; siempre se empieza por la
+   * compacta. Sin sitio, siempre fichas.
+   */
+  protected readonly density = signal<Density>('compact');
+  protected readonly showTable = computed(
+    () => this.viewport.wide() && this.density() === 'compact',
+  );
   private readonly filtersToggle = viewChild('filtersToggle', { read: ElementRef });
   private readonly toolbar = viewChild('toolbar', { read: ElementRef });
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;

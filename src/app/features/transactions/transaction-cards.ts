@@ -2,7 +2,7 @@ import { Component, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { TEXTS } from '@core/i18n/texts';
-import type { TransactionRow } from '@domain/reports/transaction-row';
+import { canSplit, type TransactionRow } from '@domain/reports/transaction-row';
 import { CentsPipe } from '@shared/format/cents-pipe';
 import { IsoDatePipe } from '@shared/format/iso-date-pipe';
 
@@ -12,55 +12,186 @@ export type TransactionCard = TransactionRow & {
   readonly linkTexts: readonly string[];
 };
 
+/** La fecha del bloque de la ficha: «14», «oct», «2026». */
+interface DateParts {
+  readonly day: string;
+  readonly month: string;
+  readonly year: string;
+}
+
 /**
- * Los movimientos en pantallas estrechas: una tarjeta por movimiento, con el concepto y el
- * importe arriba y debajo la fecha, la categoría y lo demás. Nada se recorta: los textos largos
- * saltan de línea.
+ * Los movimientos en pantallas estrechas y en la vista detallada: una ficha por movimiento. Arriba,
+ * la fecha en un bloque, el concepto con su categoría y cuenta, y el importe; debajo, las
+ * etiquetas, un panel con el concepto del banco, la nota, la fecha original y los vínculos, los
+ * submovimientos y las devoluciones en sus apartados y, al pie, las acciones con su nombre. Nada se
+ * recorta: los textos largos saltan de línea.
  */
 @Component({
   selector: 'app-transaction-cards',
   imports: [CentsPipe, IsoDatePipe, MatButtonModule, MatIconModule],
+  host: { '[class.detailed]': 'detailed()' },
   template: `
     <section aria-labelledby="cards-title">
       <h3 id="cards-title" class="title">{{ texts.transactions.caption }} ({{ count() }})</h3>
-      <ul>
+      <ul class="list">
         @for (row of rows(); track row.id) {
+          @let date = dateParts(row.bookedDate);
           <li class="card">
             <div class="main">
-              @if (row.links.length > 0) {
-                <button
-                  mat-icon-button
-                  type="button"
-                  class="linked"
-                  [attr.data-id]="row.id"
-                  [attr.aria-label]="
-                    texts.transactions.links.show +
-                    ' ' +
-                    row.description +
-                    ': ' +
-                    row.linkTexts.join('; ')
-                  "
-                  [title]="
-                    row.linkTexts.join(
-                      '
-'
-                    )
-                  "
-                  (click)="linked.emit(row)"
-                >
-                  <mat-icon fontIcon="link" aria-hidden="true" />
-                </button>
-              }
-              <span class="description">{{ row.description }}</span>
+              <!-- La fecha completa, para lectores de pantalla; a la vista, en un bloque. -->
+              <div class="date" [class.date-changed]="row.dateChanged">
+                <span class="visually-hidden"
+                  >{{ row.bookedDate | isoDate }}
+                  @if (row.dateChanged) {
+                    {{ texts.transactions.dateChanged }}
+                  }
+                </span>
+                <span class="day" aria-hidden="true">{{ date.day }}</span>
+                <span class="month" aria-hidden="true">{{ date.month }}</span>
+                <span class="year" aria-hidden="true">{{ date.year }}</span>
+              </div>
+              <div class="title-block">
+                <p class="description">
+                  @if (row.links.length > 0) {
+                    <button
+                      type="button"
+                      class="linked"
+                      [attr.data-id]="row.id"
+                      [attr.aria-label]="
+                        texts.transactions.links.show +
+                        ' ' +
+                        row.description +
+                        ': ' +
+                        row.linkTexts.join('; ')
+                      "
+                      [title]="row.linkTexts.join('\\n')"
+                      (click)="linked.emit(row)"
+                    >
+                      <mat-icon fontIcon="link" aria-hidden="true" />
+                    </button>
+                  }
+                  {{ row.description }}
+                </p>
+                <p class="sub">
+                  {{ row.categoryName ?? texts.dashboard.uncategorized }}
+                  @if (row.subcategoryName) {
+                    › {{ row.subcategoryName }}
+                  }
+                  · {{ row.accountName }}
+                </p>
+              </div>
               <span
                 class="amount"
                 [class.positive]="row.amountCents > 0"
                 [class.negative]="row.amountCents < 0"
                 >{{ row.amountCents | cents }}</span
               >
+            </div>
+
+            @if (row.tags.length > 0) {
+              <div class="chips">
+                @for (tag of row.tags; track tag) {
+                  <span class="badge">{{ tag }}</span>
+                }
+              </div>
+            }
+
+            <!-- El concepto del banco, solo si el usuario lo ha cambiado. -->
+            @let bank =
+              row.originalDescription !== row.description ? row.originalDescription : null;
+            @if (bank || row.note || row.dateChanged || hasOtherLinks(row)) {
+              <dl class="panel">
+                @if (bank) {
+                  <div class="kv bank">
+                    <mat-icon fontIcon="account_balance" aria-hidden="true" />
+                    <dt>{{ texts.transactions.edit.bankDescription }}</dt>
+                    <dd class="mono">{{ bank }}</dd>
+                  </div>
+                }
+                @if (row.note) {
+                  <div class="kv notes">
+                    <mat-icon fontIcon="sticky_note_2" aria-hidden="true" />
+                    <dt>{{ texts.transactions.notes }}</dt>
+                    <dd>{{ row.note }}</dd>
+                  </div>
+                }
+                @if (row.dateChanged) {
+                  <div class="kv original-date">
+                    <mat-icon fontIcon="edit_calendar" aria-hidden="true" />
+                    <dt>{{ texts.transactions.originalDate }}</dt>
+                    <dd>{{ row.opDate | isoDate }}</dd>
+                  </div>
+                }
+                <!-- Las devoluciones ya van en su apartado, debajo: aquí, el resto de vínculos. -->
+                @for (link of row.links; track link.transactionId; let index = $index) {
+                  @if (link.kind !== 'refundedBy') {
+                    <div class="kv link">
+                      <mat-icon fontIcon="link" aria-hidden="true" />
+                      <dt>{{ texts.transactions.cards.link }}</dt>
+                      <dd>{{ row.linkTexts[index] }}</dd>
+                    </div>
+                  }
+                }
+              </dl>
+            }
+
+            @if (row.splits.length > 0) {
+              <div class="section">
+                <h4 class="label">{{ texts.transactions.cards.splits }}</h4>
+                <ul class="splits">
+                  @for (part of row.splits; track part.id) {
+                    <!-- Los espacios separan los datos también para los lectores de pantalla. -->
+                    <li>
+                      <span class="visually-hidden">{{ texts.transactions.splits.partOf }}</span
+                      >{{ ' ' }}<span class="split-description">{{ part.description }}</span
+                      >{{ ' '
+                      }}<span
+                        class="amount"
+                        [class.positive]="part.amountCents > 0"
+                        [class.negative]="part.amountCents < 0"
+                        >{{ part.amountCents | cents }}</span
+                      >{{ ' ' }}
+                      <span class="split-place">
+                        {{ part.categoryName ?? texts.dashboard.uncategorized }}
+                        @if (part.subcategoryName) {
+                          › {{ part.subcategoryName }}
+                        }
+                        @if (part.shared) {
+                          <span class="badge">{{ texts.transactions.shared }}</span>
+                        }
+                        @if (part.refundsTo.length > 0) {
+                          <span class="badge">{{ texts.transactions.splits.refunds }}</span>
+                          {{ part.refundsTo.join(', ') }}
+                        }
+                      </span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+
+            @if (row.refunds.length > 0) {
+              <div class="section">
+                <h4 class="label">{{ texts.transactions.cards.refunds }}</h4>
+                <ul class="splits refunds">
+                  @for (item of row.refunds; track item.transactionId) {
+                    <li>
+                      <span class="visually-hidden">{{ texts.transactions.refunds.partOf }}</span
+                      >{{ ' ' }}<span class="split-description">{{ item.description }}</span
+                      >{{ ' ' }}<span class="amount positive">{{ item.amountCents | cents }}</span
+                      >{{ ' ' }}
+                      <span class="split-place">{{ item.date | isoDate }}</span>
+                    </li>
+                  }
+                </ul>
+              </div>
+            }
+
+            <!-- Las acciones, con su nombre a la vista; el aria-label dice además de qué movimiento. -->
+            <div class="foot">
               @if (row.refundable) {
                 <button
-                  mat-icon-button
+                  mat-button
                   type="button"
                   class="refund"
                   [attr.aria-label]="
@@ -72,40 +203,41 @@ export type TransactionCard = TransactionRow & {
                     ', ' +
                     (row.bookedDate | isoDate)
                   "
-                  [title]="
-                    row.refunds.length > 0
-                      ? texts.transactions.refunds.manage
-                      : texts.transactions.refunds.open
-                  "
                   (click)="refund.emit(row)"
                 >
                   <mat-icon fontIcon="undo" aria-hidden="true" />
+                  {{ texts.transactions.cards.refunds }}
                 </button>
               }
               <button
-                mat-icon-button
+                mat-button
                 type="button"
                 class="split"
+                disabledInteractive
+                [disabled]="!canSplit(row)"
                 [attr.aria-label]="
-                  (row.splits.length > 0
-                    ? texts.transactions.splits.manage
-                    : texts.transactions.splits.open) +
+                  (!canSplit(row)
+                    ? texts.transactions.splits.linked
+                    : row.splits.length > 0
+                      ? texts.transactions.splits.manage
+                      : texts.transactions.splits.open) +
                   ': ' +
                   row.description +
                   ', ' +
                   (row.bookedDate | isoDate)
                 "
-                [title]="
-                  row.splits.length > 0
-                    ? texts.transactions.splits.manage
-                    : texts.transactions.splits.open
-                "
-                (click)="split.emit(row)"
+                [title]="canSplit(row) ? '' : texts.transactions.splits.linked"
+                (click)="canSplit(row) && split.emit(row)"
               >
                 <mat-icon fontIcon="call_split" aria-hidden="true" />
+                {{
+                  row.splits.length > 0
+                    ? texts.transactions.cards.splits
+                    : texts.transactions.cards.split
+                }}
               </button>
               <button
-                mat-icon-button
+                mat-button
                 type="button"
                 class="edit"
                 [attr.aria-label]="
@@ -115,83 +247,12 @@ export type TransactionCard = TransactionRow & {
                   ', ' +
                   (row.bookedDate | isoDate)
                 "
-                [title]="texts.transactions.edit.open"
                 (click)="edit.emit(row)"
               >
                 <mat-icon fontIcon="edit" aria-hidden="true" />
+                {{ texts.transactions.cards.edit }}
               </button>
             </div>
-            <div class="meta">
-              <span class="date" [class.date-changed]="row.dateChanged">
-                {{ row.bookedDate | isoDate }}
-                @if (row.dateChanged) {
-                  <mat-icon class="changed-icon" fontIcon="edit_calendar" aria-hidden="true" />
-                  <span class="visually-hidden">{{ texts.transactions.dateChanged }}</span>
-                }
-              </span>
-              <span>
-                {{ row.categoryName ?? texts.dashboard.uncategorized }}
-                @if (row.subcategoryName) {
-                  › {{ row.subcategoryName }}
-                }
-              </span>
-            </div>
-            <div class="meta">
-              @if (row.dateChanged) {
-                <span>{{ texts.transactions.originalDate }}: {{ row.opDate | isoDate }}</span>
-              }
-              @for (tag of row.tags; track tag) {
-                <span class="badge">{{ tag }}</span>
-              }
-              <span>{{ row.accountName }}</span>
-            </div>
-            @if (row.note) {
-              <p class="notes">{{ row.note }}</p>
-            }
-            @if (row.splits.length > 0) {
-              <ul class="splits">
-                @for (part of row.splits; track part.id) {
-                  <!-- Los espacios separan los datos también para los lectores de pantalla. -->
-                  <li>
-                    <span class="visually-hidden">{{ texts.transactions.splits.partOf }}</span
-                    >{{ ' ' }}<span class="split-description">{{ part.description }}</span
-                    >{{ ' '
-                    }}<span
-                      class="amount"
-                      [class.positive]="part.amountCents > 0"
-                      [class.negative]="part.amountCents < 0"
-                      >{{ part.amountCents | cents }}</span
-                    >{{ ' ' }}
-                    <span class="split-place">
-                      {{ part.categoryName ?? texts.dashboard.uncategorized }}
-                      @if (part.subcategoryName) {
-                        › {{ part.subcategoryName }}
-                      }
-                      @if (part.shared) {
-                        <span class="badge">{{ texts.transactions.shared }}</span>
-                      }
-                      @if (part.refundsTo.length > 0) {
-                        <span class="badge">{{ texts.transactions.splits.refunds }}</span>
-                        {{ part.refundsTo.join(', ') }}
-                      }
-                    </span>
-                  </li>
-                }
-              </ul>
-            }
-            @if (row.refunds.length > 0) {
-              <ul class="splits refunds">
-                @for (item of row.refunds; track item.transactionId) {
-                  <li>
-                    <span class="visually-hidden">{{ texts.transactions.refunds.partOf }}</span
-                    >{{ ' ' }}<span class="split-description">{{ item.description }}</span
-                    >{{ ' ' }}<span class="amount positive">{{ item.amountCents | cents }}</span
-                    >{{ ' ' }}
-                    <span class="split-place">{{ item.date | isoDate }}</span>
-                  </li>
-                }
-              </ul>
-            }
           </li>
         } @empty {
           <li class="card empty">{{ texts.transactions.noResults }}</li>
@@ -207,6 +268,10 @@ export type TransactionCard = TransactionRow & {
   styles: `
     :host {
       display: block;
+
+      // Lo que va bajo la cabecera se alinea con el concepto, no con el bloque de la fecha.
+      --date-size: 52px;
+      --indent: calc(var(--date-size) + 14px);
     }
 
     .title {
@@ -215,44 +280,104 @@ export type TransactionCard = TransactionRow & {
     }
 
     ul {
-      display: flex;
-      flex-direction: column;
-      gap: 6px;
       margin: 0;
       padding: 0;
       list-style: none;
     }
 
+    .list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
     .card {
       display: flex;
       flex-direction: column;
-      gap: 2px;
-      padding: 10px 14px;
+      gap: 12px;
+      padding: 16px 16px 6px;
       border-radius: 16px;
       background: var(--mat-sys-surface-container-lowest);
     }
 
+    // --- Cabecera: fecha, concepto e importe ---
+
     .main {
       display: flex;
       align-items: center;
-      justify-content: space-between;
-      gap: 12px;
+      gap: 14px;
+    }
+
+    .date {
+      display: flex;
+      flex: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: var(--date-size);
+      height: var(--date-size);
+      border-radius: 12px;
+      background: color-mix(
+        in srgb,
+        var(--mat-sys-primary) 7%,
+        var(--mat-sys-surface-container-lowest)
+      );
+      font-variant-numeric: tabular-nums;
+      line-height: 1.15;
+    }
+
+    .day {
+      font: var(--mat-sys-title-medium);
+      font-weight: 600;
+      line-height: 1.1;
+    }
+
+    .month,
+    .year {
+      font: var(--mat-sys-label-small);
+      line-height: 1.2;
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .month {
+      text-transform: uppercase;
+    }
+
+    // Fecha imputada distinta de la original: otro color, y la original en el panel (no solo color).
+    .date-changed {
+      background: var(--mat-sys-tertiary-container);
+
+      .day,
+      .month,
+      .year {
+        color: var(--mat-sys-on-tertiary-container);
+      }
+    }
+
+    .title-block {
+      flex: 1;
+      min-width: 0;
     }
 
     .description {
-      flex: 1;
-      min-width: 0;
+      margin: 0;
       font: var(--mat-sys-title-small);
       overflow-wrap: anywhere;
     }
 
-    .amount,
-    .date {
+    .sub {
+      margin: 2px 0 0;
+      font: var(--mat-sys-body-small);
+      color: var(--mat-sys-on-surface-variant);
+      overflow-wrap: anywhere;
+    }
+
+    .amount {
       font-variant-numeric: tabular-nums;
       white-space: nowrap;
     }
 
-    .amount {
+    .main > .amount {
       font: var(--mat-sys-title-small);
       font-weight: 600;
     }
@@ -265,96 +390,175 @@ export type TransactionCard = TransactionRow & {
       color: var(--af-negative);
     }
 
-    // Lo secundario, en una línea que salta si no cabe; los datos se separan con «·».
-    .meta {
+    // Delante del concepto de un movimiento vinculado (ADR-0022).
+    button.linked {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 28px;
+      height: 28px;
+      margin: -4px 2px -4px -4px;
+      padding: 0;
+      border: none;
+      border-radius: 999px;
+      background: transparent;
+      color: var(--mat-sys-primary);
+      vertical-align: middle;
+      cursor: pointer;
+
+      &:hover {
+        background: color-mix(in srgb, var(--mat-sys-primary) 10%, transparent);
+      }
+
+      &:focus-visible {
+        outline: 2px solid var(--mat-sys-primary);
+        outline-offset: 1px;
+      }
+
+      mat-icon {
+        width: 20px;
+        height: 20px;
+        font-size: 20px;
+      }
+    }
+
+    // --- Etiquetas, panel de detalles y apartados, alineados con el concepto ---
+
+    .chips,
+    .panel,
+    .section {
+      margin-inline-start: var(--indent);
+    }
+
+    .chips {
       display: flex;
       flex-wrap: wrap;
-      align-items: center;
-      gap: 4px 6px;
-      font: var(--mat-sys-body-small);
-      color: var(--mat-sys-on-surface-variant);
-
-      &:empty {
-        display: none;
-      }
-
-      > :not(.badge) + :not(.badge)::before {
-        content: '· ';
-      }
-    }
-
-    // Fecha imputada distinta de la original: color, icono y texto oculto (no solo el color).
-    .date-changed {
-      color: var(--mat-sys-tertiary);
-      font-weight: 600;
-    }
-
-    .changed-icon {
-      width: 16px;
-      height: 16px;
-      font-size: 16px;
-      vertical-align: -3px;
+      gap: 6px;
     }
 
     .badge {
-      padding: 1px 8px;
+      padding: 1px 10px;
       border-radius: 999px;
       font: var(--mat-sys-label-small);
       background: var(--mat-sys-secondary-container);
       color: var(--mat-sys-on-secondary-container);
     }
 
-    .notes {
-      margin: 0;
+    .panel {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-block: 0;
+      padding: 10px 14px;
+      border-radius: 12px;
+      background: color-mix(
+        in srgb,
+        var(--mat-sys-primary) 4%,
+        var(--mat-sys-surface-container-lowest)
+      );
+    }
+
+    .kv {
+      display: grid;
+      grid-template-columns: 18px 150px minmax(0, 1fr);
+      align-items: start;
+      gap: 10px;
       font: var(--mat-sys-body-small);
+
+      mat-icon {
+        width: 18px;
+        height: 18px;
+        font-size: 18px;
+        color: var(--mat-sys-on-surface-variant);
+      }
+
+      dt {
+        color: var(--mat-sys-on-surface-variant);
+      }
+
+      dd {
+        margin: 0;
+        overflow-wrap: anywhere;
+      }
+    }
+
+    .notes dd {
       font-style: italic;
+    }
+
+    .original-date dd {
+      color: var(--mat-sys-tertiary);
+      font-weight: 600;
+    }
+
+    .link mat-icon {
+      color: var(--mat-sys-primary);
+    }
+
+    .mono {
+      font-family: ui-monospace, Consolas, monospace;
+      letter-spacing: 0.01em;
+    }
+
+    .label {
+      margin: 0 0 4px;
+      font: var(--mat-sys-label-small);
+      font-weight: 600;
+      letter-spacing: 0.06em;
+      text-transform: uppercase;
       color: var(--mat-sys-on-surface-variant);
+    }
+
+    // Cada submovimiento o devolución: concepto e importe en una línea, el resto debajo.
+    .splits li {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 0 12px;
+      padding: 8px 0;
+      border-top: 1px solid var(--mat-sys-outline-variant);
+      font: var(--mat-sys-body-small);
+
+      &:first-child {
+        border-top: none;
+        padding-top: 2px;
+      }
+    }
+
+    .splits .amount {
+      grid-row: 1 / 3;
+      grid-column: 2;
+      align-self: center;
+      font: var(--mat-sys-body-medium);
+      font-weight: 600;
+    }
+
+    .split-description {
       overflow-wrap: anywhere;
     }
 
-    // Los submovimientos, sangrados bajo una línea, con su concepto e importe.
-    .splits {
-      gap: 4px;
-      margin-top: 4px;
-      padding: 8px 0 0 12px;
-      border-top: 1px solid var(--mat-sys-outline-variant);
-
-      li {
-        display: grid;
-        grid-template-columns: minmax(0, 1fr) auto;
-        gap: 0 8px;
-        font: var(--mat-sys-body-small);
-      }
-
-      .amount {
-        font: var(--mat-sys-body-small);
-        font-weight: 600;
-      }
-
-      .split-description {
-        overflow-wrap: anywhere;
-      }
-
-      .split-place {
-        grid-column: 1 / -1;
-        color: var(--mat-sys-on-surface-variant);
-      }
-    }
-
-    .empty {
-      text-align: center;
+    .split-place {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 4px 6px;
       color: var(--mat-sys-on-surface-variant);
     }
 
-    .edit,
-    .split,
-    .refund {
-      --mat-icon-button-state-layer-size: 32px;
-      --mat-icon-button-icon-size: 18px;
+    // --- Acciones al pie ---
 
-      flex: none;
-      margin: -4px -8px -4px -4px;
-      padding: 7px;
+    .foot {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+      gap: 2px;
+      padding-top: 4px;
+      border-top: 1px solid var(--mat-sys-outline-variant);
+    }
+
+    .empty {
+      padding-bottom: 16px;
+      text-align: center;
+      color: var(--mat-sys-on-surface-variant);
     }
 
     .more {
@@ -370,11 +574,60 @@ export type TransactionCard = TransactionRow & {
       clip-path: inset(50%);
       white-space: nowrap;
     }
+
+    // En móvil, el panel y los apartados ocupan todo el ancho: no sobra sitio para sangrarlos.
+    @media (width < 600px) {
+      .panel,
+      .section {
+        margin-inline-start: 0;
+      }
+
+      .kv {
+        grid-template-columns: 18px minmax(0, 1fr);
+
+        dd {
+          grid-column: 2;
+        }
+      }
+    }
+
+    // Vista detallada en escritorio: más aire y letra más grande, para leer con calma.
+    :host(.detailed) {
+      --date-size: 56px;
+
+      .card {
+        padding: 18px 20px 8px;
+      }
+
+      .description,
+      .main > .amount {
+        font: var(--mat-sys-title-medium);
+      }
+
+      .main > .amount {
+        font-weight: 600;
+      }
+
+      .sub,
+      .kv,
+      .splits li {
+        font: var(--mat-sys-body-medium);
+      }
+
+      .day {
+        font: var(--mat-sys-title-large);
+        font-weight: 600;
+        line-height: 1.1;
+      }
+    }
   `,
 })
 export class TransactionCards {
   protected readonly texts = TEXTS;
+  protected readonly canSplit = canSplit;
 
+  /** Vista detallada en escritorio: las mismas fichas, con más aire. */
+  readonly detailed = input(false);
   readonly rows = input.required<readonly TransactionCard[]>();
   /** «40» o, con filtros o búsqueda, «12 de 40». */
   readonly count = input.required<string>();
@@ -389,4 +642,15 @@ export class TransactionCards {
   readonly refund = output<TransactionCard>();
   /** Se piden solo el movimiento y los vinculados con él. */
   readonly linked = output<TransactionCard>();
+
+  /** `AAAA-MM-DD` → día, mes abreviado y año, para el bloque de la fecha. */
+  protected dateParts(iso: string): DateParts {
+    const [year = '', month = '', day = ''] = iso.split('-');
+    const name = TEXTS.period.months[Number(month) - 1] ?? '';
+    return { day, month: name.slice(0, 3), year };
+  }
+
+  protected hasOtherLinks(row: TransactionCard): boolean {
+    return row.links.some((link) => link.kind !== 'refundedBy');
+  }
 }

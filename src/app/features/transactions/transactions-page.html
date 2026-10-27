@@ -1,5 +1,24 @@
 <header class="page-header">
   <h2>{{ texts.transactions.title }}</h2>
+  <!-- Solo si cabe la tabla: sin sitio para ella, siempre fichas. -->
+  @if (viewport.wide() && loaded() && total() > 0) {
+    <mat-button-toggle-group
+      class="view-toggle"
+      hideSingleSelectionIndicator
+      [attr.aria-label]="texts.transactions.view.label"
+      [value]="density()"
+      (change)="density.set($event.value)"
+    >
+      <mat-button-toggle value="compact">
+        <mat-icon fontIcon="table_rows" aria-hidden="true" />
+        {{ texts.transactions.view.compact }}
+      </mat-button-toggle>
+      <mat-button-toggle value="detailed">
+        <mat-icon fontIcon="view_agenda" aria-hidden="true" />
+        {{ texts.transactions.view.detailed }}
+      </mat-button-toggle>
+    </mat-button-toggle-group>
+  }
 </header>
 
 @if (db.ready() && !(loaded() && total() === 0)) {
@@ -94,10 +113,11 @@
       </div>
     </div>
 
-    @if (!viewport.wide()) {
+    @if (!showTable()) {
       <!--
-        Si la tabla no cabe, una tarjeta por movimiento y el orden en un desplegable: la página
-        se desplaza en vertical y la tabla no puede desplazarse en horizontal.
+        Si la tabla no cabe, o en la vista detallada, una ficha por movimiento y el orden en un
+        desplegable: la página se desplaza en vertical y la tabla no puede desplazarse en
+        horizontal.
       -->
       <div class="sort-bar">
         <mat-form-field appearance="outline" subscriptSizing="dynamic">
@@ -127,6 +147,7 @@
       </div>
 
       <app-transaction-cards
+        [detailed]="viewport.wide()"
         [rows]="rows()"
         [count]="count()"
         [remaining]="remaining()"
@@ -325,21 +346,27 @@
                     mat-icon-button
                     type="button"
                     class="split"
+                    disabledInteractive
+                    [disabled]="!canSplit(row)"
                     [attr.aria-label]="
-                      (row.splits.length > 0
-                        ? texts.transactions.splits.manage
-                        : texts.transactions.splits.open) +
+                      (!canSplit(row)
+                        ? texts.transactions.splits.linked
+                        : row.splits.length > 0
+                          ? texts.transactions.splits.manage
+                          : texts.transactions.splits.open) +
                       ': ' +
                       row.description +
                       ', ' +
                       (row.bookedDate | isoDate)
                     "
                     [title]="
-                      row.splits.length > 0
-                        ? texts.transactions.splits.manage
-                        : texts.transactions.splits.open
+                      !canSplit(row)
+                        ? texts.transactions.splits.linked
+                        : row.splits.length > 0
+                          ? texts.transactions.splits.manage
+                          : texts.transactions.splits.open
                     "
-                    (click)="split(row)"
+                    (click)="canSplit(row) && split(row)"
                   >
                     <mat-icon fontIcon="call_split" aria-hidden="true" />
                   </button>

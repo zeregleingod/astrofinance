@@ -1,4 +1,5 @@
 import { centsToInput, parseCents } from '../money/parse-cents';
+import type { DescriptionSource } from '../rules/concept-rule';
 import type { CategorySuggestion } from '../suggestions/category-suggestion';
 import type { ImportBatchInput, ImportRowInput } from './import-batch';
 import type { ImportedMovement, ImportedStatement } from './imported-statement';
@@ -13,6 +14,8 @@ export interface DraftRow {
   /** El usuario quiere guardarlo. */
   readonly included: boolean;
   readonly description: string;
+  /** El concepto que propusieron las reglas de concepto (ADR-0024); el del banco si ninguna. */
+  readonly proposedDescription: string;
   /** Importe tal como está escrito en la casilla (es-ES). */
   readonly amountText: string;
   readonly categoryId: number | null;
@@ -44,22 +47,26 @@ export interface SuggestedCount {
 }
 
 /**
- * El borrador de la revisión. `suggestions` va en el orden de los movimientos: la categoría
- * propuesta para cada uno viene ya puesta, salvo en los que ya estaban guardados.
+ * El borrador de la revisión. `suggestions` y `descriptions` van en el orden de los
+ * movimientos: la categoría y el concepto propuestos para cada uno vienen ya puestos, salvo en
+ * los que ya estaban guardados.
  */
 export function createDraft(
   statement: Pick<ImportedStatement, 'movements'>,
   existingHashes: ReadonlySet<string>,
   suggestions: readonly (CategorySuggestion | null)[] = [],
+  descriptions: readonly string[] = [],
 ): DraftRow[] {
   return statement.movements.map((movement, i) => {
     const duplicate = existingHashes.has(movement.dedupeHash);
     const suggestion = duplicate ? null : (suggestions[i] ?? null);
+    const proposed = (!duplicate && descriptions[i]) || movement.description;
     return {
       movement,
       duplicate,
       included: !duplicate,
-      description: movement.description,
+      description: proposed,
+      proposedDescription: proposed,
       amountText: centsToInput(movement.amountCents),
       categoryId: suggestion?.categoryId ?? null,
       suggestion,
@@ -153,13 +160,15 @@ export function draftToBatch(
 function toRowInput(row: DraftRow): ImportRowInput {
   const { movement } = row;
   const suggestion = suggestionInUse(row);
+  const description = row.description.trim();
   return {
     opDate: movement.opDate,
     valueDate: movement.valueDate,
     amountCents: draftAmountCents(row) ?? movement.amountCents,
     balanceAfterCents: movement.balanceAfterCents,
-    description: row.description.trim(),
+    description,
     originalDescription: movement.description,
+    descriptionSource: descriptionSource(description, row),
     note: row.note.trim() || null,
     bankReference: movement.reference,
     categoryId: row.categoryId,
@@ -168,4 +177,10 @@ function toRowInput(row: DraftRow): ImportRowInput {
     ruleId: suggestion?.source === 'regla' ? suggestion.ruleId : null,
     dedupeHash: movement.dedupeHash,
   };
+}
+
+/** El concepto del banco, el que propusieron las reglas o, si no es ninguno, uno escrito a mano. */
+function descriptionSource(description: string, row: DraftRow): DescriptionSource {
+  if (description === row.movement.description) return 'banco';
+  return description === row.proposedDescription ? 'regla' : 'manual';
 }

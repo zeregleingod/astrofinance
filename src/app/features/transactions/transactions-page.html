@@ -218,7 +218,8 @@
           <tbody>
             @for (row of rows(); track row.id) {
               <tr>
-                @for (column of columns(); track column.key) {
+                @for (column of columns(); track column.key; let lead = $first) {
+                  @let mark = lead ? band : null;
                   @switch (column.key) {
                     @case ('bookedDate') {
                       <!-- Si se imputó a otra fecha: color, icono y la original en texto y en el título. -->
@@ -231,6 +232,9 @@
                             : ''
                         "
                       >
+                        <ng-container
+                          *ngTemplateOutlet="mark; context: { color: row.categoryColor }"
+                        />
                         {{ row.bookedDate | isoDate }}
                         @if (row.dateChanged) {
                           <mat-icon
@@ -248,6 +252,9 @@
                     @case ('description') {
                       <!-- Si está vinculado, delante un botón que enseña con cuáles (ADR-0022). -->
                       <td class="description" [title]="row.description">
+                        <ng-container
+                          *ngTemplateOutlet="mark; context: { color: row.categoryColor }"
+                        />
                         @if (row.links.length > 0) {
                           <button
                             type="button"
@@ -275,6 +282,9 @@
                         de pantalla las leen todas. El espacio las separa también para ellos.
                       -->
                       <td [title]="row.tags.join(', ')">
+                        <ng-container
+                          *ngTemplateOutlet="mark; context: { color: row.categoryColor }"
+                        />
                         @if (row.tags[0]; as first) {
                           <span class="badge">{{ first }}</span>
                         }
@@ -288,6 +298,9 @@
                     }
                     @case ('category') {
                       <td [title]="place(row)">
+                        <ng-container
+                          *ngTemplateOutlet="mark; context: { color: row.categoryColor }"
+                        />
                         @if (row.categoryName === null) {
                           <span class="muted">{{ texts.dashboard.uncategorized }}</span>
                         } @else {
@@ -301,7 +314,12 @@
                       </td>
                     }
                     @case ('account') {
-                      <td class="account" [title]="row.accountName">{{ row.accountName }}</td>
+                      <td class="account" [title]="row.accountName">
+                        <ng-container
+                          *ngTemplateOutlet="mark; context: { color: row.categoryColor }"
+                        />
+                        {{ row.accountName }}
+                      </td>
                     }
                     @case ('amount') {
                       <td
@@ -309,11 +327,19 @@
                         [class.positive]="row.amountCents > 0"
                         [class.negative]="row.amountCents < 0"
                       >
+                        <ng-container
+                          *ngTemplateOutlet="mark; context: { color: row.categoryColor }"
+                        />
                         {{ row.amountCents | cents }}
                       </td>
                     }
                     @case ('notes') {
-                      <td class="notes" [title]="row.note ?? ''">{{ row.note }}</td>
+                      <td class="notes" [title]="row.note ?? ''">
+                        <ng-container
+                          *ngTemplateOutlet="mark; context: { color: row.categoryColor }"
+                        />
+                        {{ row.note }}
+                      </td>
                     }
                   }
                 }
@@ -391,10 +417,14 @@
               <!-- Sus submovimientos, justo debajo y sangrados (ADR-0019). -->
               @for (part of row.splits; track part.id) {
                 <tr class="split-row">
-                  @for (column of columns(); track column.key) {
+                  @for (column of columns(); track column.key; let lead = $first) {
+                    @let mark = lead ? band : null;
                     @switch (column.key) {
                       @case ('description') {
                         <td [title]="part.description">
+                          <ng-container
+                            *ngTemplateOutlet="mark; context: { color: part.categoryColor }"
+                          />
                           <mat-icon
                             class="split-icon"
                             fontIcon="subdirectory_arrow_right"
@@ -414,6 +444,9 @@
                               : ''
                           "
                         >
+                          <ng-container
+                            *ngTemplateOutlet="mark; context: { color: part.categoryColor }"
+                          />
                           @if (part.refundsTo.length > 0) {
                             <span class="badge">{{ texts.transactions.splits.refunds }}</span>
                             <span class="visually-hidden">{{ part.refundsTo.join(', ') }}</span>
@@ -424,6 +457,9 @@
                       }
                       @case ('category') {
                         <td [title]="place(part)">
+                          <ng-container
+                            *ngTemplateOutlet="mark; context: { color: part.categoryColor }"
+                          />
                           @if (part.categoryName === null) {
                             {{ texts.dashboard.uncategorized }}
                           } @else {
@@ -442,11 +478,18 @@
                           [class.positive]="part.amountCents > 0"
                           [class.negative]="part.amountCents < 0"
                         >
+                          <ng-container
+                            *ngTemplateOutlet="mark; context: { color: part.categoryColor }"
+                          />
                           {{ part.amountCents | cents }}
                         </td>
                       }
                       @default {
-                        <td></td>
+                        <td>
+                          <ng-container
+                            *ngTemplateOutlet="mark; context: { color: part.categoryColor }"
+                          />
+                        </td>
                       }
                     }
                   }
@@ -497,6 +540,17 @@
         }
       </div>
       <p id="reorder-hint" class="visually-hidden">{{ texts.transactions.reorderHint }}</p>
+
+      <!--
+        A la izquierda de la fila, el color de su categoría, como la banda del resumen anual. Va
+        en la primera celda, la que sea: las columnas se reordenan. Color como atributo SVG: sin
+        estilos en línea.
+      -->
+      <ng-template #band let-color="color">
+        <svg class="band" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+          <rect width="1" height="1" [attr.fill]="color" />
+        </svg>
+      </ng-template>
     }
   }
 } @else {

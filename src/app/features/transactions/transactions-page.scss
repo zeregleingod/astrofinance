@@ -82,6 +82,28 @@ app-transaction-filters {
   position: relative;
   border-radius: 16px;
   background: var(--mat-sys-surface-container-lowest);
+  // La banda de la última fila sigue la esquina redondeada. `clip` y no `hidden`: no crea un
+  // contenedor de desplazamiento y la cabecera sigue fija al desplazar la página.
+  overflow: clip;
+}
+
+// El color de la categoría, a la izquierda de cada fila, en su primera celda (ver la plantilla
+// `band`).
+tbody td:first-child {
+  position: relative;
+}
+
+.band {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 4px;
+  height: 100%;
+}
+
+// Sin color propio: el atributo `fill` no existe y se usa el neutro del tema.
+.band rect:not([fill]) {
+  fill: var(--mat-sys-outline-variant);
 }
 
 // Anchos fijos por columna: la tabla cabe en su contenedor y lo largo se recorta.

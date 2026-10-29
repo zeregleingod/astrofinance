@@ -359,6 +359,7 @@ function transactionRows(db: SqlDb, where: string, bind: readonly string[]): Tra
               a.name AS account_name, t.category_id,
               coalesce(p.name, c.name) AS category_name,
               CASE WHEN p.id IS NULL THEN NULL ELSE c.name END AS subcategory_name,
+              CASE WHEN p.id IS NULL THEN c.color ELSE p.color END AS category_color,
               EXISTS (SELECT 1 FROM shared_expenses s WHERE s.transaction_id = t.id) AS shared_whole,
               EXISTS (SELECT 1 FROM transaction_splits s
                       WHERE s.transaction_id = t.id AND s.shared_person_id IS NOT NULL) AS shared_split,
@@ -392,6 +393,7 @@ function transactionRows(db: SqlDb, where: string, bind: readonly string[]): Tra
       categoryId: numOrNull(r, 'category_id'),
       categoryName: strOrNull(r, 'category_name'),
       subcategoryName: strOrNull(r, 'subcategory_name'),
+      categoryColor: strOrNull(r, 'category_color'),
       shared: num(r, 'shared_whole') === 1 || num(r, 'shared_split') === 1,
       reimbursement: num(r, 'reimbursement') === 1,
       transfer: num(r, 'transfer') === 1,
@@ -493,6 +495,7 @@ function splitRows(db: SqlDb, where: string, bind: readonly string[]): Map<numbe
     `SELECT s.id, s.transaction_id, s.description, s.amount_cents, s.category_id,
             coalesce(p.name, c.name) AS category_name,
             CASE WHEN p.id IS NULL THEN NULL ELSE c.name END AS subcategory_name,
+            CASE WHEN p.id IS NULL THEN c.color ELSE p.color END AS category_color,
             s.shared_person_id IS NOT NULL AS shared,
             (SELECT group_concat(e.description, char(31)) FROM reimbursements r
              JOIN transactions e ON e.id = r.expense_tx_id
@@ -515,6 +518,7 @@ function splitRows(db: SqlDb, where: string, bind: readonly string[]): Map<numbe
       categoryId: numOrNull(r, 'category_id'),
       categoryName: strOrNull(r, 'category_name'),
       subcategoryName: strOrNull(r, 'subcategory_name'),
+      categoryColor: strOrNull(r, 'category_color'),
       shared: num(r, 'shared') === 1,
       refundsTo: strOrNull(r, 'refunds_to')?.split('\u001f') ?? [],
     });

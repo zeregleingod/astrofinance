@@ -71,7 +71,7 @@ export interface RuleChange {
   readonly rulePattern: string;
 }
 
-const PATTERN_ERROR_CODES = [
+export const PATTERN_ERROR_CODES = [
   'patron-vacio',
   'patron-largo',
   'regex-invalida',
@@ -207,7 +207,7 @@ function matcher(rule: Rule): (text: string) => boolean {
 }
 
 /** Para comparar textos sin distinguir mayúsculas, acentos ni espacios repetidos. */
-function fold(text: string): string {
+export function fold(text: string): string {
   return text.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().replace(/\s+/g, ' ').trim();
 }
 

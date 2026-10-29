@@ -37,6 +37,10 @@ interface DateParts {
         @for (row of rows(); track row.id) {
           @let date = dateParts(row.bookedDate);
           <li class="card">
+            <!-- El color de su categoría, como la banda del resumen anual: atributo SVG, sin estilos en línea. -->
+            <svg class="band" viewBox="0 0 1 1" preserveAspectRatio="none" aria-hidden="true">
+              <rect width="1" height="1" [attr.fill]="row.categoryColor" />
+            </svg>
             <div class="main">
               <!-- La fecha completa, para lectores de pantalla; a la vista, en un bloque. -->
               <div class="date" [class.date-changed]="row.dateChanged">
@@ -292,12 +296,28 @@ interface DateParts {
     }
 
     .card {
+      // Referencia de la banda; la recorta con su esquina redondeada.
+      position: relative;
+      overflow: clip;
       display: flex;
       flex-direction: column;
       gap: 12px;
       padding: 16px 16px 6px;
       border-radius: 16px;
       background: var(--mat-sys-surface-container-lowest);
+    }
+
+    .band {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 4px;
+      height: 100%;
+    }
+
+    // Sin color propio: el atributo «fill» no existe y se usa el neutro del tema.
+    .band rect:not([fill]) {
+      fill: var(--mat-sys-outline-variant);
     }
 
     // --- Cabecera: fecha, concepto e importe ---

@@ -20,6 +20,7 @@ const row = (id: number, extra: Partial<TransactionRow> = {}): TransactionRow =>
   accountName: 'Cuenta principal',
   categoryName: 'Variables',
   subcategoryName: 'Comida',
+  categoryColor: null,
   shared: false,
   reimbursement: false,
   transfer: false,
@@ -45,6 +46,7 @@ const part = (
   categoryId: null,
   categoryName,
   subcategoryName,
+  categoryColor: null,
   shared: false,
   refundsTo: [],
 });

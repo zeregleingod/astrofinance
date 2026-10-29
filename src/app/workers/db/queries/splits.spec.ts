@@ -74,10 +74,16 @@ describe('submovimientos: guardar', () => {
         amountCents: -6000,
         categoryName: 'Variables',
         subcategoryName: 'Hogar',
+        categoryColor: '#9C3A00',
         shared: false,
       }),
       expect.objectContaining({ description: 'REGALO', subcategoryName: 'Regalos' }),
-      expect.objectContaining({ description: 'PILAS', categoryId: null, categoryName: null }),
+      expect.objectContaining({
+        description: 'PILAS',
+        categoryId: null,
+        categoryName: null,
+        categoryColor: null,
+      }),
     ]);
   });
 

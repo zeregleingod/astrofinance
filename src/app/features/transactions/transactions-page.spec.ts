@@ -121,6 +121,20 @@ describe('TransactionsPage', () => {
     ]);
   });
 
+  it('marca cada fila a la izquierda con el color de su categoría, como el resumen anual', async () => {
+    const { rows, splitRows, refundRows } = await setup(true);
+    const fill = (row: Element | undefined) =>
+      row?.querySelector(':scope > td:first-child > .band rect')?.getAttribute('fill');
+
+    expect(fill(rows().find((r) => text(r)?.includes('Alex - Cortinas')))).toBe('#9C3A00');
+    expect(fill(rows().find((r) => text(r)?.includes('Nómina')))).toBe('#2E8B57');
+    // Sin categoría, la banda queda sin color propio: la hoja de estilos pone el neutro.
+    expect(fill(rows().find((r) => text(r)?.includes('Sin categoría')))).toBeNull();
+    // Cada submovimiento, con el de la suya; las devoluciones ya llevan el de su gasto.
+    expect(splitRows().map(fill)).toContain('#9C3A00');
+    expect(refundRows().map((r) => r.querySelector('.band'))).toEqual(refundRows().map(() => null));
+  });
+
   it('lista los movimientos de todos los meses, cada dato en su columna', async () => {
     const { element, rows, column, caption } = await setup(true);
 

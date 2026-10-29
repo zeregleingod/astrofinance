@@ -8,6 +8,7 @@ const pages = [
   'Importar extracto',
   'Categorías',
   'Reglas de categoría',
+  'Reglas de concepto',
   'Copia de seguridad',
 ];
 

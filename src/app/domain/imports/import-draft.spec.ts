@@ -124,6 +124,7 @@ describe('borrador de importación', () => {
       balanceAfterCents: 101449,
       description: 'Luz de enero',
       originalDescription: 'ADEUDO RECIBO LUZ DEMO',
+      descriptionSource: 'manual',
       note: 'Revisar',
       bankReference: 'REF-LUZ',
       categoryId: 12,
@@ -134,10 +135,38 @@ describe('borrador de importación', () => {
     expect(batch.rows[0]).toMatchObject({
       description: 'PRESTAMOS ADEUDO CUOTA N.0000000001 31/01/26',
       originalDescription: 'PRESTAMOS ADEUDO CUOTA N.0000000001 31/01/26',
+      descriptionSource: 'banco',
       note: null,
       categoryId: null,
       categorySource: 'ninguna',
       ruleId: null,
+    });
+  });
+
+  describe('conceptos propuestos por las reglas de concepto', () => {
+    const proposed = () =>
+      createDraft(statement, new Set([hashOf(1)]), [], ['Préstamo', 'Otro', '', 'Luz']);
+    const rowOf = (draft: ReturnType<typeof proposed>, index: number) =>
+      draftToBatch(statement, draft).rows.find((row) => row.dedupeHash === hashOf(index));
+
+    it('vienen puestos, salvo en los ya guardados, y se guardan con su origen', () => {
+      const draft = proposed();
+
+      expect(draft[0]?.description).toBe('Préstamo');
+      expect(draft[1]?.description).toBe(draft[1]?.movement.description);
+      expect(rowOf(draft, 0)).toMatchObject({
+        description: 'Préstamo',
+        descriptionSource: 'regla',
+      });
+      expect(rowOf(draft, 2)).toMatchObject({ descriptionSource: 'banco' });
+    });
+
+    it('lo que escribe el usuario es suyo, y volver al del banco lo deja como del banco', () => {
+      let draft = editDraft(proposed(), 3, { description: 'Factura de la luz' });
+      expect(rowOf(draft, 3)).toMatchObject({ descriptionSource: 'manual' });
+
+      draft = editDraft(draft, 3, { description: draft[3]?.movement.description ?? '' });
+      expect(rowOf(draft, 3)).toMatchObject({ descriptionSource: 'banco' });
     });
   });
 

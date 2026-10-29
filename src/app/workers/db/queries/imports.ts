@@ -1,4 +1,5 @@
 import { isIsoDate } from '@domain/dates/period';
+import type { DescriptionSource } from '@domain/rules/concept-rule';
 import type { CategorySource } from '@domain/suggestions/category-suggestion';
 import type {
   CategoryOption,
@@ -10,6 +11,7 @@ import type { SqlDb } from '../sql-db';
 
 const MAX_ROWS = 20_000;
 const CATEGORY_SOURCES: readonly CategorySource[] = ['manual', 'regla', 'sugerencia', 'ninguna'];
+const DESCRIPTION_SOURCES: readonly DescriptionSource[] = ['banco', 'regla', 'manual'];
 const HASH = /^[0-9a-f]{64}$/;
 /** Por debajo del límite de variables de SQLite. */
 const CHUNK = 500;
@@ -88,9 +90,10 @@ export function commitImport(db: SqlDb, batch: ImportBatchInput): ImportBatchRes
     for (const row of rows) {
       db.run(
         `INSERT INTO transactions (account_id, op_date, value_date, amount_cents,
-           balance_after_cents, description, original_description, note, bank_reference,
-           category_id, category_source, rule_id, origin, import_batch_id, dedupe_hash)
-         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT id FROM rules WHERE id = ?),
+           balance_after_cents, description, original_description, description_source, note,
+           bank_reference, category_id, category_source, rule_id, origin, import_batch_id,
+           dedupe_hash)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, (SELECT id FROM rules WHERE id = ?),
            'importado', ?, ?)`,
         [
           account.id,
@@ -100,6 +103,7 @@ export function commitImport(db: SqlDb, batch: ImportBatchInput): ImportBatchRes
           row.balanceAfterCents,
           row.description,
           row.originalDescription,
+          row.descriptionSource,
           row.note,
           row.bankReference,
           row.categoryId,
@@ -198,13 +202,25 @@ function rowParam(value: unknown): ImportRowInput {
   }
   const ruleId = nullable<number>(row, 'ruleId', isId);
   if (ruleId !== null && categorySource !== 'regla') throw invalid('ruleId');
+  const description = text(row, 'description', 500);
+  const originalDescription = text(row, 'originalDescription', 500);
+  const descriptionSource = DESCRIPTION_SOURCES.find(
+    (source) => source === row['descriptionSource'],
+  );
+  if (
+    !descriptionSource ||
+    (descriptionSource === 'banco') !== (description === originalDescription)
+  ) {
+    throw invalid('descriptionSource');
+  }
   return {
     opDate: date(row, 'opDate'),
     valueDate: nullable(row, 'valueDate', isIsoDate),
     amountCents: amountCents as number,
     balanceAfterCents: nullable(row, 'balanceAfterCents', Number.isSafeInteger),
-    description: text(row, 'description', 500),
-    originalDescription: text(row, 'originalDescription', 500),
+    description,
+    originalDescription,
+    descriptionSource,
     note: nullable(row, 'note', (v) => typeof v === 'string' && v.length > 0 && v.length <= 500),
     bankReference: nullable(row, 'bankReference', (v) => typeof v === 'string' && v.length <= 100),
     categoryId,

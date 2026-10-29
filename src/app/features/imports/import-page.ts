@@ -120,14 +120,15 @@ export class ImportPage {
     try {
       const statement = await this.reader.read(file);
       if (!this.db.ready()) await this.db.openLocal();
-      const [existing, categories, suggestions] = await Promise.all([
+      const [existing, categories, suggestions, descriptions] = await Promise.all([
         this.db.existingHashes(statement.movements.map((movement) => movement.dedupeHash)),
         this.db.categoryOptions(),
         this.suggestions(statement),
+        this.descriptions(statement),
       ]);
       this.statement.set(statement);
       this.categories.set(categories);
-      this.draft.set(createDraft(statement, new Set(existing), suggestions));
+      this.draft.set(createDraft(statement, new Set(existing), suggestions, descriptions));
       this.step.set('revisar');
     } catch (error) {
       this.error.set(t.errors[statementErrorCode(error) ?? 'desconocido']);
@@ -148,6 +149,17 @@ export class ImportPage {
           amountCents: movement.amountCents,
         })),
       });
+    } catch {
+      return [];
+    }
+  }
+
+  /** Los conceptos que dejan las reglas de concepto (ADR-0024). Si fallan, los del banco. */
+  private async descriptions(statement: ImportedStatement): Promise<readonly string[]> {
+    try {
+      return await this.db.rewriteDescriptions(
+        statement.movements.map((movement) => movement.description),
+      );
     } catch {
       return [];
     }

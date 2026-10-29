@@ -51,6 +51,19 @@ import {
   ruleUpdateParam,
   updateRule,
 } from './queries/rules';
+import {
+  applyConceptRules,
+  conceptRuleIdParam,
+  conceptRuleUpdateParam,
+  createConceptRule,
+  deleteConceptRule,
+  listConceptRules,
+  newConceptRuleParam,
+  previewConceptRules,
+  rewriteDescriptions,
+  textsParam,
+  updateConceptRule,
+} from './queries/concept-rules';
 import { suggestCategoriesFor, suggestionRequestParam } from './queries/suggestions';
 import { categoryTemplateStatements } from './seeds/category-template';
 import { loadDemoData } from './seeds/demo-data';
@@ -130,6 +143,13 @@ export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcH
     deleteRule: (params) => deleteRule(requireDb(), ruleIdParam(params)),
     previewRules: () => previewRules(requireDb()),
     applyRules: () => applyRules(requireDb()),
+    conceptRules: () => listConceptRules(requireDb()),
+    createConceptRule: (params) => createConceptRule(requireDb(), newConceptRuleParam(params)),
+    updateConceptRule: (params) => updateConceptRule(requireDb(), conceptRuleUpdateParam(params)),
+    deleteConceptRule: (params) => deleteConceptRule(requireDb(), conceptRuleIdParam(params)),
+    previewConceptRules: () => previewConceptRules(requireDb()),
+    applyConceptRules: () => applyConceptRules(requireDb()),
+    rewriteDescriptions: (params) => rewriteDescriptions(requireDb(), textsParam(params)),
     existingHashes: (params) => existingDedupeHashes(requireDb(), hashesParam(params)),
     suggestCategories: (params) =>
       suggestCategoriesFor(requireDb(), suggestionRequestParam(params)),

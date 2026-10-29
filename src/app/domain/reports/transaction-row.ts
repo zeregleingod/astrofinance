@@ -8,6 +8,8 @@ export interface SplitRow {
   /** Categoría padre; `null` si no tiene. */
   readonly categoryName: string | null;
   readonly subcategoryName: string | null;
+  /** Color de la categoría padre (`#RRGGBB`); `null` si no tiene categoría o color. */
+  readonly categoryColor: string | null;
   /** Compartida con otra persona, que devuelve su parte. */
   readonly shared: boolean;
   /**
@@ -72,6 +74,11 @@ export interface TransactionRow {
   readonly categoryId: number | null;
   /** Subcategoría; nula si el movimiento está asignado directamente a la categoría padre. */
   readonly subcategoryName: string | null;
+  /**
+   * Color de la categoría padre (`#RRGGBB`), el del bloque del resumen anual; `null` si no tiene
+   * categoría o la categoría no tiene color.
+   */
+  readonly categoryColor: string | null;
   /** Gasto compartido con otra persona, entero o alguno de sus submovimientos. */
   readonly shared: boolean;
   /** Ingreso que devuelve gastos compartidos. */

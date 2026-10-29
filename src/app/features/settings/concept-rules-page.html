@@ -1,0 +1,378 @@
+<header class="page-header">
+  <h2>{{ texts.conceptRules.title }}</h2>
+</header>
+
+@if (!db.ready()) {
+  @if (db.status() === 'error') {
+    <p class="panel error" role="alert">
+      <mat-icon fontIcon="error" aria-hidden="true" />
+      {{ texts.conceptRules.loadError }}
+    </p>
+  } @else {
+    <p class="panel" role="status">{{ texts.conceptRules.loading }}</p>
+  }
+} @else {
+  <!-- El alta, arriba y a la vista al desplazar; la cabecera de la tabla se queda debajo. -->
+  <div #toolbar class="toolbar">
+    <section class="panel" aria-labelledby="new-concept-rule-title">
+      <div class="title-row">
+        <h3 id="new-concept-rule-title">{{ texts.conceptRules.newTitle }}</h3>
+        <button
+          mat-icon-button
+          type="button"
+          class="info"
+          aria-controls="new-concept-rule-info"
+          [attr.aria-expanded]="introOpen()"
+          [attr.aria-label]="texts.categories.moreInfo + ': ' + texts.conceptRules.newTitle"
+          [title]="texts.categories.moreInfo"
+          (click)="introOpen.set(!introOpen())"
+        >
+          <mat-icon fontIcon="info" aria-hidden="true" />
+        </button>
+      </div>
+      @if (introOpen()) {
+        <p id="new-concept-rule-info" class="hint info-text">{{ texts.conceptRules.intro }}</p>
+      }
+
+      <form class="fields" [formRoot]="ruleForm">
+        <label class="field">
+          <span>{{ texts.conceptRules.operator }}</span>
+          <select [formField]="ruleForm.operator">
+            @for (operator of operators; track operator) {
+              <option [value]="operator">{{ texts.conceptRules.operators[operator] }}</option>
+            }
+          </select>
+        </label>
+        <label class="field pattern">
+          <span>{{ texts.conceptRules.pattern }}</span>
+          <input
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            [class.upper]="isUpper(ruleForm.operator().value())"
+            [formField]="ruleForm.pattern"
+            [attr.aria-invalid]="showPatternError()"
+            [attr.aria-describedby]="showPatternError() ? 'concept-pattern-error' : null"
+          />
+        </label>
+        @if (hasScope(ruleForm.operator().value())) {
+          <label class="field">
+            <span>{{ texts.conceptRules.scope }}</span>
+            <select [formField]="ruleForm.scope">
+              @for (scope of scopes; track scope) {
+                <option [value]="scope">{{ texts.conceptRules.scopes[scope] }}</option>
+              }
+            </select>
+          </label>
+        }
+        <label class="field pattern">
+          <span>{{ texts.conceptRules.replacement }}</span>
+          <input
+            type="text"
+            autocomplete="off"
+            spellcheck="false"
+            [placeholder]="texts.conceptRules.replacementPlaceholder"
+            [formField]="ruleForm.replacement"
+            [attr.aria-invalid]="showReplacementError()"
+            [attr.aria-describedby]="showReplacementError() ? 'concept-replacement-error' : null"
+          />
+        </label>
+        <button mat-flat-button type="submit" [disabled]="ruleForm().submitting()">
+          <mat-icon fontIcon="add" aria-hidden="true" />
+          {{ texts.conceptRules.add }}
+        </button>
+      </form>
+
+      @if (showPatternError()) {
+        <p id="concept-pattern-error" class="alert">
+          @for (problem of ruleForm.pattern().errors(); track problem.kind) {
+            {{ problem.message }}
+          }
+        </p>
+      }
+      @if (showReplacementError()) {
+        <p id="concept-replacement-error" class="alert">
+          @for (problem of ruleForm.replacement().errors(); track problem.kind) {
+            {{ problem.message }}
+          }
+        </p>
+      }
+      @if (error(); as message) {
+        <p class="alert" role="alert">{{ message }}</p>
+      }
+      <p class="done" role="status">
+        @if (notice(); as message) {
+          <mat-icon fontIcon="check_circle" aria-hidden="true" />
+          {{ message }}
+        }
+      </p>
+    </section>
+  </div>
+  <!-- Fuera del alta fija: es un aviso, no parte del formulario, y en móvil ocuparía media pantalla. -->
+  @if (db.mode() === 'local') {
+    <p class="hint warning memory-warning">{{ texts.imports.memoryOnly }}</p>
+  }
+
+  <section>
+    <div class="list-header">
+      <div>
+        <div class="title-row">
+          <h3 id="concept-rule-list-title" class="list-title" tabindex="-1">
+            {{ texts.conceptRules.list }}
+          </h3>
+          <button
+            mat-icon-button
+            type="button"
+            class="info"
+            aria-controls="concept-apply-hint"
+            [attr.aria-expanded]="listInfoOpen()"
+            [attr.aria-label]="texts.categories.moreInfo + ': ' + texts.conceptRules.list"
+            [title]="texts.categories.moreInfo"
+            (click)="listInfoOpen.set(!listInfoOpen())"
+          >
+            <mat-icon fontIcon="info" aria-hidden="true" />
+          </button>
+        </div>
+        @if (listInfoOpen()) {
+          <p id="concept-apply-hint" class="hint list-hint">{{ texts.conceptRules.applyHint }}</p>
+        }
+      </div>
+      <button
+        mat-stroked-button
+        type="button"
+        id="apply-concept-rules"
+        [attr.aria-describedby]="listInfoOpen() ? 'concept-apply-hint' : null"
+        [disabled]="previewing() || preview() !== null"
+        (click)="showPreview()"
+      >
+        <mat-icon fontIcon="auto_fix_high" aria-hidden="true" />
+        {{ texts.conceptRules.apply }}
+      </button>
+    </div>
+
+    @if (previewing()) {
+      <div class="panel" role="status">
+        <p>{{ texts.conceptRules.previewing }}</p>
+        <mat-progress-bar mode="indeterminate" [attr.aria-label]="texts.conceptRules.previewing" />
+      </div>
+    }
+
+    @if (preview(); as changes) {
+      <section class="preview" aria-labelledby="concept-preview-title">
+        <h3 id="concept-preview-title" class="list-title" tabindex="-1">
+          {{ texts.conceptRules.previewTitle }}
+        </h3>
+        <p class="hint list-hint">
+          {{ texts.conceptRules.previewCount }} {{ changes.length }}.
+          {{ texts.conceptRules.previewHint }}
+        </p>
+        <!-- Sin desplazamiento propio: se desplaza la página y la cabecera se queda arriba. -->
+        <div class="table-wrap preview-table">
+          <table aria-labelledby="concept-preview-title">
+            <thead>
+              <tr>
+                <th scope="col">{{ texts.conceptRules.date }}</th>
+                <th scope="col">{{ texts.conceptRules.currentDescription }}</th>
+                <th scope="col">{{ texts.conceptRules.newDescription }}</th>
+                <th scope="col" class="num">{{ texts.conceptRules.amount }}</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (change of changes; track change.transactionId) {
+                <tr>
+                  <td class="date">{{ change.date | isoDate }}</td>
+                  <td class="muted wrap current">{{ change.currentDescription }}</td>
+                  <th scope="row" class="wrap new-description">{{ change.newDescription }}</th>
+                  <td class="num">{{ change.amountCents | cents }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+        <div class="preview-actions">
+          <button mat-button type="button" [disabled]="applying()" (click)="cancelPreview()">
+            {{ texts.conceptRules.cancel }}
+          </button>
+          <button mat-flat-button type="button" [disabled]="applying()" (click)="confirmPreview()">
+            <mat-icon fontIcon="check" aria-hidden="true" />
+            {{ texts.conceptRules.confirm }} ({{ changes.length }})
+          </button>
+        </div>
+      </section>
+    }
+
+    @if (rules().length === 0) {
+      <p class="panel hint">{{ texts.conceptRules.empty }}</p>
+    } @else {
+      <div class="table-wrap">
+        <table class="rules" aria-labelledby="concept-rule-list-title">
+          <thead>
+            <tr>
+              <th scope="col" class="col-operator">{{ texts.conceptRules.operator }}</th>
+              <th scope="col">{{ texts.conceptRules.pattern }}</th>
+              <th scope="col" class="col-category">{{ texts.conceptRules.replacement }}</th>
+              <th scope="col" class="col-count num">{{ texts.conceptRules.movementsColumn }}</th>
+              <th scope="col" class="col-actions">{{ texts.conceptRules.actions }}</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (rule of rules(); track rule.id) {
+              @if (isEditing(rule)) {
+                <!--
+                  El formulario vive en la celda del texto; los demás campos y los botones, en
+                  sus celdas, se asocian a él con el atributo `form`.
+                -->
+                <tr class="editing">
+                  <td>
+                    <select
+                      form="concept-rule-editor"
+                      [formField]="rowForm.operator"
+                      (keydown.escape)="cancelEdit()"
+                      [attr.aria-label]="texts.conceptRules.operator + ': ' + label(rule)"
+                    >
+                      @for (operator of operators; track operator) {
+                        <option [value]="operator">
+                          {{ texts.conceptRules.operators[operator] }}
+                        </option>
+                      }
+                    </select>
+                  </td>
+                  <th scope="row">
+                    <form
+                      id="concept-rule-editor"
+                      class="row-editor"
+                      [formRoot]="rowForm"
+                      (keydown.escape)="cancelEdit()"
+                    >
+                      <input
+                        type="text"
+                        autocomplete="off"
+                        spellcheck="false"
+                        [class.upper]="isUpper(rowForm.operator().value())"
+                        [formField]="rowForm.pattern"
+                        [attr.aria-label]="texts.conceptRules.pattern + ': ' + label(rule)"
+                        [attr.aria-invalid]="showRowError()"
+                        [attr.aria-describedby]="showRowError() ? 'concept-row-error' : null"
+                      />
+                      @if (showRowError()) {
+                        <p id="concept-row-error" class="alert">
+                          @for (problem of rowForm.pattern().errors(); track problem.kind) {
+                            {{ problem.message }}
+                          }
+                          @for (problem of rowForm.replacement().errors(); track problem.kind) {
+                            {{ problem.message }}
+                          }
+                        </p>
+                      }
+                    </form>
+                  </th>
+                  <td>
+                    <div class="replacement-editor">
+                      @if (hasScope(rowForm.operator().value())) {
+                        <select
+                          form="concept-rule-editor"
+                          [formField]="rowForm.scope"
+                          (keydown.escape)="cancelEdit()"
+                          [attr.aria-label]="texts.conceptRules.scope + ': ' + label(rule)"
+                        >
+                          @for (scope of scopes; track scope) {
+                            <option [value]="scope">{{ texts.conceptRules.scopes[scope] }}</option>
+                          }
+                        </select>
+                      }
+                      <input
+                        type="text"
+                        form="concept-rule-editor"
+                        autocomplete="off"
+                        spellcheck="false"
+                        [placeholder]="texts.conceptRules.replacementPlaceholder"
+                        [formField]="rowForm.replacement"
+                        (keydown.escape)="cancelEdit()"
+                        [attr.aria-label]="texts.conceptRules.replacement + ': ' + label(rule)"
+                      />
+                    </div>
+                  </td>
+                  <td class="num" [attr.data-label]="texts.conceptRules.movementsColumn">
+                    <span class="count" [class.unused]="rule.transactionCount === 0">{{
+                      rule.transactionCount
+                    }}</span>
+                  </td>
+                  <td>
+                    <div class="actions">
+                      <button
+                        mat-icon-button
+                        type="submit"
+                        form="concept-rule-editor"
+                        class="tool"
+                        [attr.aria-label]="texts.conceptRules.save"
+                        [title]="texts.conceptRules.save"
+                        [disabled]="rowForm().submitting()"
+                      >
+                        <mat-icon fontIcon="check" aria-hidden="true" />
+                      </button>
+                      <button
+                        mat-icon-button
+                        type="button"
+                        class="tool"
+                        [attr.aria-label]="texts.conceptRules.cancelEdit"
+                        [title]="texts.conceptRules.cancelEdit"
+                        (click)="cancelEdit()"
+                      >
+                        <mat-icon fontIcon="close" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              } @else {
+                <tr>
+                  <td class="operator">{{ texts.conceptRules.operators[rule.operator] }}</td>
+                  <th scope="row" class="wrap">
+                    <code>{{ rule.pattern }}</code>
+                  </th>
+                  <td class="category wrap">
+                    @if (rule.scope === 'concepto') {
+                      <span class="muted">{{ texts.conceptRules.wholeConcept }} </span>
+                    }
+                    @if (rule.replacement !== '') {
+                      <code>{{ rule.replacement }}</code>
+                    }
+                  </td>
+                  <td class="num" [attr.data-label]="texts.conceptRules.movementsColumn">
+                    <span class="count" [class.unused]="rule.transactionCount === 0">{{
+                      rule.transactionCount
+                    }}</span>
+                  </td>
+                  <td>
+                    <div class="actions">
+                      <button
+                        mat-icon-button
+                        type="button"
+                        class="tool"
+                        [id]="'edit-concept-rule-' + rule.id"
+                        [attr.aria-label]="texts.conceptRules.edit + ': ' + label(rule)"
+                        [title]="texts.conceptRules.edit"
+                        (click)="edit(rule)"
+                      >
+                        <mat-icon fontIcon="edit" aria-hidden="true" />
+                      </button>
+                      <button
+                        mat-icon-button
+                        type="button"
+                        class="tool"
+                        [attr.aria-label]="texts.conceptRules.delete + ': ' + label(rule)"
+                        [title]="texts.conceptRules.delete"
+                        (click)="remove(rule)"
+                      >
+                        <mat-icon fontIcon="delete" aria-hidden="true" />
+                      </button>
+                    </div>
+                  </td>
+                </tr>
+              }
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+}

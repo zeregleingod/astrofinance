@@ -15,8 +15,8 @@ movimientos pueden tocar y cómo se protege al usuario de una regla mal escrita.
 - **Lugar.** Página «Configuración › Reglas de categoría»
   (`/configuracion/reglas-de-categoria`, `features/settings/category-rules-page`): alta arriba,
   tabla con edición en la fila y borrado, y el botón «Aplicar a movimientos existentes». Se
-  llaman «de categoría» porque más adelante habrá otras reglas, las que cambien el concepto
-  visible (el del banco no se toca nunca, ADR-0007).
+  llaman «de categoría» para distinguirlas de las que cambian el concepto visible (ADR-0024; el
+  del banco no se toca nunca, ADR-0007).
 - **Condiciones** (`domain/rules/rule.ts`): `contiene`, `exacto`, `empieza`, `termina` y `regex`.
   `exacto` es nuevo: la migración 004 reconstruye `rules` para admitirlo. Las cuatro primeras
   comparan sin distinguir mayúsculas, acentos ni espacios repetidos; `regex` usa las banderas

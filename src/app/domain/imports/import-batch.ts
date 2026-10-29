@@ -1,3 +1,4 @@
+import type { DescriptionSource } from '../rules/concept-rule';
 import type { CategorySource } from '../suggestions/category-suggestion';
 
 /** Movimiento revisado por el usuario, listo para guardarse. */
@@ -6,10 +7,12 @@ export interface ImportRowInput {
   readonly valueDate: string | null;
   readonly amountCents: number;
   readonly balanceAfterCents: number | null;
-  /** Concepto que se muestra: el original o el que haya escrito el usuario. */
+  /** Concepto que se muestra: el original, el que dejan las reglas o el que escribe el usuario. */
   readonly description: string;
   /** Concepto del banco, intacto. */
   readonly originalDescription: string;
+  /** De dónde sale `description` (ADR-0024). */
+  readonly descriptionSource: DescriptionSource;
   readonly note: string | null;
   readonly bankReference: string | null;
   readonly categoryId: number | null;

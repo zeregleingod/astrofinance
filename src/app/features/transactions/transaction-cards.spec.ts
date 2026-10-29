@@ -16,6 +16,7 @@ describe('TransactionCards', () => {
     categoryName: 'Alimentación',
     categoryId: 3,
     subcategoryName: 'Supermercado',
+    categoryColor: '#9C3A00',
     shared: false,
     reimbursement: false,
     transfer: false,
@@ -52,6 +53,15 @@ describe('TransactionCards', () => {
     expect(text(renamed?.querySelector('.bank dt'))).toBe('Concepto del banco');
     expect(text(renamed?.querySelector('.bank dd'))).toBe('COMPRA TARJ. 5402 MERCADONA S.A.');
     expect(same?.querySelector('.bank')).toBeNull();
+  });
+
+  it('marca cada ficha a la izquierda con el color de su categoría', async () => {
+    const element = await setup([card(), card({ id: 2, categoryColor: null })]);
+    const fills = [...element.querySelectorAll('li.card > .band rect')].map((rect) =>
+      rect.getAttribute('fill'),
+    );
+    // Sin color, sin atributo: la hoja de estilos pone el neutro del tema.
+    expect(fills).toEqual(['#9C3A00', null]);
   });
 
   it('enseña la fecha en un bloque y, si se imputó a otra, la original en el panel', async () => {
@@ -93,6 +103,7 @@ describe('TransactionCards', () => {
       categoryId: null,
       categoryName: null,
       subcategoryName: null,
+      categoryColor: null,
       shared: false,
       refundsTo: [],
     };

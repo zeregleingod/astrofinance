@@ -23,11 +23,17 @@ export function updateTransaction(db: SqlDb, input: TransactionEdit): undefined 
     // Imputarlo a su propia fecha es no imputarlo a otra.
     const bookedDate = edit.bookedDate === current['op_date'] ? null : edit.bookedDate;
 
+    // Un concepto escrito a mano no lo tocan las reglas de concepto; volver al del banco, sí
+    // (ADR-0024). Si no cambia, conserva su origen.
     db.run(
       `UPDATE transactions
-       SET description = ?, booked_date = ?, note = ?,
+       SET description = ?1, booked_date = ?2, note = ?3,
+           description_source = CASE
+             WHEN ?1 IS original_description THEN 'banco'
+             WHEN ?1 = description THEN description_source
+             ELSE 'manual' END,
            updated_at = strftime('%Y-%m-%dT%H:%M:%fZ', 'now')
-       WHERE id = ?`,
+       WHERE id = ?4`,
       [edit.description, bookedDate, edit.note, edit.id],
     );
 

@@ -1,0 +1,43 @@
+// Lo propio de las reglas de concepto; el resto, en `category-rules-page.scss`.
+
+// Editando, el alcance y la sustitución comparten la celda, uno sobre otro.
+.replacement-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.new-description {
+  font-weight: 600;
+}
+
+// Vista previa: el concepto nuevo y el importe arriba; debajo, el actual y la fecha.
+@media (width < 840px) {
+  .preview-table tr {
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      'description amount'
+      'current current'
+      'date date';
+
+    > :nth-child(1) {
+      grid-area: date;
+    }
+
+    > :nth-child(2) {
+      grid-area: current;
+    }
+
+    > :nth-child(3) {
+      grid-area: description;
+    }
+
+    > :nth-child(4) {
+      grid-area: amount;
+    }
+  }
+
+  .preview-table .current {
+    text-decoration: line-through;
+  }
+}

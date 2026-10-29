@@ -17,6 +17,12 @@ import type { TransactionRow } from '@domain/reports/transaction-row';
 import type { YearReport } from '@domain/reports/year-report';
 import type { NewRule, RuleChange, RuleRow, RuleUpdate } from '@domain/rules/rule';
 import type {
+  ConceptChange,
+  ConceptRuleRow,
+  ConceptRuleUpdate,
+  NewConceptRule,
+} from '@domain/rules/concept-rule';
+import type {
   CategorySuggestion,
   SuggestionRequest,
 } from '@domain/suggestions/category-suggestion';
@@ -280,6 +286,51 @@ export class DbService {
     );
     if (changed > 0) this.dataChanged();
     return changed;
+  }
+
+  /** Las reglas de concepto, en el orden en que se aplican. */
+  conceptRules(signal?: AbortSignal): Promise<readonly ConceptRuleRow[]> {
+    return this.call((c) => c.call('conceptRules', undefined, { signal }));
+  }
+
+  async createConceptRule(rule: NewConceptRule): Promise<number> {
+    const id = await this.call((c) => c.call('createConceptRule', rule));
+    this.dataChanged();
+    return id;
+  }
+
+  async updateConceptRule(update: ConceptRuleUpdate): Promise<void> {
+    await this.call((c) => c.call('updateConceptRule', update));
+    this.dataChanged();
+  }
+
+  /** Elimina la regla; los conceptos que cambió siguen así hasta volver a aplicar las reglas. */
+  async deleteConceptRule(id: number): Promise<void> {
+    await this.call((c) => c.call('deleteConceptRule', { id }));
+    this.dataChanged();
+  }
+
+  /** Los conceptos que cambiarían al aplicar las reglas de concepto; no toca nada. */
+  previewConceptRules(signal?: AbortSignal): Promise<readonly ConceptChange[]> {
+    return this.call((c) =>
+      c.call('previewConceptRules', undefined, { signal, timeoutMs: OPEN_TIMEOUT_MS }),
+    );
+  }
+
+  /** Aplica las reglas de concepto a los movimientos existentes y devuelve cuántos han cambiado. */
+  async applyConceptRules(): Promise<number> {
+    const changed = await this.call((c) =>
+      c.call('applyConceptRules', undefined, { timeoutMs: OPEN_TIMEOUT_MS }),
+    );
+    if (changed > 0) this.dataChanged();
+    return changed;
+  }
+
+  /** El concepto que dejan las reglas de concepto en cada texto de un extracto, en orden. */
+  rewriteDescriptions(texts: readonly string[], signal?: AbortSignal): Promise<readonly string[]> {
+    return this.call((c) =>
+      c.call('rewriteDescriptions', { texts }, { signal, timeoutMs: OPEN_TIMEOUT_MS }),
+    );
   }
 
   existingHashes(hashes: readonly string[], signal?: AbortSignal): Promise<readonly string[]> {

@@ -22,6 +22,12 @@ import type { TransactionEdit } from '@domain/transactions/transaction-edit';
 import type { ExpenseRefundOptions, ExpenseRefunds } from '@domain/transactions/refund';
 import type { TransactionSplits } from '@domain/transactions/transaction-split';
 import type { NewRule, RuleChange, RuleRow, RuleUpdate } from '@domain/rules/rule';
+import type {
+  ConceptChange,
+  ConceptRuleRow,
+  ConceptRuleUpdate,
+  NewConceptRule,
+} from '@domain/rules/concept-rule';
 
 /** Contrato RPC del worker de base de datos. */
 export interface DbApi {
@@ -76,6 +82,18 @@ export interface DbApi {
   previewRules: { params: undefined; result: readonly RuleChange[] };
   /** Aplica las reglas a los movimientos existentes; devuelve cuántos han cambiado. */
   applyRules: { params: undefined; result: number };
+  /** Las reglas de concepto (ADR-0024), en el orden en que se aplican. */
+  conceptRules: { params: undefined; result: readonly ConceptRuleRow[] };
+  /** Da de alta una regla de concepto y devuelve su id. */
+  createConceptRule: { params: NewConceptRule; result: number };
+  updateConceptRule: { params: ConceptRuleUpdate; result: undefined };
+  deleteConceptRule: { params: { id: number }; result: undefined };
+  /** Los conceptos que cambiarían al aplicar las reglas de concepto; no toca nada. */
+  previewConceptRules: { params: undefined; result: readonly ConceptChange[] };
+  /** Aplica las reglas de concepto a los movimientos existentes; devuelve cuántos han cambiado. */
+  applyConceptRules: { params: undefined; result: number };
+  /** El concepto que dejan las reglas de concepto en cada texto, en el mismo orden. */
+  rewriteDescriptions: { params: { texts: readonly string[] }; result: readonly string[] };
   /** De las huellas indicadas, las de movimientos que ya están guardados. */
   existingHashes: { params: { hashes: readonly string[] }; result: readonly string[] };
   /**

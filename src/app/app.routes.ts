@@ -53,6 +53,13 @@ export const routes: Routes = [
           import('@features/settings/category-rules-page').then((m) => m.CategoryRulesPage),
       },
       {
+        path: 'reglas-de-concepto',
+        title: TEXTS.conceptRules.title,
+        data: { icon: 'find_replace' },
+        loadComponent: () =>
+          import('@features/settings/concept-rules-page').then((m) => m.ConceptRulesPage),
+      },
+      {
         path: 'copia-de-seguridad',
         title: TEXTS.backup.title,
         data: { icon: 'database' },

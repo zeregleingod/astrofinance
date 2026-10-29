@@ -229,6 +229,8 @@ describe('consultas de informes (sobre la demo)', () => {
         amountCents: 6547,
         categoryName: 'Variables',
         subcategoryName: 'Hogar',
+        // El color es el de la categoría padre, como la banda del resumen anual.
+        categoryColor: '#9C3A00',
         accountName: 'Cuenta principal',
         reimbursement: true,
         shared: false,
@@ -251,6 +253,7 @@ describe('consultas de informes (sobre la demo)', () => {
       ).toEqual(['Cuenta principal', 'Cuenta principal', 'Hucha emergencias', 'Hucha viajes']);
       expect(rows.find((r) => r.categoryName === null)).toMatchObject({
         subcategoryName: null,
+        categoryColor: null,
         amountCents: 2500,
       });
     });
@@ -269,7 +272,11 @@ describe('consultas de informes (sobre la demo)', () => {
       );
       expect(
         monthTransactions(db, '2026-09').find((r) => r.description === 'Farmacia Centro'),
-      ).toMatchObject({ categoryName: 'Variables', subcategoryName: null });
+      ).toMatchObject({
+        categoryName: 'Variables',
+        subcategoryName: null,
+        categoryColor: '#9C3A00',
+      });
     });
   });
 });

@@ -1,14 +1,22 @@
-const AMOUNT = /^([+-])?(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?$/;
+/** Separador decimal de un importe en texto: `,` en es-ES, `.` en los CSV en inglés (N26, Revolut). */
+export type DecimalMark = ',' | '.';
+
+const AMOUNT: Readonly<Record<DecimalMark, RegExp>> = {
+  ',': /^([+-])?(\d{1,3}(?:\.\d{3})+|\d+)(?:,(\d{1,2}))?$/,
+  '.': /^([+-])?(\d{1,3}(?:,\d{3})+|\d+)(?:\.(\d{1,2})0*)?$/,
+};
 
 /**
- * Lee un importe es-ES (`1.234,56`, `-12,3`, `65,47 €`) como céntimos enteros, sin pasar por
- * decimales. Devuelve `null` si el texto no es un importe.
+ * Lee un importe es-ES (`1.234,56`, `-12,3`, `65,47 €`, `-8,00EUR`) como céntimos enteros, sin
+ * pasar por decimales. Con `decimal = '.'` lee el formato inglés (`-1,234.56`, `12.50`).
+ * Devuelve `null` si el texto no es un importe.
  */
-export function parseCents(text: string): number | null {
-  const match = AMOUNT.exec(text.replace(/[\s€]/g, '').replace('−', '-'));
+export function parseCents(text: string, decimal: DecimalMark = ','): number | null {
+  const match = AMOUNT[decimal].exec(text.replace(/\s|€|EUR/gi, '').replace('−', '-'));
   if (!match) return null;
-  const [, sign, euros = '', decimals = ''] = match;
-  const cents = Number(euros.replaceAll('.', '')) * 100 + Number(decimals.padEnd(2, '0'));
+  const [, sign, units = '', decimals = ''] = match;
+  const group = decimal === ',' ? '.' : ',';
+  const cents = Number(units.replaceAll(group, '')) * 100 + Number(decimals.padEnd(2, '0'));
   if (!Number.isSafeInteger(cents)) return null;
   return sign === '-' ? -cents : cents;
 }

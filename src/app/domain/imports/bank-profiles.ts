@@ -1,9 +1,28 @@
 import type { BankProfile } from './bank-profile';
 import { StatementError, type BankStatement, type RawSheet } from './bank-statement';
+import { bankinterProfile } from './profiles/bankinter';
+import { bbvaProfile } from './profiles/bbva';
+import { caixabankProfile } from './profiles/caixabank';
+import { ingProfile } from './profiles/ing';
+import { n26Profile } from './profiles/n26';
+import { revolutProfile } from './profiles/revolut';
 import { sabadellProfile } from './profiles/sabadell';
+import { santanderProfile } from './profiles/santander';
 
-/** Entidades admitidas. El orden importa: gana el primer perfil que reconoce la hoja. */
-export const BANK_PROFILES: readonly BankProfile[] = [sabadellProfile];
+/**
+ * Entidades admitidas. Gana el primer perfil que reconoce la hoja, pero las firmas de columnas
+ * de cada perfil no se solapan (lo comprueba un test), así que el orden no debería decidir nada.
+ */
+export const BANK_PROFILES: readonly BankProfile[] = [
+  sabadellProfile,
+  bbvaProfile,
+  bankinterProfile,
+  caixabankProfile,
+  ingProfile,
+  n26Profile,
+  revolutProfile,
+  santanderProfile,
+];
 
 /** Lee un extracto con el perfil que lo reconozca. Lanza `StatementError` si no es utilizable. */
 export function parseStatement(

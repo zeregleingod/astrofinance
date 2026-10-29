@@ -21,9 +21,18 @@ describe('celdas de un extracto', () => {
     expect(cellDate(46052.75)).toBe('2026-01-30');
   });
 
+  it('cellDate acepta aaaa-mm-dd y descarta la hora', () => {
+    expect(cellDate('2026-01-30')).toBe('2026-01-30');
+    expect(cellDate('2026-01-30 18:04:31')).toBe('2026-01-30');
+    expect(cellDate('2026-1-5T08:00')).toBe('2026-01-05');
+    expect(cellDate('30/01/2026 09:15')).toBe('2026-01-30');
+  });
+
   it('cellDate rechaza fechas imposibles o ilegibles', () => {
     expect(cellDate('31/02/2026')).toBeNull();
-    expect(cellDate('2026-01-30')).toBeNull();
+    expect(cellDate('2026-02-31')).toBeNull();
+    expect(cellDate('30/01/26')).toBeNull();
+    expect(cellDate('2026-01-30 25')).toBeNull();
     expect(cellDate('')).toBeNull();
     expect(cellDate(null)).toBeNull();
     expect(cellDate(0)).toBeNull();
@@ -38,5 +47,7 @@ describe('celdas de un extracto', () => {
     expect(cellCents('')).toBeNull();
     expect(cellCents(null)).toBeNull();
     expect(cellCents('doce')).toBeNull();
+    expect(cellCents('-12.50', '.')).toBe(-1250);
+    expect(cellCents(-12.5, '.')).toBe(-1250);
   });
 });

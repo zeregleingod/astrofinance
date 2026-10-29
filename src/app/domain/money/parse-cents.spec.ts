@@ -21,6 +21,25 @@ describe('parseCents', () => {
       expect(parseCents(text)).toBeNull();
     },
   );
+
+  it('admite el sufijo EUR', () => {
+    expect(parseCents('-8,00EUR')).toBe(-800);
+    expect(parseCents('1.200,00 eur')).toBe(120000);
+  });
+
+  it.each([
+    ['-12.5', -1250],
+    ['1,234.56', 123456],
+    ['1500', 150000],
+    ['+0.99', 99],
+    ['3.500000', 350],
+  ])('con punto decimal: %s → %i', (text, cents) => {
+    expect(parseCents(text, '.')).toBe(cents);
+  });
+
+  it.each(['1.500,00', '12,5', '1.234', '3.501', ''])('con punto decimal rechaza «%s»', (text) => {
+    expect(parseCents(text, '.')).toBeNull();
+  });
 });
 
 describe('numberToCents', () => {

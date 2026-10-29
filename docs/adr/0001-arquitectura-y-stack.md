@@ -1,6 +1,6 @@
 # ADR-0001: Arquitectura por capas y stack base
 
-- **Estado:** aceptado
+- **Estado:** aceptado; las capas, sustituidas por ADR-0025 (el stack sigue vigente)
 - **Fecha:** 2026-10-07
 
 ## Contexto

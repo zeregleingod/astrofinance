@@ -1,6 +1,6 @@
-import type { ImportApi } from '@workers/import/import-api';
-import { createImportHandlers } from '@workers/import/import-handlers';
-import { serveRpc } from '@workers/rpc/rpc-server';
+import type { ImportApi } from '@worker/import/import-api';
+import { createImportHandlers } from '@worker/import/import-handlers';
+import { serveRpc } from '@worker/rpc/rpc-server';
 import { utils, write } from 'xlsx';
 import { inProcessWorker, type InProcessWorker } from './in-process-worker';
 import { sabadellSheet } from './sabadell-sheet';

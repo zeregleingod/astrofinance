@@ -1,6 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
-import { SIDEBAR_STORAGE_KEY } from '@core/layout/sidebar-state';
+import { SIDEBAR_STORAGE_KEY } from '@pages/shell/sidebar-state';
 import { App } from './app';
 
 describe('App', () => {

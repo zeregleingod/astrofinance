@@ -10,7 +10,7 @@ import {
 } from '@angular/core';
 import { MatIconRegistry } from '@angular/material/icon';
 import { TitleStrategy, provideRouter, withComponentInputBinding } from '@angular/router';
-import { AppTitleStrategy } from '@core/navigation/app-title-strategy';
+import { AppTitleStrategy } from '@pages/shell/app-title-strategy';
 import { routes } from './app.routes';
 
 registerLocaleData(localeEs);

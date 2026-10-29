@@ -6,8 +6,8 @@ import { defineConfig, globalIgnores } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
 /**
- * Fronteras entre capas (ver README de cada carpeta en src/app y docs/adr/0001).
- * Cada capa prohíbe tanto el alias (`@data/...`) como la ruta relativa (`../data/...`).
+ * Fronteras entre capas (ver README de cada carpeta en src/app y docs/adr/0025).
+ * Cada capa prohíbe tanto el alias (`@services/...`) como la ruta relativa (`../services/...`).
  */
 const layer = (name) => ({
   group: [`@${name}/*`, `**/${name}`, `**/${name}/**`],
@@ -19,6 +19,10 @@ const ANGULAR = pkg(['@angular/*'], 'Esta capa no puede depender de Angular.');
 const RXJS = pkg(['rxjs', 'rxjs/*'], 'Esta capa no puede depender de RxJS.');
 const SQLITE = pkg(['@sqlite.org/*'], 'SQLite solo se usa dentro de workers.');
 const XLSX = pkg(['xlsx', 'xlsx/*'], 'SheetJS solo se usa dentro de workers.');
+const WORKER_INTERNALS = {
+  regex: '(^@|/)worker/(?!rpc/protocol$|[^/]+/[^/]+-api$)',
+  message: 'Del worker solo se importan sus contratos: rpc/protocol y los *-api.',
+};
 
 /** @param {string[]} files @param {object[]} patterns */
 const boundary = (files, patterns) => ({
@@ -89,38 +93,30 @@ export default defineConfig([
     languageOptions: { globals: { process: 'readonly', console: 'readonly', URL: 'readonly' } },
   },
 
-  // --- Fronteras entre capas ---
+  // --- Fronteras entre capas: pages ──► ui ──► domain, pages ──► services ──► worker ──► domain ---
   boundary(
     ['src/app/domain/**/*.ts'],
-    [
-      ANGULAR,
-      RXJS,
-      SQLITE,
-      XLSX,
-      layer('core'),
-      layer('data'),
-      layer('features'),
-      layer('shared'),
-      layer('workers'),
-    ],
+    [ANGULAR, RXJS, SQLITE, XLSX, layer('pages'), layer('services'), layer('ui'), layer('worker')],
   ),
   boundary(
-    ['src/app/workers/**/*.ts'],
-    [ANGULAR, RXJS, layer('core'), layer('data'), layer('features'), layer('shared')],
-  ),
-  boundary(['src/app/data/**/*.ts'], [XLSX, layer('features'), layer('shared')]),
-  boundary(['src/app/core/**/*.ts'], [SQLITE, XLSX, layer('features'), layer('workers')]),
-  boundary(
-    ['src/app/shared/**/*.ts'],
-    [SQLITE, XLSX, layer('data'), layer('features'), layer('workers')],
+    ['src/app/worker/**/*.ts'],
+    [ANGULAR, RXJS, layer('pages'), layer('services'), layer('ui')],
   ),
   boundary(
-    ['src/app/features/**/*.ts'],
+    ['src/app/services/**/*.ts'],
+    [SQLITE, XLSX, layer('pages'), layer('ui'), WORKER_INTERNALS],
+  ),
+  boundary(
+    ['src/app/ui/**/*.ts'],
+    [SQLITE, XLSX, layer('pages'), layer('services'), layer('worker')],
+  ),
+  boundary(
+    ['src/app/pages/**/*.ts'],
     [
       SQLITE,
       XLSX,
-      layer('workers'),
-      pkg(['@features/*'], 'Una feature no importa otra feature; extrae lo común a shared/.'),
+      layer('worker'),
+      pkg(['@pages/*'], 'Una página no importa otra página; extrae lo común a ui/ o services/.'),
     ],
   ),
 

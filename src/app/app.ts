@@ -4,12 +4,12 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSidenavModule } from '@angular/material/sidenav';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterOutlet } from '@angular/router';
-import { DemoBanner } from '@core/layout/demo-banner';
-import { Sidebar } from '@core/layout/sidebar';
-import { SidebarState } from '@core/layout/sidebar-state';
-import { Viewport } from '@core/layout/viewport';
-import { TEXTS } from '@core/i18n/texts';
-import { BackupQuickActions } from '@features/settings/backup-quick-actions';
+import { DemoBanner } from '@pages/shell/demo-banner';
+import { Sidebar } from '@pages/shell/sidebar';
+import { SidebarState } from '@pages/shell/sidebar-state';
+import { Viewport } from '@services/viewport/viewport';
+import { TEXTS } from '@ui/texts';
+import { BackupQuickActions } from '@pages/shell/backup-quick-actions';
 
 @Component({
   selector: 'app-root',

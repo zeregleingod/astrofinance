@@ -40,13 +40,11 @@ npm start            # http://localhost:4200
 
 ```
 src/app/
-  domain/     TypeScript puro: modelos, Money, reglas, recurrencias (sin Angular)
-    reports/  Modelos de lectura (filas de consulta) y cálculos de informes
-  workers/    Web Workers: SQLite WASM + OPFS, lectura de ficheros (solo importan domain)
-  data/       Lado main-thread de la persistencia: cliente RPC y fachadas
-  core/       Armazón de la app: layout, navegación, tema, textos (i18n), helpers entre features
-  shared/     Componentes y pipes de UI reutilizables, sin estado de negocio
-  features/   Pantallas lazy (dashboard, movimientos, categorías, reglas, importación…)
+  domain/     Reglas de negocio en TypeScript puro (sin Angular)
+  worker/     Web Workers: SQLite WASM + OPFS, lectura de extractos (solo importan domain)
+  services/   Estado y datos de la app en el hilo principal, sin UI ni textos
+  ui/         Piezas visuales reutilizables y textos visibles (ui/texts.ts)
+  pages/      Una carpeta por pantalla (lazy) y shell/, el armazón común
 e2e/          Tests Playwright (fixtures con garantía de "cero red")
 docs/adr/     Architecture Decision Records
 docs/security Cabeceras de seguridad para el hosting
@@ -54,5 +52,5 @@ tools/        Scripts de soporte (servidor estático, verificación de fronteras
 vendor/       SheetJS oficial vendorizado (ADR-0003)
 ```
 
-Las reglas de dependencia entre capas están en [ADR-0001](docs/adr/0001-arquitectura-y-stack.md)
-y las impone ESLint.
+Las dependencias van en un solo sentido (`pages → ui | services → worker → domain`). Las reglas
+están en [ADR-0025](docs/adr/0025-estructura-de-carpetas.md) y las impone ESLint.

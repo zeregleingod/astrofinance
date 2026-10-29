@@ -1,4 +1,4 @@
-import type { RpcEndpoint } from '@workers/rpc/protocol';
+import type { RpcEndpoint } from '@worker/rpc/protocol';
 
 type Listener = (event: MessageEvent) => void;
 

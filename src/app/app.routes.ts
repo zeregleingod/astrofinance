@@ -1,6 +1,6 @@
 import { Routes } from '@angular/router';
-import { demoGuard } from '@core/demo/demo-guard';
-import { TEXTS } from '@core/i18n/texts';
+import { demoGuard } from '@services/demo/demo-guard';
+import { TEXTS } from '@ui/texts';
 
 /**
  * Cada ruta con `title` aparece en la barra lateral con ese texto; el icono
@@ -12,26 +12,26 @@ export const routes: Routes = [
     path: '',
     title: TEXTS.dashboard.title,
     data: { icon: 'dashboard' },
-    loadComponent: () => import('@features/dashboard/dashboard-page').then((m) => m.DashboardPage),
+    loadComponent: () => import('@pages/dashboard/dashboard-page').then((m) => m.DashboardPage),
   },
   {
     path: 'anual',
     title: TEXTS.yearly.title,
     data: { icon: 'calendar_view_month' },
-    loadComponent: () => import('@features/yearly/yearly-page').then((m) => m.YearlyPage),
+    loadComponent: () => import('@pages/yearly/yearly-page').then((m) => m.YearlyPage),
   },
   {
     path: 'movimientos',
     title: TEXTS.transactions.title,
     data: { icon: 'receipt_long' },
     loadComponent: () =>
-      import('@features/transactions/transactions-page').then((m) => m.TransactionsPage),
+      import('@pages/transactions/transactions-page').then((m) => m.TransactionsPage),
   },
   {
     path: 'importar',
     title: TEXTS.imports.title,
     data: { icon: 'upload_file' },
-    loadComponent: () => import('@features/imports/import-page').then((m) => m.ImportPage),
+    loadComponent: () => import('@pages/import/import-page').then((m) => m.ImportPage),
   },
   {
     path: 'configuracion',
@@ -43,27 +43,27 @@ export const routes: Routes = [
         title: TEXTS.categories.title,
         data: { icon: 'category' },
         loadComponent: () =>
-          import('@features/settings/categories-page').then((m) => m.CategoriesPage),
+          import('@pages/categories/categories-page').then((m) => m.CategoriesPage),
       },
       {
         path: 'reglas-de-categoria',
         title: TEXTS.categoryRules.title,
         data: { icon: 'rule' },
         loadComponent: () =>
-          import('@features/settings/category-rules-page').then((m) => m.CategoryRulesPage),
+          import('@pages/rules/category-rules-page').then((m) => m.CategoryRulesPage),
       },
       {
         path: 'reglas-de-concepto',
         title: TEXTS.conceptRules.title,
         data: { icon: 'find_replace' },
         loadComponent: () =>
-          import('@features/settings/concept-rules-page').then((m) => m.ConceptRulesPage),
+          import('@pages/rules/concept-rules-page').then((m) => m.ConceptRulesPage),
       },
       {
         path: 'copia-de-seguridad',
         title: TEXTS.backup.title,
         data: { icon: 'database' },
-        loadComponent: () => import('@features/settings/backup-page').then((m) => m.BackupPage),
+        loadComponent: () => import('@pages/backup/backup-page').then((m) => m.BackupPage),
       },
     ],
   },

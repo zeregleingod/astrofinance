@@ -63,12 +63,14 @@ You are an expert in TypeScript, Angular, and scalable web application developme
 - Plan of record: `implementation.md`. Work task by task with TDD (red → green → refactor).
 - The app is **100 % offline**: no runtime network requests, no CDNs, no Google Fonts. Never run
   `ng add` without checking it did not add external `<link>`s to `src/index.html`.
-- Respect layer boundaries in `docs/adr/0001-arquitectura-y-stack.md` (enforced by ESLint).
-  Use path aliases: `@domain/*`, `@data/*`, `@workers/*`, `@core/*`, `@shared/*`, `@features/*`.
+- Respect layer boundaries in `docs/adr/0025-estructura-de-carpetas.md` (enforced by ESLint):
+  `pages → ui | services → worker (contracts only) → domain`. Use path aliases: `@domain/*`,
+  `@worker/*`, `@services/*`, `@ui/*`, `@pages/*`. Inside a page folder, import with `./`.
+- Services hold state as data (codes), never user-visible text or dialogs; `ui/` translates them.
 - `domain/` is pure TypeScript (no Angular, RxJS or browser APIs); coverage ≥ 90 %.
 - Money is always integer cents; never use decimal `number` for amounts.
 - All SQL is parameterized. No `innerHTML`, `bypassSecurityTrust*`, `eval`.
-- User-visible text lives in `src/app/core/i18n/texts.ts` (es-ES).
+- User-visible text lives in `src/app/ui/texts.ts` (es-ES).
 - Do not log financial data to the console.
 - Record relevant decisions as ADRs in `docs/adr/` (template: `0000-plantilla.md`).
 - Before finishing a task: `npm run ci` must pass.

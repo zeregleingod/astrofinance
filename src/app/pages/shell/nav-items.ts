@@ -16,17 +16,18 @@ export interface NavSection {
 }
 
 /**
- * Extrae los elementos de navegación de las rutas: toda ruta con `title`
- * estático aparece en el menú. Se excluyen comodines, redirecciones, rutas
- * con parámetros y las marcadas con `data: { nav: false }`. El icono
- * (Material Symbols) se declara en `data: { icon }` y el apartado del menú en
- * `data: { section }`, que heredan las rutas hijas.
+ * Extrae los elementos de navegación de las rutas: toda ruta con `title` aparece en el menú.
+ * Se excluyen comodines, redirecciones, rutas con parámetros y las marcadas con
+ * `data: { nav: false }`. El icono (Material Symbols) se declara en `data: { icon }` y el
+ * apartado del menú en `data: { section }`, que heredan las rutas hijas.
+ *
+ * El título y el apartado son un texto o una función sin argumentos que lo devuelve en el idioma
+ * del momento (ADR-0027): llamada desde un `computed`, el menú cambia con el idioma.
  */
 export function buildNavItems(routes: Routes, parentPath = '', parentSection?: string): NavItem[] {
   return routes.flatMap((route) => {
     const path = joinPath(parentPath, route.path ?? '');
-    const declared: unknown = route.data?.['section'];
-    const section = typeof declared === 'string' ? declared : parentSection;
+    const section = routeText(route.data?.['section']) ?? parentSection;
     const children = route.children ? buildNavItems(route.children, path, section) : [];
     return isNavigable(route, path) ? [toNavItem(route, path, section), ...children] : children;
   });
@@ -41,9 +42,17 @@ export function groupNavItems(items: readonly NavItem[]): NavSection[] {
   }));
 }
 
-function isNavigable(route: Route, path: string): route is Route & { title: string } {
+/** Un texto de la configuración de rutas: tal cual o el que devuelve su función. */
+export function routeText(value: unknown): string | undefined {
+  if (typeof value === 'string') return value;
+  if (typeof value !== 'function') return undefined;
+  const text: unknown = (value as () => unknown)();
+  return typeof text === 'string' ? text : undefined;
+}
+
+function isNavigable(route: Route, path: string): boolean {
   return (
-    typeof route.title === 'string' &&
+    routeText(route.title) !== undefined &&
     route.redirectTo === undefined &&
     route.path !== '**' &&
     !path.includes(':') &&
@@ -51,15 +60,11 @@ function isNavigable(route: Route, path: string): route is Route & { title: stri
   );
 }
 
-function toNavItem(
-  route: Route & { title: string },
-  path: string,
-  section: string | undefined,
-): NavItem {
+function toNavItem(route: Route, path: string, section: string | undefined): NavItem {
   const icon: unknown = route.data?.['icon'];
   return {
     path: `/${path}`,
-    label: route.title,
+    label: routeText(route.title) ?? '',
     icon: typeof icon === 'string' ? icon : undefined,
     section,
   };

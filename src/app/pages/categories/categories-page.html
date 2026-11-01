@@ -35,16 +35,21 @@
       }
 
       <form class="fields" [formRoot]="categoryForm">
-        <label class="field name">
-          <span>{{ texts.categories.name }}</span>
-          <input
-            type="text"
-            autocomplete="off"
-            [formField]="categoryForm.name"
-            [attr.aria-invalid]="showNameError()"
-            [attr.aria-describedby]="showNameError() ? 'name-error' : null"
+        <div class="field name">
+          <label for="new-name"
+            ><span>{{ texts.categories.name }}</span></label
+          >
+          <app-translatable-input
+            inputId="new-name"
+            [label]="texts.categories.name"
+            [defaultField]="categoryForm.name"
+            [translations]="categoryForm.translations"
+            [(language)]="newNameLanguage"
+            [invalid]="showNameError()"
+            [describedBy]="showNameError() ? 'name-error' : null"
+            [attempted]="attemptedNew()"
           />
-        </label>
+        </div>
         <label class="field color">
           <span>{{ texts.categories.color }}</span>
           <input type="color" [formField]="categoryForm.color" />
@@ -270,13 +275,15 @@
         [title]="texts.categories.color"
       />
     }
-    <input
-      type="text"
-      autocomplete="off"
-      [formField]="rowForm.name"
-      [attr.aria-label]="texts.categories.name + ': ' + editor()?.label"
-      [attr.aria-invalid]="showRowError()"
-      [attr.aria-describedby]="showRowError() ? 'row-error' : null"
+    <app-translatable-input
+      inputId="row-name"
+      [label]="texts.categories.name + ': ' + editor()?.label"
+      [defaultField]="rowForm.name"
+      [translations]="rowForm.translations"
+      [(language)]="rowNameLanguage"
+      [invalid]="showRowError()"
+      [describedBy]="showRowError() ? 'row-error' : null"
+      [attempted]="attemptedRow()"
     />
     @if (kind && compact()) {
       <ng-container [ngTemplateOutlet]="kindEditor" />

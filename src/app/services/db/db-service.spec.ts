@@ -36,6 +36,23 @@ describe('DbService', () => {
     expect(db.hasUserData()).toBe(false);
   });
 
+  it('nombra las categorías en el idioma pedido, también al abrir, sin contar como cambio', async () => {
+    const { db } = setup();
+    await db.useCategoryLanguage('en');
+    await db.openLocal();
+    expect((await db.categoryTree()).map((group) => group.name)).toContain('Utilities');
+
+    const version = db.dataVersion();
+    await db.useCategoryLanguage('ca');
+
+    expect(db.dataVersion()).toBe(version + 1);
+    expect(db.hasUserData()).toBe(false);
+    expect((await db.categoryTree()).map((group) => group.name)).toContain('Subministraments');
+    // El mismo idioma otra vez no repite las consultas.
+    await db.useCategoryLanguage('ca');
+    expect(db.dataVersion()).toBe(version + 1);
+  });
+
   it('empieza cerrada y sin modo', () => {
     const { db, created } = setup();
     expect(db.status()).toBe('cerrada');

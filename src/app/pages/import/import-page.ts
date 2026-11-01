@@ -32,19 +32,40 @@ type RowStatus = 'new' | 'edited' | 'duplicate' | 'excluded' | 'invalid';
 
 const t = TEXTS.imports;
 
+/** Los textos se leen al usarlos, en el idioma de ese momento. */
 const STATUS_LABELS: Readonly<Record<RowStatus, string>> = {
-  new: t.statusNew,
-  edited: t.statusEdited,
-  duplicate: t.statusDuplicate,
-  excluded: t.statusExcluded,
-  invalid: t.statusInvalid,
+  get new() {
+    return t.statusNew;
+  },
+  get edited() {
+    return t.statusEdited;
+  },
+  get duplicate() {
+    return t.statusDuplicate;
+  },
+  get excluded() {
+    return t.statusExcluded;
+  },
+  get invalid() {
+    return t.statusInvalid;
+  },
 };
 
 const SUGGESTION_LABELS: Readonly<
   Record<CategorySuggestion['source'], { icon: string; label: string }>
 > = {
-  regla: { icon: 'rule', label: t.suggestionRule },
-  sugerencia: { icon: 'auto_awesome', label: t.suggestionHistory },
+  regla: {
+    icon: 'rule',
+    get label() {
+      return t.suggestionRule;
+    },
+  },
+  sugerencia: {
+    icon: 'auto_awesome',
+    get label() {
+      return t.suggestionHistory;
+    },
+  },
 };
 
 /**

@@ -1,5 +1,5 @@
 import type { SqlDb } from '../sql-db';
-import { categoryTemplateStatements } from './category-template';
+import { categoryTemplateStatements, categoryTranslationStatements } from './category-template';
 
 /**
  * Datos ficticios y anónimos para el modo demo (`/demo`). Solo se cargan en una BD en memoria
@@ -477,6 +477,9 @@ class DemoBuilder {
         [name, 100 + i, group],
       ),
     );
+    for (const statement of categoryTranslationStatements()) {
+      this.db.run(statement.sql, statement.bind);
+    }
     for (const row of this.db.rows('SELECT id, name FROM categories WHERE parent_id IS NOT NULL')) {
       this.categoryIds.set(String(row['name']), Number(row['id']));
     }

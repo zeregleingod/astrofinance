@@ -67,6 +67,8 @@ export class DbService {
   private connection: { worker: DbWorker; client: RpcClient<DbApi> } | undefined;
   private opening: Promise<void> | undefined;
   private openingMode: DbMode | undefined;
+  /** Idioma de los nombres de categoría (ADR-0028); `null`: el nombre por defecto. */
+  private categoryLanguage: string | null = null;
 
   private readonly statusSignal = signal<DbStatus>('cerrada');
   private readonly modeSignal = signal<DbMode | null>(null);
@@ -113,6 +115,19 @@ export class DbService {
     return restored;
   }
 
+  /**
+   * Nombra las categorías en `language` (un código de la interfaz) en todas las consultas
+   * (ADR-0028). Si hay una BD abierta, las consultas se repiten; si no, se aplica al abrirla.
+   */
+  async useCategoryLanguage(language: string): Promise<void> {
+    if (language === this.categoryLanguage) return;
+    this.categoryLanguage = language;
+    if (!this.connection || !this.ready()) return;
+    await this.connection.client.call('setCategoryLanguage', { language });
+    // No cambian los datos, solo cómo se leen: no cuenta como un cambio del usuario.
+    this.versionSignal.update((v) => v + 1);
+  }
+
   /** El contenido de la BD abierta como fichero `.db` (T2.12). */
   exportFile(): Promise<Uint8Array<ArrayBuffer>> {
     return this.call((c) => c.call('exportFile', undefined, { timeoutMs: FILE_TIMEOUT_MS }));
@@ -134,6 +149,8 @@ export class DbService {
 
     this.opening = client
       .call(mode === 'demo' ? 'openDemo' : 'openNew', undefined, { timeoutMs: OPEN_TIMEOUT_MS })
+      // Cada apertura es un worker nuevo: hay que decirle en qué idioma nombrar las categorías.
+      .then(() => client.call('setCategoryLanguage', { language: this.categoryLanguage }))
       .then(() => {
         this.modeSignal.set(mode);
         this.statusSignal.set('lista');

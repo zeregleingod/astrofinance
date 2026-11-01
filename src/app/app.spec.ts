@@ -39,7 +39,7 @@ describe('App', () => {
     const labels = [...(group?.querySelectorAll('button') ?? [])].map((b) =>
       b.getAttribute('aria-label'),
     );
-    expect(labels).toEqual(['Descargar una copia', 'Cargar una copia', 'Modo oscuro']);
+    expect(labels).toEqual(['Descargar una copia', 'Cargar una copia', 'Modo oscuro', 'Idioma']);
   });
 
   describe('barra lateral plegable', () => {

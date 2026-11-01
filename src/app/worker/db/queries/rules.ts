@@ -15,6 +15,7 @@ import {
   type RuleSign,
   type RuleUpdate,
 } from '@domain/rules/rule';
+import { LOCALIZED_CATEGORIES, type CategoryLanguage } from './category-names';
 import type { SqlDb } from '../sql-db';
 
 /** Largo máximo del nombre interno de una regla en el esquema. */
@@ -23,16 +24,21 @@ const NAME_MAX = 80;
 /** `Principal › Subcategoría`, o solo el nombre si la categoría no cuelga de otra. */
 const CATEGORY_LABEL = `CASE WHEN p.id IS NULL THEN c.name ELSE p.name || ' › ' || c.name END`;
 
-/** Las reglas en el orden en que se aplican, con los movimientos que ha clasificado cada una. */
-export function listRules(db: SqlDb): RuleRow[] {
+/**
+ * Las reglas en el orden en que se aplican, con los movimientos que ha clasificado cada una y su
+ * categoría en `language`.
+ */
+export function listRules(db: SqlDb, language: CategoryLanguage = null): RuleRow[] {
   return db
     .rows(
-      `SELECT r.id, r.operator, r.pattern, r.category_id, ${CATEGORY_LABEL} AS category_label,
+      `WITH ${LOCALIZED_CATEGORIES}
+       SELECT r.id, r.operator, r.pattern, r.category_id, ${CATEGORY_LABEL} AS category_label,
               (SELECT count(*) FROM transactions t WHERE t.rule_id = r.id) AS tx_count
        FROM rules r
-       JOIN categories c ON c.id = r.category_id
-       LEFT JOIN categories p ON p.id = c.parent_id
+       JOIN localized_categories c ON c.id = r.category_id
+       LEFT JOIN localized_categories p ON p.id = c.parent_id
        ORDER BY r.priority, r.id`,
+      [language],
     )
     .map((row) => ({
       id: Number(row['id']),
@@ -88,22 +94,24 @@ export function deleteRule(db: SqlDb, id: number): undefined {
  * Qué movimientos cambiarían de categoría si se aplicasen las reglas ahora, sin tocar nada: los
  * más recientes primero. Los clasificados a mano no se tocan nunca.
  */
-export function previewRules(db: SqlDb): RuleChange[] {
+export function previewRules(db: SqlDb, language: CategoryLanguage = null): RuleChange[] {
   const matches = currentMatches(db);
   if (matches.length === 0) return [];
 
-  const rules = new Map(listRules(db).map((rule) => [rule.id, rule]));
+  const rules = new Map(listRules(db, language).map((rule) => [rule.id, rule]));
   const ruleOf = new Map(matches.map((match) => [match.transactionId, rules.get(match.ruleId)]));
   return db
     .rows(
-      `SELECT t.id, coalesce(t.booked_date, t.op_date) AS shown_date, t.description,
+      `WITH ${LOCALIZED_CATEGORIES}
+       SELECT t.id, coalesce(t.booked_date, t.op_date) AS shown_date, t.description,
               t.amount_cents,
               ${CATEGORY_LABEL} AS category_label
        FROM transactions t
-       LEFT JOIN categories c ON c.id = t.category_id
-       LEFT JOIN categories p ON p.id = c.parent_id
+       LEFT JOIN localized_categories c ON c.id = t.category_id
+       LEFT JOIN localized_categories p ON p.id = c.parent_id
        WHERE t.category_source <> 'manual'
        ORDER BY shown_date DESC, t.id DESC`,
+      [language],
     )
     .flatMap((row) => {
       const rule = ruleOf.get(Number(row['id']));

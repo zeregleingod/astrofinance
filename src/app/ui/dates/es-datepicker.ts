@@ -1,4 +1,4 @@
-import { Injectable, type Provider } from '@angular/core';
+import { Injectable, effect, type Provider } from '@angular/core';
 import {
   DateAdapter,
   MAT_DATE_FORMATS,
@@ -7,11 +7,21 @@ import {
   type MatDateFormats,
 } from '@angular/material/core';
 import { MatDatepickerIntl } from '@angular/material/datepicker';
-import { TEXTS } from '@ui/texts';
+import { TEXTS, language, type Language } from '@ui/texts';
 import { isIsoDate } from '@domain/dates/period';
 
 /** `d/m/aaaa`, también con guiones o puntos. */
 const TYPED_DATE = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/;
+
+/**
+ * Con qué `Intl` se nombran los meses y los días del calendario en cada idioma. Las fechas se
+ * escriben igual en los dos (`dd/mm/aaaa`).
+ */
+const CALENDAR_LOCALES: Readonly<Record<Language, string>> = {
+  es: 'es-ES',
+  en: 'en-GB',
+  ca: 'ca-ES',
+};
 
 const FORMATS: MatDateFormats = {
   parse: { dateInput: null },
@@ -57,15 +67,35 @@ export function dateToIso(date: Date): string {
   return `${pad(date.getFullYear(), 4)}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}`;
 }
 
-/** Lo que necesita un `mat-datepicker`: fechas es-ES escritas a mano y textos en español. */
+/**
+ * Lo que necesita un `mat-datepicker`: fechas es-ES escritas a mano y los textos y nombres del
+ * calendario en el idioma elegido, que cambian con él (ADR-0027).
+ */
 export function provideEsDatepicker(): Provider[] {
   return [
     { provide: MAT_DATE_LOCALE, useValue: 'es-ES' },
     { provide: MAT_DATE_FORMATS, useValue: FORMATS },
-    { provide: DateAdapter, useClass: EsDateAdapter },
+    {
+      provide: DateAdapter,
+      useFactory: () => {
+        const adapter = new EsDateAdapter();
+        const localize = () => adapter.setLocale(CALENDAR_LOCALES[language()]);
+        // Ya en el idioma elegido al pintarse; el efecto lo sigue al cambiarlo.
+        localize();
+        effect(localize);
+        return adapter;
+      },
+    },
     {
       provide: MatDatepickerIntl,
-      useFactory: () => Object.assign(new MatDatepickerIntl(), TEXTS.datepicker),
+      useFactory: () => {
+        const intl = Object.assign(new MatDatepickerIntl(), { ...TEXTS.datepicker });
+        effect(() => {
+          Object.assign(intl, { ...TEXTS.datepicker });
+          intl.changes.next();
+        });
+        return intl;
+      },
     },
   ];
 }

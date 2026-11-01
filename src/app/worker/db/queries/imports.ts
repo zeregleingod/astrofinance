@@ -8,6 +8,7 @@ import type {
   ImportRowInput,
 } from '@domain/imports/import-batch';
 import type { SqlDb } from '../sql-db';
+import { LOCALIZED_CATEGORIES, type CategoryLanguage } from './category-names';
 
 const MAX_ROWS = 20_000;
 const CATEGORY_SOURCES: readonly CategorySource[] = ['manual', 'regla', 'sugerencia', 'ninguna'];
@@ -18,16 +19,19 @@ const CHUNK = 500;
 
 /**
  * Categorías asignables a un movimiento: las subcategorías, con su categoría principal
- * delante (`Variables › Hogar`). Las principales solo agrupan (ADR-0009).
+ * delante (`Variables › Hogar`), en `language` (ADR-0028). Las principales solo agrupan
+ * (ADR-0009).
  */
-export function categoryOptions(db: SqlDb): CategoryOption[] {
+export function categoryOptions(db: SqlDb, language: CategoryLanguage = null): CategoryOption[] {
   return db
     .rows(
-      `SELECT c.id, p.name || ' › ' || c.name AS label
-       FROM categories c
-       JOIN categories p ON p.id = c.parent_id
+      `WITH ${LOCALIZED_CATEGORIES}
+       SELECT c.id, p.name || ' › ' || c.name AS label
+       FROM localized_categories c
+       JOIN localized_categories p ON p.id = c.parent_id
        WHERE c.archived = 0
        ORDER BY p.sort_order, p.name, c.sort_order, c.name`,
+      [language],
     )
     .map((row) => ({ id: Number(row['id']), label: String(row['label']) }));
 }

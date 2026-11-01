@@ -1,18 +1,19 @@
 import { NgOptimizedImage } from '@angular/common';
-import { Component, booleanAttribute, inject, input, output } from '@angular/core';
+import { Component, booleanAttribute, computed, inject, input, output } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
+import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { TEXTS } from '@ui/texts';
+import { LANGUAGES, TEXTS, language, setLanguage } from '@ui/texts';
 import { DemoBanner } from './demo-banner';
 import { buildNavItems, groupNavItems } from './nav-items';
 import { ThemeService } from '@services/theme/theme-service';
 import { DbService } from '@services/db/db-service';
 
 /**
- * Barra lateral: marca, accesos rápidos (los que se proyecten y el modo oscuro), una entrada por
+ * Barra lateral: marca, accesos rápidos (los que se proyecten, el modo oscuro y el idioma), una entrada por
  * sección (agrupadas en apartados) y acceso a la demo (o su aviso, dentro de ella). En
  * escritorio se pliega a una franja con solo los iconos; sus nombres salen al pasar por encima
  * y siguen ahí para los lectores de pantalla.
@@ -26,6 +27,7 @@ import { DbService } from '@services/db/db-service';
     MatButtonModule,
     MatIconModule,
     MatListModule,
+    MatMenuModule,
     MatTooltipModule,
     RouterLink,
     RouterLinkActive,
@@ -65,9 +67,33 @@ import { DbService } from '@services/db/db-service';
       >
         <mat-icon [fontIcon]="theme.isDark() ? 'dark_mode' : 'light_mode'" aria-hidden="true" />
       </button>
+      <button
+        mat-icon-button
+        type="button"
+        [attr.aria-label]="texts.language.label"
+        [matTooltip]="texts.language.label"
+        [matMenuTriggerFor]="languageMenu"
+      >
+        <mat-icon fontIcon="translate" aria-hidden="true" />
+      </button>
+      <mat-menu #languageMenu="matMenu" [aria-label]="texts.language.label">
+        @for (option of languages; track option.code) {
+          <button
+            mat-menu-item
+            type="button"
+            role="menuitemradio"
+            [attr.lang]="option.code"
+            [attr.aria-checked]="option.code === language()"
+            (click)="setLanguage(option.code)"
+          >
+            <mat-icon [fontIcon]="option.code === language() ? 'check' : ''" aria-hidden="true" />
+            <span>{{ option.name }}</span>
+          </button>
+        }
+      </mat-menu>
     </div>
     <nav id="main-nav" [attr.aria-label]="texts.nav.label">
-      @for (section of sections; track section.label) {
+      @for (section of sections(); track section.label) {
         <p class="section-label" aria-hidden="true">{{ section.label ?? texts.nav.section }}</p>
         <mat-nav-list [attr.aria-label]="section.label ?? texts.nav.section">
           @for (item of section.items; track item.path) {
@@ -285,7 +311,12 @@ import { DbService } from '@services/db/db-service';
 })
 export class Sidebar {
   protected readonly texts = TEXTS;
-  protected readonly sections = groupNavItems(buildNavItems(inject(Router).config));
+  private readonly routes = inject(Router).config;
+  /** Los nombres de las secciones salen de los textos: se recalculan al cambiar de idioma. */
+  protected readonly sections = computed(() => groupNavItems(buildNavItems(this.routes)));
+  protected readonly languages = LANGUAGES;
+  protected readonly language = language;
+  protected readonly setLanguage = setLanguage;
   protected readonly theme = inject(ThemeService);
   protected readonly db = inject(DbService);
 

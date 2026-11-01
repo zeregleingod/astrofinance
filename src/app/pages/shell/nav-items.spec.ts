@@ -37,10 +37,26 @@ describe('buildNavItems', () => {
     expect(buildNavItems(routes)).toEqual([]);
   });
 
-  it('ignora títulos dinámicos (resolvers)', () => {
-    const routes: Routes = [{ path: 'x', title: () => 'X' }];
+  it('lee los títulos y apartados que dan una función cada vez que se le pide', () => {
+    let title = 'Resumen';
+    let section = 'Ajustes';
+    const routes: Routes = [
+      {
+        path: 'x',
+        data: { section: () => section },
+        children: [{ path: 'y', title: () => title }],
+      },
+    ];
 
-    expect(buildNavItems(routes)).toEqual([]);
+    expect(buildNavItems(routes)).toEqual([
+      { path: '/x/y', label: 'Resumen', icon: undefined, section: 'Ajustes' },
+    ]);
+
+    title = 'Overview';
+    section = 'Settings';
+    expect(buildNavItems(routes)).toEqual([
+      { path: '/x/y', label: 'Overview', icon: undefined, section: 'Settings' },
+    ]);
   });
 
   it('incluye las rutas hijas con la ruta completa', () => {

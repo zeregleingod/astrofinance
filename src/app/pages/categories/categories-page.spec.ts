@@ -342,6 +342,113 @@ describe('CategoriesPage', () => {
     });
   });
 
+  describe('nombre en otros idiomas (ADR-0028)', () => {
+    /** El botón de idioma del campo del nombre que se llama `label`. */
+    const languageButton = (element: HTMLElement, label: string) => {
+      const input = element.querySelector(
+        `input[aria-label="${label}"], input[aria-label^="${label} ("]`,
+      );
+      const found = input?.closest('app-translatable-input')?.querySelector('button');
+      if (!found) throw new Error(`Sin botón de idioma en ${label}`);
+      return found;
+    };
+    const option = (name: string) => {
+      const found = [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')].find(
+        (item) => item.textContent?.includes(name),
+      );
+      if (!found) throw new Error(`Sin opción ${name}`);
+      return found;
+    };
+
+    it('un solo campo: el botón de su izquierda elige en qué idioma se escribe', async () => {
+      const { db, element, field, fill, submit, settled, status } = await setup();
+      const button = languageButton(element, 'Nombre');
+      expect(button.getAttribute('aria-label')).toBe('Idioma del texto: Por defecto');
+
+      await fill('Nombre', 'Mascotas');
+      button.click();
+      await settled(() => expect(option('English')).toBeTruthy());
+      // Cada opción enseña lo que tiene escrito.
+      expect(option('Por defecto').textContent).toContain('Mascotas');
+      expect(option('English').textContent).toContain('Sin traducir');
+      expect(option('Por defecto').getAttribute('aria-checked')).toBe('true');
+
+      option('English').click();
+      await settled(() => expect(field('Nombre (English)')).not.toBeNull());
+      const english = field('Nombre (English)');
+      expect(english?.placeholder).toBe('Mascotas');
+      expect(english?.getAttribute('lang')).toBe('en');
+      expect(button.getAttribute('aria-label')).toBe('Idioma del texto: English');
+
+      await fill('Nombre (English)', ' Pets ');
+      await submit();
+
+      await settled(() => expect(status()).toBe('Añadida: Mascotas'));
+      expect((await db.categoryTree()).at(-1)).toMatchObject({
+        defaultName: 'Mascotas',
+        translations: { en: 'Pets' },
+      });
+      // Tras guardar vuelve al nombre por defecto, vacío.
+      await settled(() => expect(field('Nombre')?.value).toBe(''));
+    });
+
+    it('no admite en un idioma el nombre que ya tiene allí una hermana', async () => {
+      const { db, element, field, fill, submit, settled } = await setup();
+      const before = (await db.categoryTree()).length;
+
+      await fill('Nombre', 'Recibos');
+      languageButton(element, 'Nombre').click();
+      await settled(() => expect(option('English')).toBeTruthy());
+      option('English').click();
+      await settled(() => expect(field('Nombre (English)')).not.toBeNull());
+      await fill('Nombre (English)', 'utilities');
+      // Se ve aunque se vuelva al nombre por defecto.
+      languageButton(element, 'Nombre').click();
+      await settled(() => expect(option('Por defecto')).toBeTruthy());
+      option('Por defecto').click();
+      await submit();
+
+      await settled(() =>
+        expect(text(element.querySelector('app-translatable-input .alert'))).toBe(
+          'English: Ya hay una con ese nombre en este idioma en el mismo nivel.',
+        ),
+      );
+      expect((await db.categoryTree()).length).toBe(before);
+    });
+
+    it('al editar se cambian sus nombres en cada idioma con el resto', async () => {
+      const { db, element, tool, field, fill, settled, status } = await setup();
+
+      tool('Editar: Suministros').click();
+      await settled(() => expect(field('Nombre: Suministros')?.value).toBe('Suministros'));
+      languageButton(element, 'Nombre: Suministros').click();
+      await settled(() => expect(option('English').textContent).toContain('Utilities'));
+      option('English').click();
+      await settled(() => expect(field('Nombre: Suministros (English)')?.value).toBe('Utilities'));
+      await fill('Nombre: Suministros (English)', 'Bills');
+      languageButton(element, 'Nombre: Suministros').click();
+      await settled(() => expect(option('Català')).toBeTruthy());
+      option('Català').click();
+      await settled(() => expect(field('Nombre: Suministros (Català)')).not.toBeNull());
+      await fill('Nombre: Suministros (Català)', '');
+      tool('Guardar').click();
+
+      await settled(() => expect(status()).toBe('Guardada: Suministros'));
+      const utilities = (await db.categoryTree()).find((g) => g.defaultName === 'Suministros');
+      expect(utilities?.translations).toEqual({ en: 'Bills' });
+    });
+
+    it('la tabla enseña cada categoría en el idioma de la interfaz', async () => {
+      const { db, groupNames, settled } = await setup();
+
+      await db.useCategoryLanguage('en');
+
+      await settled(() => expect(groupNames()).toContain('Utilities'));
+      expect(groupNames()).not.toContain('Suministros');
+      await db.useCategoryLanguage('es');
+    });
+  });
+
   describe('categorías principales, en la tabla', () => {
     it('se les puede cambiar el nombre y el color, pero no tienen tipo', async () => {
       const { db, element, group, tool, field, fill, settled, status } = await setup();

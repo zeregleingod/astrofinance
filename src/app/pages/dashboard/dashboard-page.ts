@@ -20,11 +20,29 @@ type DashboardCard =
 
 type FoldStep = 'plegar-todo' | 'abrir-categorias' | 'abrir-todo';
 
-/** Texto e icono del botón de plegar según lo que hará al pulsarlo. */
+/**
+ * Texto e icono del botón de plegar según lo que hará al pulsarlo. Los textos se leen al usarlos,
+ * en el idioma de ese momento.
+ */
 const FOLD_BUTTON: Record<FoldStep, { readonly label: string; readonly icon: string }> = {
-  'plegar-todo': { label: TEXTS.dashboard.collapseAll, icon: 'unfold_less' },
-  'abrir-categorias': { label: TEXTS.dashboard.expandGroups, icon: 'unfold_more' },
-  'abrir-todo': { label: TEXTS.dashboard.expandAll, icon: 'unfold_more_double' },
+  'plegar-todo': {
+    get label() {
+      return TEXTS.dashboard.collapseAll;
+    },
+    icon: 'unfold_less',
+  },
+  'abrir-categorias': {
+    get label() {
+      return TEXTS.dashboard.expandGroups;
+    },
+    icon: 'unfold_more',
+  },
+  'abrir-todo': {
+    get label() {
+      return TEXTS.dashboard.expandAll;
+    },
+    icon: 'unfold_more_double',
+  },
 };
 
 /**

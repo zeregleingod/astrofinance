@@ -4,13 +4,73 @@ import {
   buildCategoryTree,
   categoryErrorCode,
   categoryNameError,
+  categoryNamesError,
+  categoryTranslationError,
+  cleanTranslations,
+  isLanguageCode,
+  localizedName,
   groupTransactionCount,
   isCategoryColor,
   isReorderOf,
   moveItem,
   nextCategoryColor,
+  type CategoryNames,
   type CategoryRecord,
 } from './category-tree';
+
+const names = (defaultName: string, translations: Record<string, string> = {}): CategoryNames => ({
+  defaultName,
+  translations,
+});
+
+describe('nombres en varios idiomas (ADR-0028)', () => {
+  const food = names('Comida', { en: 'Food', ca: 'Menjar' });
+  const leisure = names('Ocio');
+
+  it('cada idioma ve su traducción o, si no la hay, el nombre por defecto', () => {
+    expect(localizedName(food, 'en')).toBe('Food');
+    expect(localizedName(food, 'es')).toBe('Comida');
+    expect(localizedName(leisure, 'en')).toBe('Ocio');
+  });
+
+  it('solo guarda las traducciones que dicen algo: sin vacías ni iguales al nombre', () => {
+    expect(cleanTranslations('Comida', { en: ' Food ', ca: '  ', es: 'comida' })).toEqual({
+      en: 'Food',
+    });
+  });
+
+  it('una traducción vacía vale: es no traducir', () => {
+    expect(categoryTranslationError('  ', 'en', [food])).toBeNull();
+  });
+
+  it('una traducción no pasa de 60 caracteres', () => {
+    expect(categoryTranslationError('x'.repeat(61), 'en', [])).toBe('traduccion-larga');
+  });
+
+  it('una traducción no repite el nombre que tiene una hermana en ese idioma', () => {
+    expect(categoryTranslationError('food', 'en', [food])).toBe('traduccion-repetida');
+    expect(categoryTranslationError('Ocio', 'en', [leisure])).toBe('traduccion-repetida');
+    // En catalán la hermana se llama «Menjar»: «Food» está libre.
+    expect(categoryTranslationError('Food', 'ca', [food])).toBeNull();
+  });
+
+  it('valida todos los nombres de una categoría frente a los de sus hermanas', () => {
+    expect(categoryNamesError(names('Mascotas', { en: 'Pets' }), [food, leisure])).toBeNull();
+    expect(categoryNamesError(names('comida'), [food])).toBe('nombre-repetido');
+    expect(categoryNamesError(names('Mascotas', { en: 'Food' }), [food])).toBe(
+      'traduccion-repetida',
+    );
+    // Sin traducción al inglés se vería «Food» dos veces en inglés.
+    expect(categoryNamesError(names('Food'), [food])).toBe('nombre-repetido');
+    // Con su propia traducción al inglés, ya no.
+    expect(categoryNamesError(names('Food', { en: 'Groceries' }), [food])).toBeNull();
+  });
+
+  it('reconoce los códigos de idioma de dos letras', () => {
+    expect(['es', 'en', 'ca'].every(isLanguageCode)).toBe(true);
+    expect(['EN', 'eng', '', 3].some(isLanguageCode)).toBe(false);
+  });
+});
 
 describe('categoryNameError', () => {
   it('acepta un nombre nuevo', () => {
@@ -66,6 +126,8 @@ describe('buildCategoryTree', () => {
     id,
     parentId,
     name,
+    defaultName: name,
+    translations: {},
     kind: parentId === null ? null : 'gasto',
     color: parentId === null ? '#112233' : null,
     transactionCount,
@@ -84,19 +146,25 @@ describe('buildCategoryTree', () => {
       {
         id: 1,
         name: 'Variables',
+        defaultName: 'Variables',
+        translations: {},
         color: '#112233',
         transactionCount: 2,
         subcategories: [
-          { id: 4, name: 'Comida', kind: 'gasto', transactionCount: 7 },
-          { id: 5, name: 'Sueldo', kind: 'ingreso', transactionCount: 0 },
+          { id: 4, ...names('Comida'), name: 'Comida', kind: 'gasto', transactionCount: 7 },
+          { id: 5, ...names('Sueldo'), name: 'Sueldo', kind: 'ingreso', transactionCount: 0 },
         ],
       },
       {
         id: 2,
         name: 'Suministros',
+        defaultName: 'Suministros',
+        translations: {},
         color: '#112233',
         transactionCount: 0,
-        subcategories: [{ id: 3, name: 'Luz', kind: 'gasto', transactionCount: 4 }],
+        subcategories: [
+          { id: 3, ...names('Luz'), name: 'Luz', kind: 'gasto', transactionCount: 4 },
+        ],
       },
     ]);
   });

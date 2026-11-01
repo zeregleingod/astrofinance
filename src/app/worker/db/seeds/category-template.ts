@@ -98,3 +98,67 @@ export function categoryTemplateStatements(
     })),
   ]);
 }
+
+/**
+ * Los nombres de la plantilla (y de las subcategorías de la demo) en los demás idiomas de la
+ * interfaz, por su nombre en español (ADR-0028). Faltan los que se escriben igual.
+ */
+export const CATEGORY_TEMPLATE_TRANSLATIONS: Readonly<
+  Record<string, Readonly<Partial<Record<'en' | 'ca', string>>>>
+> = {
+  Ingresos: { en: 'Income', ca: 'Ingressos' },
+  Nómina: { en: 'Salary', ca: 'Nòmina' },
+  'Ingresos extra': { en: 'Extra income', ca: 'Ingressos extra' },
+  Ahorro: { en: 'Savings', ca: 'Estalvi' },
+  'Aportación a ahorro': { en: 'Savings deposit', ca: 'Aportació a l’estalvi' },
+  'Retirada de ahorro': { en: 'Savings withdrawal', ca: 'Retirada de l’estalvi' },
+  'Hipoteca y vivienda': { en: 'Mortgage and housing', ca: 'Hipoteca i habitatge' },
+  'Cuota hipoteca': { en: 'Mortgage payment', ca: 'Quota de la hipoteca' },
+  'Seguros de la vivienda': { en: 'Home insurance', ca: 'Assegurances de l’habitatge' },
+  Impuestos: { en: 'Taxes', ca: 'Impostos' },
+  'Préstamos y financiaciones': { en: 'Loans and financing', ca: 'Préstecs i finançaments' },
+  Financiaciones: { en: 'Financing', ca: 'Finançaments' },
+  'Plataformas y suscripciones': {
+    en: 'Platforms and subscriptions',
+    ca: 'Plataformes i subscripcions',
+  },
+  'Donaciones y colaboraciones': { en: 'Donations', ca: 'Donacions i col·laboracions' },
+  Otros: { en: 'Other', ca: 'Altres' },
+  Suministros: { en: 'Utilities', ca: 'Subministraments' },
+  'Comunidad de vecinos': { en: 'Community fees', ca: 'Comunitat de veïns' },
+  Luz: { en: 'Electricity', ca: 'Llum' },
+  Transporte: { en: 'Transport', ca: 'Transport' },
+  'Transporte público': { en: 'Public transport', ca: 'Transport públic' },
+  'Financiación coche': { en: 'Car financing', ca: 'Finançament del cotxe' },
+  Coche: { en: 'Car', ca: 'Cotxe' },
+  Moto: { en: 'Motorbike' },
+  Gasolina: { en: 'Fuel', ca: 'Benzina' },
+  Variables: { en: 'Variable expenses' },
+  'Cuidado personal': { en: 'Personal care', ca: 'Cura personal' },
+  Comida: { en: 'Groceries', ca: 'Menjar' },
+  Restaurantes: { en: 'Restaurants', ca: 'Restaurants' },
+  Hogar: { en: 'Home', ca: 'Llar' },
+  Ocio: { en: 'Leisure', ca: 'Oci' },
+  Manualidades: { en: 'Crafts', ca: 'Manualitats' },
+  Estudios: { en: 'Education', ca: 'Estudis' },
+  Ropa: { en: 'Clothing', ca: 'Roba' },
+  'Escapadas y viajes': { en: 'Trips and travel', ca: 'Escapades i viatges' },
+  Regalos: { en: 'Gifts', ca: 'Regals' },
+  Agua: { en: 'Water', ca: 'Aigua' },
+  'Internet y móvil': { en: 'Internet and mobile', ca: 'Internet i mòbil' },
+  Mascotas: { en: 'Pets', ca: 'Mascotes' },
+};
+
+/**
+ * Sentencias que traducen las categorías ya cargadas que se llaman como en la plantilla. Las que
+ * ya tienen traducción la conservan, así que se pueden repetir tras añadir más categorías.
+ */
+export function categoryTranslationStatements(): SeedStatement[] {
+  return Object.entries(CATEGORY_TEMPLATE_TRANSLATIONS).flatMap(([name, translations]) =>
+    Object.entries(translations).map(([language, translation]) => ({
+      sql: `INSERT OR IGNORE INTO category_translations (category_id, language, name)
+            SELECT id, ?, ? FROM categories WHERE name = ?`,
+      bind: [language, translation, name],
+    })),
+  );
+}

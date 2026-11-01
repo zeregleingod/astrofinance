@@ -1,6 +1,7 @@
 import { TestBed } from '@angular/core/testing';
 import { Router, provideRouter } from '@angular/router';
 import { ThemeService } from '@services/theme/theme-service';
+import { language, setLanguage } from '@ui/texts';
 import { DB_WORKER_FACTORY, DbService } from '@services/db/db-service';
 import { inProcessDbWorker } from '../../../testing/in-process-db-worker';
 import { Sidebar } from './sidebar';
@@ -157,6 +158,70 @@ describe('Sidebar', () => {
     expect(theme.isDark()).toBe(true);
     expect(button?.getAttribute('aria-pressed')).toBe('true');
     expect(icon()).toBe('dark_mode');
+  });
+
+  describe('idioma', () => {
+    afterEach(() => setLanguage('es'));
+
+    it('el menú de idioma ofrece cada idioma y cambia los textos sin recargar', async () => {
+      const { fixture, element } = await setup();
+      const trigger = element.querySelector<HTMLButtonElement>('button[aria-label="Idioma"]');
+      expect(trigger?.closest('[role="group"]')).not.toBeNull();
+
+      trigger?.click();
+      await fixture.whenStable();
+      const options = [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')];
+      expect(options.map((option) => option.textContent?.trim())).toEqual([
+        'Español',
+        'English',
+        'Català',
+      ]);
+      expect(options.map((option) => option.getAttribute('aria-checked'))).toEqual([
+        'true',
+        'false',
+        'false',
+      ]);
+
+      options[1]?.click();
+      await fixture.whenStable();
+
+      expect(element.querySelector('button[aria-label="Language"]')).not.toBeNull();
+      expect(element.querySelector('button[aria-label="Dark mode"]')).not.toBeNull();
+    });
+
+    it('los apartados del menú que dan una función cambian con el idioma', async () => {
+      TestBed.configureTestingModule({
+        imports: [Sidebar],
+        providers: [
+          { provide: DB_WORKER_FACTORY, useValue: inProcessDbWorker },
+          provideRouter([
+            {
+              path: 'x',
+              data: { section: () => (language() === 'en' ? 'Settings' : 'Configuración') },
+              children: [
+                {
+                  path: 'y',
+                  title: () => (language() === 'en' ? 'Rules' : 'Reglas'),
+                  children: [],
+                },
+              ],
+            },
+          ]),
+        ],
+      });
+      const fixture = TestBed.createComponent(Sidebar);
+      await fixture.whenStable();
+      const element = fixture.nativeElement as HTMLElement;
+      const text = () => element.querySelector('nav')?.textContent ?? '';
+      expect(text()).toContain('Configuración');
+      expect(text()).toContain('Reglas');
+
+      setLanguage('en');
+      await fixture.whenStable();
+
+      expect(text()).toContain('Settings');
+      expect(text()).toContain('Rules');
+    });
   });
 
   describe('plegada', () => {

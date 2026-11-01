@@ -87,7 +87,7 @@ export class TransactionSplitDialog {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   protected readonly row = this.data.row;
-  protected readonly kind = this.row.amountCents < 0 ? t.expense : t.income;
+  protected readonly kind = computed(() => (this.row.amountCents < 0 ? t.expense : t.income));
   protected readonly totalCents = Math.abs(this.row.amountCents);
   /**
    * Lo que se puede dividir: el importe menos lo que el ingreso ya devuelve con lo no dividido

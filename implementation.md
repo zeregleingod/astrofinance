@@ -113,6 +113,7 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 - [ ] **T3.4 Primer arranque**: crear BD nueva (con plantilla opcional de categorías, `worker/db/seeds/category-template.ts`), cargar un `.db` existente o **probar la demo** (`/demo`, ADR-0006, ya disponible).
 - [ ] **T3.5 Errores y notificaciones**: manejador global, `MatSnackBar`, sin volcar datos financieros a la consola.
 - [ ] **T3.6 Patrón de lectura**: consultas con `resource()`/equivalente dependientes de `dataVersion`; escrituras mediante *use-cases* que incrementan `dataVersion` y marcan `dirty`.
+- [x] **T3.7 Interfaz en varios idiomas** (ADR-0027): español (predeterminado), inglés y catalán, con un menú junto al modo oscuro que cambia todos los textos al momento, sin recargar, y se recuerda. Diccionarios en `ui/i18n/`; importes y fechas siguen a la española.
 
 ---
 
@@ -125,6 +126,7 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 - [ ] **T4.4 Atajo “crear regla desde este movimiento”**.
 - [ ] **T4.6 Reglas de concepto** (ADR-0024): cambian el concepto visible (nunca el del banco) de los movimientos cuyo concepto del banco contiene un texto, es exactamente ese texto o cumple una expresión regular; sustituyen solo lo que coincide o el concepto entero, y se encadenan en orden. *(Hecho en «Configuración › Reglas de concepto», `pages/rules/concept-rules-page`: alta, edición en la fila, borrado y «Aplicar a movimientos existentes» con vista previa; la revisión de la importación propone ya el concepto de las reglas. Lo escrito a mano (`description_source = 'manual'`, migración 008) no se toca. Falta ordenar, activar/desactivar y probar en vivo.)*
 - [x] **T4.5 Autocategorización por el historial** (ADR-0018): clasificador TF-IDF de vecinos más cercanos en `domain/suggestions`, sin modelos ni red; propone la categoría en la revisión de la importación cuando ninguna regla encaja y se guarda como `category_source = 'sugerencia'` (migración 006), que las reglas pueden cambiar después. Pendiente: proponer también al editar un movimiento y una opción para desactivarlo. Fase 2 (búsqueda semántica con un modelo local opcional) en su propio ADR.
+- [x] **T4.7 Nombres de categoría en varios idiomas** (ADR-0028): cada categoría y subcategoría puede tener su nombre en cada idioma de la interfaz (tabla `category_translations`, migración 009), y se ve el del idioma elegido o, si no lo tiene, el nombre por defecto; cambia en vivo con el idioma. Se escriben en el mismo campo del nombre, eligiendo el idioma con el botón de su izquierda (`ui/translatable-input`). La plantilla y la demo traen sus categorías en inglés y catalán.
 
 ---
 

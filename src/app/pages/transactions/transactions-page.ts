@@ -72,28 +72,48 @@ interface Column {
 const t = TEXTS.transactions;
 
 /** El nombre de cada total del resumen, como se ve en él. */
-const SUMMARY_TOTAL_NAMES: Record<SummaryTotal, string> = {
-  ingresos: TEXTS.dashboard.income,
-  gastos: TEXTS.dashboard.expense,
-  ahorro: TEXTS.dashboard.savings,
-  balance: TEXTS.dashboard.balance,
-  pendiente: TEXTS.dashboard.pending,
+const SUMMARY_TOTAL_NAMES: Record<SummaryTotal, () => string> = {
+  ingresos: () => TEXTS.dashboard.income,
+  gastos: () => TEXTS.dashboard.expense,
+  ahorro: () => TEXTS.dashboard.savings,
+  balance: () => TEXTS.dashboard.balance,
+  pendiente: () => TEXTS.dashboard.pending,
 };
 
+/** Los textos se leen al usarlos, en el idioma de ese momento. */
 const LABELS: TableLabels = {
-  shared: t.shared,
-  reimbursement: t.reimbursement,
-  transfer: t.transfer,
-  installment: t.installment,
-  split: t.split,
-  uncategorized: TEXTS.dashboard.uncategorized,
+  get shared() {
+    return t.shared;
+  },
+  get reimbursement() {
+    return t.reimbursement;
+  },
+  get transfer() {
+    return t.transfer;
+  },
+  get installment() {
+    return t.installment;
+  },
+  get split() {
+    return t.split;
+  },
+  get uncategorized() {
+    return TEXTS.dashboard.uncategorized;
+  },
 };
 
-const LINK_LABELS: LinkLabels = {
-  refundedBy: t.links.refundedBy,
-  refunds: t.links.refunds,
-  transfer: t.links.transfer,
-};
+const LINK_LABELS: LinkLabels = t.links;
+
+/** Una columna de la tabla; su nombre es el de su clave en los textos. */
+function column(key: TransactionSortKey, numeric = false): Column {
+  return {
+    key,
+    numeric,
+    get label() {
+      return t[key];
+    },
+  };
+}
 
 /**
  * Lista de todos los movimientos, con filtros que se aplican al pulsar «Filtrar», búsqueda al
@@ -178,7 +198,7 @@ export class TransactionsPage {
     summaryOrigin(this.mes(), this.origen()),
   );
 
-  protected readonly originName = (total: SummaryTotal) => SUMMARY_TOTAL_NAMES[total];
+  protected readonly originName = (total: SummaryTotal) => SUMMARY_TOTAL_NAMES[total]();
 
   /**
    * El movimiento del que se enseñan solo él y sus vinculados (ADR-0022), por encima de los
@@ -199,13 +219,13 @@ export class TransactionsPage {
 
   /** En el orden elegido por el usuario; se conserva al filtrar. */
   protected readonly columns = signal<readonly Column[]>([
-    { key: 'bookedDate', label: t.bookedDate },
-    { key: 'description', label: t.description },
-    { key: 'tags', label: t.tags },
-    { key: 'category', label: t.category },
-    { key: 'account', label: t.account },
-    { key: 'amount', label: t.amount, numeric: true },
-    { key: 'notes', label: t.notes },
+    column('bookedDate'),
+    column('description'),
+    column('tags'),
+    column('category'),
+    column('account'),
+    column('amount', true),
+    column('notes'),
   ]);
 
   protected readonly query = signal('');

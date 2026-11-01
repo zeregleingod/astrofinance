@@ -1,39 +1,56 @@
 import type { CategoryKind } from '@domain/categories/category-kind';
 import {
   CATEGORY_KINDS,
+  CATEGORY_TRANSLATIONS_MAX,
   CategoryError,
   buildCategoryTree,
-  categoryNameError,
+  categoryNamesError,
+  cleanTranslations,
   isCategoryColor,
+  isLanguageCode,
   isReorderOf,
   type CategoryGroup,
+  type CategoryNames,
   type CategoryOrder,
+  type CategoryTranslations,
   type CategoryUpdate,
   type NewCategory,
 } from '@domain/categories/category-tree';
 import type { SqlDb } from '../sql-db';
+import {
+  LOCALIZED_CATEGORIES,
+  categoryTranslations,
+  saveCategoryTranslations,
+  type CategoryLanguage,
+} from './category-names';
 
 /** Una categoría y, si es principal, sus subcategorías. Lleva dos veces el mismo id. */
 const SELF_AND_CHILDREN = 'SELECT id FROM categories WHERE id = ? OR parent_id = ?';
 
 /**
  * Categorías principales con sus subcategorías, en el orden en que se muestran, y cuántos
- * movimientos usa cada una.
+ * movimientos usa cada una. Cada una lleva su nombre en `language`, el de por defecto y sus
+ * traducciones (ADR-0028).
  */
-export function categoryTree(db: SqlDb): CategoryGroup[] {
+export function categoryTree(db: SqlDb, language: CategoryLanguage = null): CategoryGroup[] {
+  const translations = categoryTranslations(db);
   return buildCategoryTree(
     db
       .rows(
-        `SELECT c.id, c.parent_id, c.name, c.kind, c.color,
+        `WITH ${LOCALIZED_CATEGORIES}
+         SELECT c.id, c.parent_id, c.name, c.default_name, c.kind, c.color,
                 (SELECT count(*) FROM transactions t WHERE t.category_id = c.id) AS tx_count
-         FROM categories c
+         FROM localized_categories c
          WHERE c.archived = 0
          ORDER BY c.sort_order, c.name`,
+        [language],
       )
       .map((row) => ({
         id: Number(row['id']),
         parentId: row['parent_id'] === null ? null : Number(row['parent_id']),
         name: String(row['name']),
+        defaultName: String(row['default_name']),
+        translations: translations.get(Number(row['id'])) ?? {},
         kind: row['kind'] === null ? null : (String(row['kind']) as CategoryKind),
         color: row['color'] === null ? null : String(row['color']),
         transactionCount: Number(row['tx_count']),
@@ -43,13 +60,14 @@ export function categoryTree(db: SqlDb): CategoryGroup[] {
 
 /**
  * Da de alta una categoría principal (con su color) o una subcategoría (con su tipo) al final
- * de sus hermanas y devuelve su id. Lanza `CategoryError` si el nombre no vale o la principal
- * no existe.
+ * de sus hermanas, con sus traducciones, y devuelve su id. Lanza `CategoryError` si algún nombre
+ * no vale o la principal no existe.
  */
 export function createCategory(db: SqlDb, input: NewCategory): number {
   return db.transaction(() => {
     if (input.parentId !== null) requireGroup(db, input.parentId);
-    requireFreeName(db, input.name, input.parentId, null);
+    const translations = cleanTranslations(input.name, input.translations ?? {});
+    requireFreeNames(db, { defaultName: input.name, translations }, input.parentId, null);
 
     db.run(
       `INSERT INTO categories (parent_id, name, kind, color, sort_order)
@@ -62,13 +80,16 @@ export function createCategory(db: SqlDb, input: NewCategory): number {
         input.parentId,
       ],
     );
-    return db.lastInsertId();
+    const id = db.lastInsertId();
+    saveCategoryTranslations(db, id, translations);
+    return id;
   });
 }
 
 /**
- * Cambia el nombre y, según el nivel, el color (principal) o el tipo (subcategoría). El nombre
- * no puede coincidir con el de una hermana.
+ * Cambia el nombre y, según el nivel, el color (principal) o el tipo (subcategoría); con
+ * `translations`, también sus traducciones. Ningún nombre puede coincidir con el de una hermana
+ * en el mismo idioma.
  */
 export function updateCategory(db: SqlDb, update: CategoryUpdate): undefined {
   return db.transaction(() => {
@@ -77,7 +98,11 @@ export function updateCategory(db: SqlDb, update: CategoryUpdate): undefined {
     ]);
     if (!category) throw new CategoryError('categoria-inexistente');
     const parentId = category['parent_id'] === null ? null : Number(category['parent_id']);
-    requireFreeName(db, update.name, parentId, update.id);
+    const translations = cleanTranslations(
+      update.name,
+      update.translations ?? categoryTranslations(db).get(update.id) ?? {},
+    );
+    requireFreeNames(db, { defaultName: update.name, translations }, parentId, update.id);
 
     const name = update.name.trim();
     if ('kind' in update) {
@@ -95,6 +120,7 @@ export function updateCategory(db: SqlDb, update: CategoryUpdate): undefined {
         update.id,
       ]);
     }
+    saveCategoryTranslations(db, update.id, translations);
     return undefined;
   });
 }
@@ -169,17 +195,27 @@ function requireGroup(db: SqlDb, id: number): void {
   if (found === undefined) throw new CategoryError('principal-inexistente');
 }
 
-/** El nombre vale y no lo usa ninguna hermana (sin contar la propia categoría, `selfId`). */
-function requireFreeName(
+/**
+ * Los nombres valen y ninguna hermana (sin contar la propia categoría, `selfId`) tiene ninguno
+ * igual en el mismo idioma.
+ */
+function requireFreeNames(
   db: SqlDb,
-  name: string,
+  names: CategoryNames,
   parentId: number | null,
   selfId: number | null,
 ): void {
+  const translations = categoryTranslations(db);
   const siblings = db
-    .rows('SELECT name FROM categories WHERE parent_id IS ? AND id IS NOT ?', [parentId, selfId])
-    .map((row) => String(row['name']));
-  const error = categoryNameError(name, siblings);
+    .rows('SELECT id, name FROM categories WHERE parent_id IS ? AND id IS NOT ?', [
+      parentId,
+      selfId,
+    ])
+    .map((row) => ({
+      defaultName: String(row['name']),
+      translations: translations.get(Number(row['id'])) ?? {},
+    }));
+  const error = categoryNamesError(names, siblings);
   if (error) throw new CategoryError(error);
 }
 
@@ -190,9 +226,12 @@ export function newCategoryParam(params: unknown): NewCategory {
   const fields = record(params);
   const name = text(fields);
   const parentId = fields['parentId'] ?? null;
-  return parentId === null
-    ? { parentId: null, name, color: color(fields) }
-    : { parentId: positiveId(parentId, 'parentId'), name, kind: kind(fields) };
+  const translations = translationsOf(fields);
+  const input: NewCategory =
+    parentId === null
+      ? { parentId: null, name, color: color(fields) }
+      : { parentId: positiveId(parentId, 'parentId'), name, kind: kind(fields) };
+  return translations ? { ...input, translations } : input;
 }
 
 /** Con `kind` es el cambio de una subcategoría; sin él, el de una principal (con `color`). */
@@ -200,9 +239,12 @@ export function categoryUpdateParam(params: unknown): CategoryUpdate {
   const fields = record(params);
   const id = positiveId(fields['id'], 'id');
   const name = text(fields);
-  return fields['kind'] === undefined
-    ? { id, name, color: color(fields) }
-    : { id, name, kind: kind(fields) };
+  const translations = translationsOf(fields);
+  const update: CategoryUpdate =
+    fields['kind'] === undefined
+      ? { id, name, color: color(fields) }
+      : { id, name, kind: kind(fields) };
+  return translations ? { ...update, translations } : update;
 }
 
 export function categoryOrderParam(params: unknown): CategoryOrder {
@@ -229,6 +271,20 @@ function text(fields: Fields): string {
   const name = fields['name'];
   if (typeof name !== 'string') throw invalid('name');
   return name;
+}
+
+/** `undefined` si no vienen: en un cambio, las traducciones se quedan como estaban. */
+function translationsOf(fields: Fields): CategoryTranslations | undefined {
+  const value = fields['translations'];
+  if (value === undefined) return undefined;
+  const entries = Object.entries(record(value));
+  if (
+    entries.length > CATEGORY_TRANSLATIONS_MAX ||
+    entries.some(([language, name]) => !isLanguageCode(language) || typeof name !== 'string')
+  ) {
+    throw invalid('translations');
+  }
+  return Object.fromEntries(entries) as CategoryTranslations;
 }
 
 function kind(fields: Fields): CategoryKind {

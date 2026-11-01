@@ -52,7 +52,7 @@
     <mat-label>{{ texts.transactions.filters.tag }}</mat-label>
     <select matNativeControl [formField]="filterForm.tag">
       <option value="">{{ texts.transactions.filters.anyFeminine }}</option>
-      @for (tag of tags; track tag.value) {
+      @for (tag of tags(); track tag.value) {
         <option [value]="tag.value">{{ tag.label }}</option>
       }
     </select>

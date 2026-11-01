@@ -9,7 +9,7 @@
         <p class="movement-meta">{{ row.bookedDate | isoDate }} · {{ parentPlace }}</p>
       </div>
       <p class="movement-amount">
-        <span class="movement-kind">{{ kind }}</span>
+        <span class="movement-kind">{{ kind() }}</span>
         {{ totalCents | cents }}
       </p>
     </section>

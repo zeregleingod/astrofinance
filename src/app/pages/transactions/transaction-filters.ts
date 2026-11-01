@@ -44,13 +44,8 @@ interface FilterModel {
 const t = TEXTS.transactions;
 const f = t.filters;
 
-const TAG_LABELS: Readonly<Record<TransactionTag, string>> = {
-  shared: t.shared,
-  reimbursement: t.reimbursement,
-  transfer: t.transfer,
-  installment: t.installment,
-  split: t.split,
-};
+/** Las etiquetas se llaman como su clave en los textos. */
+const tagLabel = (tag: TransactionTag): string => t[tag];
 
 /** Valor del desplegable de categoría para «Sin categoría». */
 const UNCATEGORIZED = '-';
@@ -92,7 +87,9 @@ export class TransactionFilters {
   protected readonly texts = TEXTS;
   protected readonly uncategorized = UNCATEGORIZED;
   protected readonly categoryValue = categoryValue;
-  protected readonly tags = TRANSACTION_TAGS.map((tag) => ({ value: tag, label: TAG_LABELS[tag] }));
+  protected readonly tags = computed(() =>
+    TRANSACTION_TAGS.map((tag) => ({ value: tag, label: tagLabel(tag) })),
+  );
 
   /** Lo que se puede elegir en los desplegables. */
   readonly options = input.required<TransactionFilterOptions>();

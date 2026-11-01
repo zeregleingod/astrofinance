@@ -372,12 +372,13 @@ tbody:last-child tr:last-child > * {
   gap: 6px;
   min-width: 0;
 
-  input[type='text'] {
+  app-translatable-input {
+    --af-input-height: 34px;
+
     flex: 1;
-    width: auto;
-    min-width: 0;
+    // En una celda estrecha (móvil) el nombre se queda legible: lo que no cabe baja de línea.
+    min-width: min(10em, 100%);
     max-width: 360px;
-    min-height: 34px;
   }
 
   input[type='color'] {

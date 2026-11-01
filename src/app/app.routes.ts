@@ -5,63 +5,64 @@ import { TEXTS } from '@ui/texts';
 /**
  * Cada ruta con `title` aparece en la barra lateral con ese texto; el icono
  * (Material Symbols) se indica en `data.icon` y `data.nav: false` la oculta. Las hijas de una
- * ruta con `data.section` se agrupan en el menú bajo ese apartado.
+ * ruta con `data.section` se agrupan en el menú bajo ese apartado. Los textos son funciones
+ * que los leen en el idioma de cada momento (ADR-0027).
  */
 export const routes: Routes = [
   {
     path: '',
-    title: TEXTS.dashboard.title,
+    title: () => TEXTS.dashboard.title,
     data: { icon: 'dashboard' },
     loadComponent: () => import('@pages/dashboard/dashboard-page').then((m) => m.DashboardPage),
   },
   {
     path: 'anual',
-    title: TEXTS.yearly.title,
+    title: () => TEXTS.yearly.title,
     data: { icon: 'calendar_view_month' },
     loadComponent: () => import('@pages/yearly/yearly-page').then((m) => m.YearlyPage),
   },
   {
     path: 'movimientos',
-    title: TEXTS.transactions.title,
+    title: () => TEXTS.transactions.title,
     data: { icon: 'receipt_long' },
     loadComponent: () =>
       import('@pages/transactions/transactions-page').then((m) => m.TransactionsPage),
   },
   {
     path: 'importar',
-    title: TEXTS.imports.title,
+    title: () => TEXTS.imports.title,
     data: { icon: 'upload_file' },
     loadComponent: () => import('@pages/import/import-page').then((m) => m.ImportPage),
   },
   {
     path: 'configuracion',
-    data: { section: TEXTS.settings.title },
+    data: { section: () => TEXTS.settings.title },
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'categorias' },
       {
         path: 'categorias',
-        title: TEXTS.categories.title,
+        title: () => TEXTS.categories.title,
         data: { icon: 'category' },
         loadComponent: () =>
           import('@pages/categories/categories-page').then((m) => m.CategoriesPage),
       },
       {
         path: 'reglas-de-categoria',
-        title: TEXTS.categoryRules.title,
+        title: () => TEXTS.categoryRules.title,
         data: { icon: 'rule' },
         loadComponent: () =>
           import('@pages/rules/category-rules-page').then((m) => m.CategoryRulesPage),
       },
       {
         path: 'reglas-de-concepto',
-        title: TEXTS.conceptRules.title,
+        title: () => TEXTS.conceptRules.title,
         data: { icon: 'find_replace' },
         loadComponent: () =>
           import('@pages/rules/concept-rules-page').then((m) => m.ConceptRulesPage),
       },
       {
         path: 'copia-de-seguridad',
-        title: TEXTS.backup.title,
+        title: () => TEXTS.backup.title,
         data: { icon: 'database' },
         loadComponent: () => import('@pages/backup/backup-page').then((m) => m.BackupPage),
       },

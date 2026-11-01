@@ -2,7 +2,11 @@ import sqlite3InitModule, { type Database, type Sqlite3Static } from '@sqlite.or
 import { categoryErrorCode } from '@domain/categories/category-tree';
 import { migrate } from '../migrate';
 import { MIGRATIONS } from '../migrations';
-import { CATEGORY_TEMPLATE, categoryTemplateStatements } from '../seeds/category-template';
+import {
+  CATEGORY_TEMPLATE,
+  categoryTemplateStatements,
+  categoryTranslationStatements,
+} from '../seeds/category-template';
 import { wrapDatabase, type SqlDb } from '../sql-db';
 import {
   categoryIdParam,
@@ -16,6 +20,8 @@ import {
   updateCategory,
 } from './categories';
 import { categoryOptions } from './imports';
+import { allTransactions, monthReport, yearReport } from './reports';
+import { listRules } from './rules';
 
 describe('consultas de categorías', () => {
   let sqlite3: Sqlite3Static;
@@ -80,6 +86,8 @@ describe('consultas de categorías', () => {
     expect(categoryTree(db).at(-1)).toEqual({
       id,
       name: 'Mascotas',
+      defaultName: 'Mascotas',
+      translations: {},
       color: '#4F46E5',
       transactionCount: 0,
       subcategories: [],
@@ -94,6 +102,8 @@ describe('consultas de categorías', () => {
     expect(group('Ingresos').subcategories.at(-1)).toEqual({
       id,
       name: 'Devoluciones',
+      defaultName: 'Devoluciones',
+      translations: {},
       kind: 'gasto',
       transactionCount: 0,
     });
@@ -448,6 +458,121 @@ describe('consultas de categorías', () => {
       ['con un color que no lo es', { id: 3, name: 'A', color: '#12' }],
     ])('rechaza un cambio %s', (_name, params) => {
       expect(() => categoryUpdateParam(params)).toThrow(RangeError);
+    });
+
+    it('acepta traducciones por código de idioma; en un cambio, sin ellas no se tocan', () => {
+      expect(newCategoryParam({ name: 'A', color: null, translations: { en: 'B' } })).toEqual({
+        parentId: null,
+        name: 'A',
+        color: null,
+        translations: { en: 'B' },
+      });
+      expect(categoryUpdateParam({ id: 3, name: 'A', color: null })).not.toHaveProperty(
+        'translations',
+      );
+    });
+
+    it.each([
+      ['con un idioma que no es un código', { EN: 'B' }],
+      ['con un nombre que no es texto', { en: 3 }],
+      ['que no son un objeto', 'B'],
+    ])('rechaza traducciones %s', (_name, translations) => {
+      expect(() => newCategoryParam({ name: 'A', color: null, translations })).toThrow(RangeError);
+    });
+  });
+
+  describe('nombres en varios idiomas (ADR-0028)', () => {
+    const translations = (id: number) =>
+      Object.fromEntries(
+        db
+          .rows('SELECT language, name FROM category_translations WHERE category_id = ?', [id])
+          .map((row) => [row['language'], row['name']]),
+      );
+    const zoo = (extra: Record<string, string>) =>
+      createCategory(db, { parentId: null, name: 'Zoo', color: null, translations: extra });
+
+    it('da de alta con traducciones, sin las vacías ni las iguales al nombre', () => {
+      const id = zoo({ en: ' Animals ', ca: '', fr: 'zoo' });
+
+      expect(translations(id)).toEqual({ en: 'Animals' });
+      expect(group('Zoo')).toMatchObject({ defaultName: 'Zoo', translations: { en: 'Animals' } });
+    });
+
+    it('cada idioma ve su traducción o, si no la tiene, el nombre por defecto', () => {
+      const id = zoo({ en: 'Animals' });
+      const named = (language: string | null) =>
+        categoryTree(db, language).find((candidate) => candidate.id === id);
+
+      expect(named('en')).toMatchObject({ name: 'Animals', defaultName: 'Zoo' });
+      expect(named('ca')?.name).toBe('Zoo');
+      expect(named(null)?.name).toBe('Zoo');
+    });
+
+    it('un cambio sin traducciones las conserva; con ellas, las sustituye', () => {
+      const id = zoo({ en: 'Animals', ca: 'Animals' });
+
+      updateCategory(db, { id, name: 'Zoológico', color: null });
+      expect(translations(id)).toEqual({ en: 'Animals', ca: 'Animals' });
+
+      updateCategory(db, { id, name: 'Zoológico', color: null, translations: { en: 'Zoo' } });
+      expect(translations(id)).toEqual({ en: 'Zoo' });
+    });
+
+    it('rechaza un nombre que coincide con el de una hermana en algún idioma', () => {
+      const variables = group('Variables').id;
+      const add = (parentId: number, name: string, extra: Record<string, string> = {}) =>
+        errorCode(() => createCategory(db, { parentId, name, kind: 'gasto', translations: extra }));
+      add(variables, 'Mascotas', { en: 'Pets' });
+
+      expect(add(variables, 'Animales', { en: 'pets' })).toBe('traduccion-repetida');
+      expect(add(variables, 'Pets')).toBe('nombre-repetido');
+      // En otra categoría principal no es hermana.
+      expect(add(group('Transporte').id, 'Animales', { en: 'Pets' })).toBeUndefined();
+    });
+
+    it('las traducciones se van con la categoría', () => {
+      deleteCategory(db, zoo({ en: 'Animals' }));
+
+      expect(db.value('SELECT count(*) FROM category_translations')).toBe(0);
+    });
+
+    it('la plantilla trae sus nombres en inglés y en catalán, y cargarlos dos veces no duplica', () => {
+      for (const { sql, bind } of categoryTranslationStatements()) db.run(sql, bind);
+      const count = db.value('SELECT count(*) FROM category_translations');
+      for (const { sql, bind } of categoryTranslationStatements()) db.run(sql, bind);
+
+      expect(db.value('SELECT count(*) FROM category_translations')).toBe(count);
+      expect(categoryTree(db, 'en').map((g) => g.name)).toContain('Utilities');
+      expect(categoryTree(db, 'ca').map((g) => g.name)).toContain('Subministraments');
+      expect(categoryOptions(db, 'en').map((option) => option.label)).toContain(
+        'Variable expenses › Groceries',
+      );
+    });
+
+    it('los informes, los movimientos y las reglas nombran las categorías en el idioma pedido', () => {
+      for (const { sql, bind } of categoryTranslationStatements()) db.run(sql, bind);
+      const groceries = sub('Variables', 'Comida').id;
+      db.run(`INSERT INTO accounts (id, name, kind) VALUES (1, 'Cuenta', 'corriente')`);
+      db.run(
+        `INSERT INTO transactions (account_id, op_date, amount_cents, description, origin,
+           category_id, category_source)
+         VALUES (1, '2026-09-05', -1000, 'MERCADONA', 'manual', ?, 'manual')`,
+        [groceries],
+      );
+      db.run(
+        `INSERT INTO rules (name, priority, operator, pattern, sign, category_id)
+         VALUES ('Súper', 1, 'contiene', 'MERCADONA', 'gasto', ?)`,
+        [groceries],
+      );
+
+      expect(allTransactions(db, 'en')[0]).toMatchObject({
+        categoryName: 'Variable expenses',
+        subcategoryName: 'Groceries',
+      });
+      expect(JSON.stringify(monthReport(db, '2026-09', 'ca'))).toContain('"Menjar"');
+      expect(JSON.stringify(yearReport(db, 2026, 'en'))).toContain('"Groceries"');
+      expect(listRules(db, 'en')[0]?.categoryLabel).toBe('Variable expenses › Groceries');
+      expect(allTransactions(db)[0]?.subcategoryName).toBe('Comida');
     });
   });
 });

@@ -43,6 +43,11 @@ export interface DbApi {
   /** El contenido de la BD abierta como fichero de SQLite. */
   exportFile: { params: undefined; result: Uint8Array<ArrayBuffer> };
   close: { params: undefined; result: undefined };
+  /**
+   * Idioma en que se nombran las categorías en todas las consultas (ADR-0028): un código de la
+   * interfaz, o `null` para el nombre por defecto. Vale para el worker, no para la BD abierta.
+   */
+  setCategoryLanguage: { params: { language: string | null }; result: undefined };
   periods: { params: undefined; result: readonly string[] };
   monthReport: { params: { period: string }; result: MonthReport };
   /** Hoja anual: el total de cada categoría en cada mes del año. */

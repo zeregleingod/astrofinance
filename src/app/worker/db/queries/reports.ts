@@ -9,6 +9,7 @@ import type {
   TransactionRow,
 } from '@domain/reports/transaction-row';
 import { buildYearReport, type YearReport } from '@domain/reports/year-report';
+import { LOCALIZED_CATEGORIES, type CategoryLanguage } from './category-names';
 import type { SqlDb, SqlRow } from '../sql-db';
 
 /** La pata de entrada de un traspaso no cuenta en los informes: el dinero ya salió por la otra. */
@@ -125,20 +126,24 @@ export function listPeriods(db: SqlDb): string[] {
     .map((r) => str(r, 'period'));
 }
 
-export function monthReport(db: SqlDb, period: string): MonthReport {
+export function monthReport(
+  db: SqlDb,
+  period: string,
+  language: CategoryLanguage = null,
+): MonthReport {
   const categories = db
     .rows(
-      `WITH ${FLOWS}
+      `WITH ${LOCALIZED_CATEGORIES}, ${FLOWS}
        SELECT c.id, c.parent_id, c.name, c.kind, c.color,
               coalesce(sum(f.amount_cents), 0) AS total_cents,
               coalesce(sum(f.reimbursed_cents), 0) AS reimbursed_cents,
               coalesce(sum(f.n), 0) AS tx_count
-       FROM categories c
+       FROM localized_categories c
        LEFT JOIN flows f ON f.category_id = c.id AND f.period = ?
        WHERE c.archived = 0
        GROUP BY c.id
        ORDER BY c.sort_order, c.name`,
-      [period],
+      [language, period],
     )
     .map((r) => ({
       id: num(r, 'id'),
@@ -234,11 +239,13 @@ export function monthReport(db: SqlDb, period: string): MonthReport {
 }
 
 /** Hoja anual: el total de cada categoría en cada mes del año. */
-export function yearReport(db: SqlDb, year: number): YearReport {
+export function yearReport(db: SqlDb, year: number, language: CategoryLanguage = null): YearReport {
   const categories = db
     .rows(
-      `SELECT id, parent_id, name, kind, color FROM categories
+      `WITH ${LOCALIZED_CATEGORIES}
+       SELECT id, parent_id, name, kind, color FROM localized_categories
        WHERE archived = 0 ORDER BY sort_order, name`,
+      [language],
     )
     .map((r) => ({
       id: num(r, 'id'),
@@ -337,23 +344,36 @@ export function summaryTransactionIds(db: SqlDb, period: string, total: SummaryT
     .map((r) => num(r, 'id'));
 }
 
-export function monthTransactions(db: SqlDb, period: string): TransactionRow[] {
-  return transactionRows(db, 'WHERE t.period = ?', [period]);
+export function monthTransactions(
+  db: SqlDb,
+  period: string,
+  language: CategoryLanguage = null,
+): TransactionRow[] {
+  return transactionRows(db, 'WHERE t.period = ?', [period], language);
 }
 
 /** Todos los movimientos, del más reciente al más antiguo. */
-export function allTransactions(db: SqlDb): TransactionRow[] {
-  return transactionRows(db, '', []);
+export function allTransactions(db: SqlDb, language: CategoryLanguage = null): TransactionRow[] {
+  return transactionRows(db, '', [], language);
 }
 
-/** `where` es siempre un literal de este fichero; los valores van en `bind`. */
-function transactionRows(db: SqlDb, where: string, bind: readonly string[]): TransactionRow[] {
-  const splits = splitRows(db, where, bind);
+/**
+ * `where` es siempre un literal de este fichero; los valores van en `bind`. Las categorías se
+ * nombran en `language`.
+ */
+function transactionRows(
+  db: SqlDb,
+  where: string,
+  bind: readonly string[],
+  language: CategoryLanguage,
+): TransactionRow[] {
+  const splits = splitRows(db, where, bind, language);
   const refunds = refundRows(db, where, bind);
   const links = linkRows(db, where, bind);
   return db
     .rows(
-      `SELECT t.id, t.op_date, coalesce(t.booked_date, t.op_date) AS booked_date,
+      `WITH ${LOCALIZED_CATEGORIES}
+       SELECT t.id, t.op_date, coalesce(t.booked_date, t.op_date) AS booked_date,
               t.booked_date IS NOT NULL AND t.booked_date <> t.op_date AS date_changed,
               t.period, t.description, t.original_description, t.note, t.amount_cents,
               a.name AS account_name, t.category_id,
@@ -373,11 +393,11 @@ function transactionRows(db: SqlDb, where: string, bind: readonly string[]): Tra
                JOIN loans l ON l.id = i.loan_id WHERE i.transaction_id = t.id) AS installment
        FROM transactions t
        JOIN accounts a ON a.id = t.account_id
-       LEFT JOIN categories c ON c.id = t.category_id
-       LEFT JOIN categories p ON p.id = c.parent_id
+       LEFT JOIN localized_categories c ON c.id = t.category_id
+       LEFT JOIN localized_categories p ON p.id = c.parent_id
        ${where}
        ORDER BY t.op_date DESC, t.id DESC`,
-      bind,
+      [language, ...bind],
     )
     .map((r) => ({
       id: num(r, 'id'),
@@ -489,10 +509,16 @@ function refundRows(db: SqlDb, where: string, bind: readonly string[]): Map<numb
 }
 
 /** Los submovimientos de los movimientos que cumplen `where`, agrupados por movimiento. */
-function splitRows(db: SqlDb, where: string, bind: readonly string[]): Map<number, SplitRow[]> {
+function splitRows(
+  db: SqlDb,
+  where: string,
+  bind: readonly string[],
+  language: CategoryLanguage,
+): Map<number, SplitRow[]> {
   const byTransaction = new Map<number, SplitRow[]>();
   const rows = db.rows(
-    `SELECT s.id, s.transaction_id, s.description, s.amount_cents, s.category_id,
+    `WITH ${LOCALIZED_CATEGORIES}
+     SELECT s.id, s.transaction_id, s.description, s.amount_cents, s.category_id,
             coalesce(p.name, c.name) AS category_name,
             CASE WHEN p.id IS NULL THEN NULL ELSE c.name END AS subcategory_name,
             CASE WHEN p.id IS NULL THEN c.color ELSE p.color END AS category_color,
@@ -502,11 +528,11 @@ function splitRows(db: SqlDb, where: string, bind: readonly string[]): Map<numbe
              WHERE r.reimbursement_split_id = s.id) AS refunds_to
      FROM transaction_splits s
      JOIN transactions t ON t.id = s.transaction_id
-     LEFT JOIN categories c ON c.id = s.category_id
-     LEFT JOIN categories p ON p.id = c.parent_id
+     LEFT JOIN localized_categories c ON c.id = s.category_id
+     LEFT JOIN localized_categories p ON p.id = c.parent_id
      ${where}
      ORDER BY s.id`,
-    bind,
+    [language, ...bind],
   );
   for (const r of rows) {
     const id = num(r, 'transaction_id');

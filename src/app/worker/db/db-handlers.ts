@@ -65,7 +65,12 @@ import {
   updateConceptRule,
 } from './queries/concept-rules';
 import { suggestCategoriesFor, suggestionRequestParam } from './queries/suggestions';
-import { categoryTemplateStatements } from './seeds/category-template';
+import type { CategoryLanguage } from './queries/category-names';
+import { isLanguageCode } from '@domain/categories/category-tree';
+import {
+  categoryTemplateStatements,
+  categoryTranslationStatements,
+} from './seeds/category-template';
 import { loadDemoData } from './seeds/demo-data';
 import { wrapDatabase, type SqlDb } from './sql-db';
 
@@ -73,6 +78,8 @@ import { wrapDatabase, type SqlDb } from './sql-db';
 export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcHandlers<DbApi> {
   let sqlite: Promise<Sqlite3Static> | undefined;
   let current: { raw: Database; db: SqlDb } | undefined;
+  /** Idioma de los nombres de categoría; lo fija la interfaz (ADR-0028). */
+  let language: CategoryLanguage = null;
 
   const close = (): undefined => {
     current?.raw.close();
@@ -105,7 +112,12 @@ export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcH
     openNew: () =>
       open((db) =>
         db.transaction(() => {
-          for (const { sql, bind } of categoryTemplateStatements()) db.run(sql, bind);
+          for (const { sql, bind } of [
+            ...categoryTemplateStatements(),
+            ...categoryTranslationStatements(),
+          ]) {
+            db.run(sql, bind);
+          }
         }),
       ),
     openFile: async (params) => {
@@ -120,28 +132,32 @@ export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcH
     },
     exportFile: async () => exportDatabase(await (sqlite ??= loadSqlite()), requireCurrent().raw),
     close,
+    setCategoryLanguage: (params) => {
+      language = languageParam(params);
+      return undefined;
+    },
     periods: () => listPeriods(requireDb()),
-    monthReport: (params) => monthReport(requireDb(), periodParam(params)),
-    yearReport: (params) => yearReport(requireDb(), yearParam(params)),
-    transactions: (params) => monthTransactions(requireDb(), periodParam(params)),
-    allTransactions: () => allTransactions(requireDb()),
+    monthReport: (params) => monthReport(requireDb(), periodParam(params), language),
+    yearReport: (params) => yearReport(requireDb(), yearParam(params), language),
+    transactions: (params) => monthTransactions(requireDb(), periodParam(params), language),
+    allTransactions: () => allTransactions(requireDb(), language),
     summaryTransactionIds: (params) =>
       summaryTransactionIds(requireDb(), periodParam(params), summaryTotalParam(params)),
     updateTransaction: (params) => updateTransaction(requireDb(), transactionEditParam(params)),
     saveSplits: (params) => saveSplits(requireDb(), transactionSplitsParam(params)),
     expenseRefundOptions: (params) => expenseRefundOptions(requireDb(), expenseIdParam(params)),
     saveRefunds: (params) => saveRefunds(requireDb(), expenseRefundsParam(params)),
-    categoryOptions: () => categoryOptions(requireDb()),
-    categoryTree: () => categoryTree(requireDb()),
+    categoryOptions: () => categoryOptions(requireDb(), language),
+    categoryTree: () => categoryTree(requireDb(), language),
     createCategory: (params) => createCategory(requireDb(), newCategoryParam(params)),
     updateCategory: (params) => updateCategory(requireDb(), categoryUpdateParam(params)),
     deleteCategory: (params) => deleteCategory(requireDb(), categoryIdParam(params)),
     reorderCategories: (params) => reorderCategories(requireDb(), categoryOrderParam(params)),
-    rules: () => listRules(requireDb()),
+    rules: () => listRules(requireDb(), language),
     createRule: (params) => createRule(requireDb(), newRuleParam(params)),
     updateRule: (params) => updateRule(requireDb(), ruleUpdateParam(params)),
     deleteRule: (params) => deleteRule(requireDb(), ruleIdParam(params)),
-    previewRules: () => previewRules(requireDb()),
+    previewRules: () => previewRules(requireDb(), language),
     applyRules: () => applyRules(requireDb()),
     conceptRules: () => listConceptRules(requireDb()),
     createConceptRule: (params) => createConceptRule(requireDb(), newConceptRuleParam(params)),
@@ -182,6 +198,15 @@ function yearParam(params: unknown): number {
     throw new RangeError('Año no válido (AAAA).');
   }
   return year;
+}
+
+function languageParam(params: unknown): CategoryLanguage {
+  const value: unknown =
+    typeof params === 'object' && params !== null
+      ? (params as { language?: unknown }).language
+      : undefined;
+  if (value !== null && !isLanguageCode(value)) throw new RangeError('Idioma no válido.');
+  return value;
 }
 
 function bytesParam(params: unknown): Uint8Array {

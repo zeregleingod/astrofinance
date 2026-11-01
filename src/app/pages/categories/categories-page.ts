@@ -24,7 +24,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { TEXTS } from '@ui/texts';
+import { LANGUAGES, TEXTS, type Language } from '@ui/texts';
 import { Viewport } from '@services/viewport/viewport';
 import { DbService } from '@services/db/db-service';
 import type { CategoryKind } from '@domain/categories/category-kind';
@@ -33,16 +33,27 @@ import {
   CATEGORY_KINDS,
   categoryErrorCode,
   categoryNameError,
+  categoryTranslationError,
   groupTransactionCount,
   moveItem,
   nextCategoryColor,
   type CategoryGroup,
+  type CategoryNames,
+  type CategoryTranslations,
 } from '@domain/categories/category-tree';
 import { ConfirmDialog, type ConfirmDialogData } from '@ui/confirm-dialog/confirm-dialog';
+import {
+  TranslatableInput,
+  emptyTranslations,
+  filledTranslations,
+  translationsModel,
+  type TranslationsModel,
+} from '@ui/translatable-input/translatable-input';
 
 /** Una categoría principal o subcategoría de la tabla, con lo necesario para editarla o eliminarla. */
-interface CategoryRow {
+interface CategoryRow extends CategoryNames {
   readonly id: number;
+  /** En el idioma de la interfaz. */
   readonly name: string;
   /** `Principal › Subcategoría`, o solo el nombre si es una principal. */
   readonly label: string;
@@ -55,8 +66,8 @@ interface CategoryRow {
   /** Movimientos que la usan; en una principal, contando los de sus subcategorías. */
   readonly count: number;
   readonly subcategoryCount: number;
-  /** Nombres que no puede tomar: los de sus hermanas. */
-  readonly siblingNames: readonly string[];
+  /** Sus hermanas, con cuyos nombres no puede coincidir en ningún idioma. */
+  readonly siblings: readonly CategoryNames[];
   /** Posición entre sus hermanas, desde 0, y cuántas son: solo se ordena entre ellas. */
   readonly position: number;
   readonly siblingCount: number;
@@ -70,9 +81,11 @@ interface CategoryCard {
 
 /** Lo que se puede cambiar en una fila: el color en las principales, el tipo en las subcategorías. */
 interface RowModel {
+  /** El nombre por defecto. */
   name: string;
   kind: CategoryKind;
   color: string;
+  translations: TranslationsModel;
 }
 
 /** La fila que se está editando en la tabla, o la subcategoría nueva que se está añadiendo. */
@@ -82,13 +95,15 @@ interface RowEditor {
   /** La principal de la subcategoría; `null` si se edita una principal. */
   readonly group: CategoryGroup | null;
   readonly label: string;
-  readonly siblingNames: readonly string[];
+  readonly siblings: readonly CategoryNames[];
   /** Valores al empezar, para no guardar si no cambia nada; `null` en un alta. */
   readonly original: RowModel | null;
   /** La principal no tenía color: si no se toca el selector, sigue sin él. */
   readonly colorless: boolean;
   /** Dónde vuelve el foco al terminar. */
   readonly returnFocusTo: string;
+  /** Traducciones a idiomas que ya no tiene la interfaz: se conservan al guardar. */
+  readonly otherTranslations: CategoryTranslations;
 }
 
 const t = TEXTS.categories;
@@ -111,6 +126,7 @@ const NO_COLOR = '#9e9e9e';
     MatButtonModule,
     MatIconModule,
     NgTemplateOutlet,
+    TranslatableInput,
   ],
   templateUrl: './categories-page.html',
   styleUrl: './categories-page.scss',
@@ -147,16 +163,26 @@ export class CategoriesPage {
 
   // --- Alta de una categoría principal ---
 
-  private readonly model = signal({ name: '', color: CATEGORY_COLORS[0] as string });
+  private readonly model = signal({
+    name: '',
+    color: CATEGORY_COLORS[0] as string,
+    translations: emptyTranslations(),
+  });
 
   protected readonly categoryForm = form(
     this.model,
     (path) => {
       validate(path.name, ({ value }) => {
-        const names = this.groups().map((group) => group.name);
+        const names = this.groups().map((group) => group.defaultName);
         const code = categoryNameError(value(), names);
         return code ? { kind: code, message: t.errors[code] } : null;
       });
+      for (const { code: language } of LANGUAGES) {
+        validate(path.translations[language], ({ value }) => {
+          const code = categoryTranslationError(value(), language, this.groups());
+          return code ? { kind: code, message: t.errors[code] } : null;
+        });
+      }
     },
     { submission: { action: () => this.save(), onInvalid: () => this.attempted.set(true) } },
   );
@@ -170,23 +196,44 @@ export class CategoriesPage {
     return name.invalid() && (name.dirty() || this.attempted());
   });
 
+  /** En qué idioma se escribe el nombre (ADR-0028); `null`, el nombre por defecto. */
+  protected readonly newNameLanguage = signal<Language | null>(null);
+  protected readonly attemptedNew = this.attempted.asReadonly();
+
   // --- Edición en la tabla ---
 
   protected readonly editor = signal<RowEditor | null>(null);
-  private readonly rowModel = signal<RowModel>({ name: '', kind: 'gasto', color: NO_COLOR });
+  private readonly rowModel = signal<RowModel>({
+    name: '',
+    kind: 'gasto',
+    color: NO_COLOR,
+    translations: emptyTranslations(),
+  });
 
   protected readonly rowForm = form(
     this.rowModel,
     (path) => {
       validate(path.name, ({ value }) => {
-        const code = categoryNameError(value(), this.editor()?.siblingNames ?? []);
+        const siblings = this.editor()?.siblings ?? [];
+        const code = categoryNameError(
+          value(),
+          siblings.map((sibling) => sibling.defaultName),
+        );
         return code ? { kind: code, message: t.errors[code] } : null;
       });
+      for (const { code: language } of LANGUAGES) {
+        validate(path.translations[language], ({ value }) => {
+          const code = categoryTranslationError(value(), language, this.editor()?.siblings ?? []);
+          return code ? { kind: code, message: t.errors[code] } : null;
+        });
+      }
     },
     { submission: { action: () => this.saveRow(), onInvalid: () => this.rowAttempted.set(true) } },
   );
 
   private readonly rowAttempted = signal(false);
+  protected readonly attemptedRow = this.rowAttempted.asReadonly();
+  protected readonly rowNameLanguage = signal<Language | null>(null);
 
   protected readonly showRowError = computed(() => {
     const name = this.rowForm.name();
@@ -241,33 +288,46 @@ export class CategoriesPage {
 
   protected edit(row: CategoryRow): void {
     const original: RowModel = {
-      name: row.name,
+      // Se edita el nombre por defecto; los de cada idioma, en sus campos.
+      name: row.defaultName,
       kind: row.kind ?? 'gasto',
       color: row.color ?? NO_COLOR,
+      translations: translationsModel(row.translations),
     };
     this.openEditor(original, {
       id: row.id,
       group: row.group,
       label: row.label,
-      siblingNames: row.siblingNames,
+      siblings: row.siblings,
       original,
       colorless: row.color === null,
       returnFocusTo: `#edit-${row.id}`,
+      otherTranslations: Object.fromEntries(
+        Object.entries(row.translations).filter(
+          ([code]) => !LANGUAGES.some((language) => language.code === code),
+        ),
+      ),
     });
   }
 
   /** Abre una fila nueva al final de `group`; propone el tipo de su última subcategoría. */
   protected addSubcategory(group: CategoryGroup): void {
     this.openEditor(
-      { name: '', kind: group.subcategories.at(-1)?.kind ?? 'gasto', color: NO_COLOR },
+      {
+        name: '',
+        kind: group.subcategories.at(-1)?.kind ?? 'gasto',
+        color: NO_COLOR,
+        translations: emptyTranslations(),
+      },
       {
         id: null,
         group,
         label: `${t.newSubcategoryOf} ${group.name}`,
-        siblingNames: group.subcategories.map((subcategory) => subcategory.name),
+        siblings: group.subcategories,
         original: null,
         colorless: false,
         returnFocusTo: `#add-${group.id}`,
+        otherTranslations: {},
       },
     );
   }
@@ -368,16 +428,18 @@ export class CategoriesPage {
     this.editor.set(editor);
     this.rowForm().reset(model);
     this.rowAttempted.set(false);
+    this.rowNameLanguage.set(null);
     this.afterRender(() => this.rowForm.name().focusBoundControl());
   }
 
   private async save(): Promise<TreeValidationResult> {
     const { name, color } = this.model();
+    const translations = filledTranslations(this.model().translations);
 
     this.error.set(null);
     this.notice.set(null);
     try {
-      await this.db.createCategory({ parentId: null, name, color });
+      await this.db.createCategory({ parentId: null, name, color, translations });
     } catch (error) {
       const code = categoryErrorCode(error);
       if (code) return { kind: code, message: t.errors[code], fieldTree: this.categoryForm.name };
@@ -386,8 +448,9 @@ export class CategoriesPage {
     }
     this.notice.set(`${t.added} ${name.trim()}`);
     // Al recargarse la lista se propone el siguiente color libre.
-    this.categoryForm().reset({ name: '', color });
+    this.categoryForm().reset({ name: '', color, translations: emptyTranslations() });
     this.attempted.set(false);
+    this.newNameLanguage.set(null);
     this.categoryForm.name().focusBoundControl();
     return undefined;
   }
@@ -397,21 +460,36 @@ export class CategoriesPage {
     if (!editor) return undefined;
     const { kind, color } = this.rowModel();
     const name = this.rowModel().name.trim();
+    const translations = {
+      ...editor.otherTranslations,
+      ...filledTranslations(this.rowModel().translations),
+    };
     const { original, group } = editor;
     const changed =
-      !original || name !== original.name || kind !== original.kind || color !== original.color;
+      !original ||
+      name !== original.name ||
+      kind !== original.kind ||
+      color !== original.color ||
+      JSON.stringify(this.rowModel().translations) !== JSON.stringify(original.translations);
 
     this.error.set(null);
     this.notice.set(null);
     if (changed) {
       try {
         if (editor.id === null) {
-          if (group) await this.db.createCategory({ parentId: group.id, name, kind });
+          if (group) {
+            await this.db.createCategory({ parentId: group.id, name, kind, translations });
+          }
         } else if (group) {
-          await this.db.updateCategory({ id: editor.id, name, kind });
+          await this.db.updateCategory({ id: editor.id, name, kind, translations });
         } else {
           const untouched = editor.colorless && color === original?.color;
-          await this.db.updateCategory({ id: editor.id, name, color: untouched ? null : color });
+          await this.db.updateCategory({
+            id: editor.id,
+            name,
+            color: untouched ? null : color,
+            translations,
+          });
         }
       } catch (error) {
         const code = categoryErrorCode(error);
@@ -456,26 +534,30 @@ function toCards(groups: readonly CategoryGroup[]): CategoryCard[] {
     row: {
       id: group.id,
       name: group.name,
+      defaultName: group.defaultName,
+      translations: group.translations,
       label: group.name,
       group: null,
       kind: null,
       color: group.color,
       count: groupTransactionCount(group),
       subcategoryCount: group.subcategories.length,
-      siblingNames: namesExcept(groups, group.id),
+      siblings: except(groups, group.id),
       position,
       siblingCount: groups.length,
     },
     rows: group.subcategories.map((subcategory, index) => ({
       id: subcategory.id,
       name: subcategory.name,
+      defaultName: subcategory.defaultName,
+      translations: subcategory.translations,
       label: `${group.name} › ${subcategory.name}`,
       group,
       kind: subcategory.kind,
       color: null,
       count: subcategory.transactionCount,
       subcategoryCount: 0,
-      siblingNames: namesExcept(group.subcategories, subcategory.id),
+      siblings: except(group.subcategories, subcategory.id),
       position: index,
       siblingCount: group.subcategories.length,
     })),
@@ -490,6 +572,6 @@ function inOrder<T extends { readonly id: number }>(
   return ids.flatMap((id) => items.filter((item) => item.id === id));
 }
 
-function namesExcept(items: readonly { id: number; name: string }[], id: number): string[] {
-  return items.filter((item) => item.id !== id).map((item) => item.name);
+function except<T extends { readonly id: number }>(items: readonly T[], id: number): T[] {
+  return items.filter((item) => item.id !== id);
 }

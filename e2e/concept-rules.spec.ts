@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { expect, movements, test } from './fixtures';
+import { expect, movements, startEmpty, test } from './fixtures';
 
 const STATEMENT = 'e2e/fixtures/sabadell-enero-2026.xls';
 const TOTAL = 44;
@@ -29,7 +29,7 @@ async function addRule(page: Page, operator: string, pattern: string, replacemen
 test('las reglas cambian el concepto al importar y en los movimientos existentes', async ({
   page,
 }) => {
-  await page.goto('/importar');
+  await startEmpty(page, '/importar');
   await page.locator('main input[type="file"]').setInputFiles(STATEMENT);
   await page.getByRole('button', { name: `Guardar (${TOTAL})` }).click();
   await expect(page.getByText(`Movimientos guardados: ${TOTAL}.`)).toBeVisible();
@@ -70,7 +70,7 @@ test('las reglas cambian el concepto al importar y en los movimientos existentes
 });
 
 test('al importar, el concepto llega ya cambiado y se puede corregir', async ({ page }) => {
-  await page.goto('/configuracion/reglas-de-concepto');
+  await startEmpty(page, '/configuracion/reglas-de-concepto');
   await addRule(page, 'Es exactamente', 'nomina de empresa demo sl', 'Nómina');
 
   // Sin recargar: la BD de esta pestaña vive en memoria.

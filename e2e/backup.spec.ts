@@ -1,6 +1,6 @@
 import { type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { expect, movements, test } from './fixtures';
+import { expect, movements, openDemo, startEmpty, test } from './fixtures';
 
 const STATEMENT = 'e2e/fixtures/sabadell-enero-2026.xls';
 const TOTAL = 44;
@@ -12,7 +12,7 @@ async function openNav(page: Page) {
 }
 
 async function importStatement(page: Page) {
-  await page.goto('/importar');
+  await startEmpty(page, '/importar');
   await page.locator('main input[type="file"]').setInputFiles(STATEMENT);
   await page.getByRole('button', { name: `Guardar (${TOTAL})` }).click();
   await expect(page.getByText(`Movimientos guardados: ${TOTAL}.`)).toBeVisible();
@@ -45,22 +45,21 @@ test('descargar una copia, recargar la página y volver a cargarla', async ({ pa
   const copy = await readFile(await download.path());
   expect(copy.subarray(0, 15).toString('latin1')).toBe('SQLite format 3');
 
-  // Al recargar se pierde lo que había en memoria: no queda nada que descargar.
+  // Al recargar se pierde lo que había en memoria: se vuelve a la landing (ADR-0029), desde la
+  // que se carga la copia y se entra en la misma página.
   await page.reload();
-  await expect(page.getByRole('button', { name: 'Descargar copia' })).toBeDisabled();
-  await expect(
-    page.getByRole('main').getByText('Todavía no hay datos tuyos que guardar.'),
-  ).toBeVisible();
-
+  await expect(page.getByRole('button', { name: 'Abrir mi archivo' })).toBeVisible();
   await page
-    .locator('main input[type="file"]')
+    .locator('app-landing-page input[type="file"]')
     .setInputFiles({ name: 'mi-copia.db', mimeType: 'application/vnd.sqlite3', buffer: copy });
-  await expect(
-    page.getByRole('status').filter({ hasText: 'Copia cargada: mi-copia.db.' }),
-  ).toContainText(`Movimientos: ${TOTAL}.`);
+  await expect(page.getByText('Copia cargada: mi-copia.db.')).toContainText(
+    `Movimientos: ${TOTAL}.`,
+  );
+  await expect(page).toHaveTitle('Copia de seguridad · AstroFinance');
   await expect(page.getByRole('button', { name: 'Descargar copia' })).toBeEnabled();
 
-  await page.getByRole('link', { name: 'Ver los movimientos' }).click();
+  // El aviso de la copia cargada lleva a sus movimientos.
+  await page.getByRole('button', { name: 'Ver los movimientos' }).click();
   await expect(movements.count(page)).toHaveText(`Movimientos (${TOTAL})`);
 });
 
@@ -91,7 +90,7 @@ test('cargar una copia sobre datos propios pide confirmación', async ({ page })
 });
 
 test('un fichero que no es una copia se rechaza y no toca los datos', async ({ page }) => {
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await openBackup(page);
   await expect(page.getByRole('button', { name: 'Descargar copia' })).toBeDisabled();

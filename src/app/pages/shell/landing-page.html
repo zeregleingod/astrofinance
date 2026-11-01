@@ -1,0 +1,124 @@
+<header class="top">
+  <p class="brand">
+    <img ngSrc="logo.svg" width="36" height="36" alt="" priority />
+    <span>{{ texts.app.name }}</span>
+  </p>
+  <div class="tools"><app-preference-buttons /></div>
+</header>
+
+<main class="main">
+  <section class="copy" aria-labelledby="landing-title">
+    <h1 id="landing-title">
+      {{ texts.landing.title }} <span class="accent">{{ texts.landing.titleAccent }}</span>
+    </h1>
+    <p class="lead">{{ texts.landing.lead }}</p>
+
+    <input #file hidden type="file" accept=".db" (change)="openFile(file)" />
+    <div
+      class="actions"
+      role="group"
+      [attr.aria-label]="texts.landing.actions"
+      [attr.aria-busy]="entering() !== null"
+    >
+      <button
+        mat-flat-button
+        type="button"
+        class="cta"
+        [disabled]="entering() !== null"
+        (click)="file.click()"
+      >
+        @if (entering() === 'archivo') {
+          <mat-progress-spinner
+            matButtonIcon
+            mode="indeterminate"
+            diameter="20"
+            aria-hidden="true"
+          />
+        } @else {
+          <mat-icon fontIcon="folder_open" aria-hidden="true" />
+        }
+        {{ entering() === 'archivo' ? texts.landing.opening : texts.landing.openFile }}
+      </button>
+      <button
+        mat-stroked-button
+        type="button"
+        class="cta"
+        [disabled]="entering() !== null"
+        (click)="openDemo()"
+      >
+        @if (entering() === 'demo') {
+          <mat-progress-spinner
+            matButtonIcon
+            mode="indeterminate"
+            diameter="20"
+            aria-hidden="true"
+          />
+        } @else {
+          <mat-icon fontIcon="science" aria-hidden="true" />
+        }
+        {{ entering() === 'demo' ? texts.landing.opening : texts.demo.open }}
+      </button>
+    </div>
+
+    @if (error(); as message) {
+      <p class="error" role="alert">
+        <mat-icon fontIcon="error" aria-hidden="true" />
+        {{ message }}
+      </p>
+    }
+
+    <div class="more">
+      <button type="button" class="link" [disabled]="entering() !== null" (click)="startEmpty()">
+        {{ entering() === 'vacia' ? texts.landing.opening : texts.landing.startEmpty }}
+      </button>
+      <span class="offline">
+        <mat-icon fontIcon="wifi_off" aria-hidden="true" />
+        {{ texts.landing.offline }}
+      </span>
+    </div>
+  </section>
+
+  <!-- Una ilustración con datos: se lee entera como una imagen, por su descripción. -->
+  <figure
+    class="art"
+    role="img"
+    [attr.aria-label]="texts.landing.preview + ': ' + (preview.period | periodLabel)"
+  >
+    <svg class="orbit" viewBox="0 0 520 520" aria-hidden="true" focusable="false">
+      <ellipse class="path" cx="260" cy="260" rx="210" ry="210" />
+      <ellipse class="ring" cx="260" cy="260" rx="250" ry="92" transform="rotate(-20 260 260)" />
+      <circle class="moon planet" cx="62" cy="330" r="14" />
+      <circle class="moon tertiary" cx="470" cy="178" r="9" />
+      <circle class="moon primary" cx="400" cy="430" r="5" />
+    </svg>
+    <div class="card" aria-hidden="true">
+      <div class="card-head">
+        <span class="period">{{ preview.period | periodLabel }}</span>
+        <span class="tag"><mat-icon fontIcon="science" />{{ texts.demo.tag }}</span>
+      </div>
+      <dl class="kpis">
+        <div>
+          <dt>{{ texts.dashboard.income }}</dt>
+          <dd class="positive">{{ preview.incomeCents | cents }}</dd>
+        </div>
+        <div>
+          <dt>{{ texts.dashboard.expense }}</dt>
+          <dd class="negative">{{ preview.expenseCents | cents }}</dd>
+        </div>
+        <div>
+          <dt>{{ texts.dashboard.savings }}</dt>
+          <dd>{{ preview.savingsCents | cents }}</dd>
+        </div>
+      </dl>
+      <ul class="groups">
+        @for (group of preview.groups; track group.key) {
+          <li>
+            <span class="name">{{ texts.landing.groups[group.key] }}</span>
+            <span class="amount">{{ group.totalCents | cents }}</span>
+            <progress class="bar" [max]="widest" [value]="-group.totalCents"></progress>
+          </li>
+        }
+      </ul>
+    </div>
+  </figure>
+</main>

@@ -1,11 +1,13 @@
 import { TestBed } from '@angular/core/testing';
 import { Title } from '@angular/platform-browser';
 import { Router, TitleStrategy, provideRouter } from '@angular/router';
+import { DB_WORKER_FACTORY, DbService } from '@services/db/db-service';
 import { language, setLanguage } from '@ui/texts';
+import { inProcessDbWorker } from '../../../testing/in-process-db-worker';
 import { AppTitleStrategy } from './app-title-strategy';
 
 describe('AppTitleStrategy', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([
@@ -18,8 +20,11 @@ describe('AppTitleStrategy', () => {
           },
         ]),
         { provide: TitleStrategy, useClass: AppTitleStrategy },
+        { provide: DB_WORKER_FACTORY, useValue: inProcessDbWorker },
       ],
     });
+    // Dentro de la aplicación: con una BD abierta.
+    await TestBed.inject(DbService).openLocal();
   });
 
   it('compone el título de la sección con el nombre de la aplicación', async () => {
@@ -43,5 +48,18 @@ describe('AppTitleStrategy', () => {
 
     expect(TestBed.inject(Title).getTitle()).toBe('Overview · AstroFinance');
     setLanguage('es');
+  });
+
+  it('en la landing, sin BD abierta, solo el nombre de la aplicación (ADR-0029)', async () => {
+    await TestBed.inject(Router).navigateByUrl('/seccion');
+    const db = TestBed.inject(DbService);
+
+    db.close();
+    TestBed.tick();
+    expect(TestBed.inject(Title).getTitle()).toBe('AstroFinance');
+
+    await db.openDemo();
+    TestBed.tick();
+    expect(TestBed.inject(Title).getTitle()).toBe('Resumen · AstroFinance');
   });
 });

@@ -1,13 +1,17 @@
-import { expect, test } from './fixtures';
+import { enterFrom, expect, startEmpty, test } from './fixtures';
 
 test('la app carga y muestra el título', async ({ page }) => {
   await page.goto('/');
+  await expect(page).toHaveTitle('AstroFinance');
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tus finanzas, en tu equipo.');
+
+  await enterFrom(page, 'Empezar sin datos');
   await expect(page).toHaveTitle('Resumen · AstroFinance');
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('AstroFinance');
 });
 
 test('la barra lateral lista las secciones y marca la activa', async ({ page }) => {
-  await page.goto('/');
+  await startEmpty(page);
   const nav = page.getByRole('navigation', { name: 'Navegación principal' });
   const openMenu = page.getByRole('button', { name: 'Abrir menú' });
   if (await openMenu.isVisible()) {
@@ -45,7 +49,7 @@ test('la CSP no permite unsafe-inline ni unsafe-eval en scripts', async ({ page 
 
 test('el botón de modo oscuro cambia el tema en caliente y se recuerda', async ({ page }) => {
   await page.emulateMedia({ colorScheme: 'light' });
-  await page.goto('/');
+  await startEmpty(page);
   const openMenu = page.getByRole('button', { name: 'Abrir menú' });
   if (await openMenu.isVisible()) {
     await openMenu.click();
@@ -57,6 +61,11 @@ test('el botón de modo oscuro cambia el tema en caliente y se recuerda', async 
 
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('html')).toHaveClass(/theme-dark/);
+  // Se recuerda también en la landing, a la que se vuelve al recargar.
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/theme-dark/);
+  await expect(page.getByRole('button', { name: 'Modo oscuro' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  );
 });

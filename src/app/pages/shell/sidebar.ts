@@ -3,18 +3,17 @@ import { Component, booleanAttribute, computed, inject, input, output } from '@a
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
-import { LANGUAGES, TEXTS, language, setLanguage } from '@ui/texts';
+import { TEXTS } from '@ui/texts';
 import { DemoBanner } from './demo-banner';
+import { PreferenceButtons } from './preference-buttons';
 import { buildNavItems, groupNavItems } from './nav-items';
-import { ThemeService } from '@services/theme/theme-service';
 import { DbService } from '@services/db/db-service';
 
 /**
  * Barra lateral: marca, accesos rápidos (los que se proyecten, el modo oscuro y el idioma), una entrada por
- * sección (agrupadas en apartados) y acceso a la demo (o su aviso, dentro de ella). En
+ * sección (agrupadas en apartados) y, dentro de la demo, su aviso. En
  * escritorio se pliega a una franja con solo los iconos; sus nombres salen al pasar por encima
  * y siguen ahí para los lectores de pantalla.
  */
@@ -23,11 +22,11 @@ import { DbService } from '@services/db/db-service';
   host: { '[class.collapsed]': 'collapsed()' },
   imports: [
     DemoBanner,
+    PreferenceButtons,
     NgOptimizedImage,
     MatButtonModule,
     MatIconModule,
     MatListModule,
-    MatMenuModule,
     MatTooltipModule,
     RouterLink,
     RouterLinkActive,
@@ -57,40 +56,7 @@ import { DbService } from '@services/db/db-service';
     </header>
     <div class="quick-actions" role="group" [attr.aria-label]="texts.quickActions.label">
       <ng-content />
-      <button
-        mat-icon-button
-        type="button"
-        [attr.aria-label]="texts.theme.dark"
-        [attr.aria-pressed]="theme.isDark()"
-        [matTooltip]="texts.theme.dark"
-        (click)="theme.toggle()"
-      >
-        <mat-icon [fontIcon]="theme.isDark() ? 'dark_mode' : 'light_mode'" aria-hidden="true" />
-      </button>
-      <button
-        mat-icon-button
-        type="button"
-        [attr.aria-label]="texts.language.label"
-        [matTooltip]="texts.language.label"
-        [matMenuTriggerFor]="languageMenu"
-      >
-        <mat-icon fontIcon="translate" aria-hidden="true" />
-      </button>
-      <mat-menu #languageMenu="matMenu" [aria-label]="texts.language.label">
-        @for (option of languages; track option.code) {
-          <button
-            mat-menu-item
-            type="button"
-            role="menuitemradio"
-            [attr.lang]="option.code"
-            [attr.aria-checked]="option.code === language()"
-            (click)="setLanguage(option.code)"
-          >
-            <mat-icon [fontIcon]="option.code === language() ? 'check' : ''" aria-hidden="true" />
-            <span>{{ option.name }}</span>
-          </button>
-        }
-      </mat-menu>
+      <app-preference-buttons />
     </div>
     <nav id="main-nav" [attr.aria-label]="texts.nav.label">
       @for (section of sections(); track section.label) {
@@ -119,32 +85,12 @@ import { DbService } from '@services/db/db-service';
         </mat-nav-list>
       }
     </nav>
-    <footer class="footer">
-      <!--
-        Dentro de la demo, su aviso y la salida. Fuera, abrirla descarta la BD abierta: no se
-        ofrece si ya hay algo del usuario en ella.
-      -->
-      @if (db.mode() === 'demo') {
+    <!-- Dentro de la demo, su aviso y la salida; la demo solo se abre desde la landing. -->
+    @if (db.mode() === 'demo') {
+      <footer class="footer">
         <app-demo-banner [rail]="collapsed()" (exited)="navigate.emit()" />
-      } @else if (!db.hasUserData() && collapsed()) {
-        <a
-          mat-icon-button
-          class="demo-link"
-          routerLink="/demo"
-          [attr.aria-label]="texts.demo.open"
-          [matTooltip]="texts.demo.open"
-          matTooltipPosition="right"
-          (click)="navigate.emit()"
-        >
-          <mat-icon aria-hidden="true">science</mat-icon>
-        </a>
-      } @else if (!db.hasUserData()) {
-        <a mat-stroked-button class="demo-link" routerLink="/demo" (click)="navigate.emit()">
-          <mat-icon aria-hidden="true">science</mat-icon>
-          {{ texts.demo.open }}
-        </a>
-      }
-    </footer>
+      </footer>
+    }
   `,
   styles: `
     :host {
@@ -227,10 +173,6 @@ import { DbService } from '@services/db/db-service';
       padding: 16px 8px 0;
     }
 
-    .demo-link {
-      width: 100%;
-    }
-
     .brand-name {
       flex: 1;
     }
@@ -303,10 +245,6 @@ import { DbService } from '@services/db/db-service';
     :host(.collapsed) .footer {
       padding-inline: 0;
     }
-
-    :host(.collapsed) .demo-link {
-      width: auto;
-    }
   `,
 })
 export class Sidebar {
@@ -314,10 +252,6 @@ export class Sidebar {
   private readonly routes = inject(Router).config;
   /** Los nombres de las secciones salen de los textos: se recalculan al cambiar de idioma. */
   protected readonly sections = computed(() => groupNavItems(buildNavItems(this.routes)));
-  protected readonly languages = LANGUAGES;
-  protected readonly language = language;
-  protected readonly setLanguage = setLanguage;
-  protected readonly theme = inject(ThemeService);
   protected readonly db = inject(DbService);
 
   /** Plegada: solo los iconos. */

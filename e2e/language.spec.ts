@@ -1,9 +1,9 @@
-import { expect, test } from './fixtures';
+import { enterFrom, expect, openDemo, test } from './fixtures';
 
 test('el idioma se cambia desde la barra lateral, sin recargar, y se recuerda', async ({
   page,
 }) => {
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await expect(page.locator('html')).toHaveAttribute('lang', 'es');
   const openMenu = page.getByRole('button', { name: 'Abrir menú' });
@@ -20,14 +20,18 @@ test('el idioma se cambia desde la barra lateral, sin recargar, y se recuerda', 
   // Los importes se siguen escribiendo a la española.
   await expect(page.getByText(/\d,\d{2}\s€/).first()).toBeVisible();
 
+  // Al recargar se vuelve a la landing (ADR-0029), ya en inglés.
   await page.reload();
-  await expect(page).toHaveTitle(/· AstroFinance$/);
-  await expect(page).not.toHaveTitle(/Resumen/);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText(
+    'Your finances, on your own computer.',
+  );
   await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+  await enterFrom(page, 'View demo');
+  await expect(page).toHaveTitle('Overview · AstroFinance');
 });
 
 test('en catalán, con los meses del calendario también en catalán', async ({ page }) => {
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   const openMenu = page.getByRole('button', { name: 'Abrir menú' });
   if (await openMenu.isVisible()) await openMenu.click();
@@ -41,7 +45,7 @@ test('en catalán, con los meses del calendario también en catalán', async ({ 
 });
 
 test('las categorías se ven con su nombre en el idioma elegido, si lo tienen', async ({ page }) => {
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   const main = page.locator('main');
   await expect(main.getByText('Suministros', { exact: true }).first()).toBeVisible();

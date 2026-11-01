@@ -1,5 +1,4 @@
 import { Routes } from '@angular/router';
-import { demoGuard } from '@services/demo/demo-guard';
 import { TEXTS } from '@ui/texts';
 
 /**
@@ -68,7 +67,5 @@ export const routes: Routes = [
       },
     ],
   },
-  // Abre la BD de demo (en memoria, nunca se guarda) y redirige al Resumen.
-  { path: 'demo', canActivate: [demoGuard], children: [] },
   { path: '**', redirectTo: '' },
 ];

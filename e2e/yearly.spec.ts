@@ -1,8 +1,8 @@
 import { type Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, openDemo, test } from './fixtures';
 
 async function openYearly(page: Page) {
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   const openMenu = page.getByRole('button', { name: 'Abrir menú' });
   if (await openMenu.isVisible()) await openMenu.click();

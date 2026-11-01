@@ -1,9 +1,9 @@
-import { expect, test } from './fixtures';
+import { enterFrom, expect, startEmpty, test } from './fixtures';
 
 test.skip(({ isMobile }) => isMobile, 'En móvil el menú es un panel que se abre y se cierra');
 
 test('el menú lateral se pliega a solo iconos, se despliega y lo recuerda', async ({ page }) => {
-  await page.goto('/');
+  await startEmpty(page);
   const nav = page.getByRole('navigation', { name: 'Navegación principal' });
   const sidenav = page.locator('mat-sidenav');
   const wide = (await sidenav.boundingBox())?.width ?? 0;
@@ -23,6 +23,7 @@ test('el menú lateral se pliega a solo iconos, se despliega y lo recuerda', asy
     .toBeLessThan(wide / 2);
 
   await page.reload();
+  await enterFrom(page, 'Empezar sin datos');
   await expect(page.getByRole('button', { name: 'Desplegar menú' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Desplegar menú' }).click();

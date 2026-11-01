@@ -1,10 +1,10 @@
 import { type Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, openDemo, test } from './fixtures';
 
 test.skip(({ isMobile }) => isMobile, 'Solo en escritorio');
 
 async function openTransactions(page: Page) {
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await page.getByRole('link', { name: 'Movimientos' }).click();
 }

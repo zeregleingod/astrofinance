@@ -1,5 +1,5 @@
 import { type Locator, type Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, openDemo, startEmpty, test } from './fixtures';
 
 async function openNav(page: Page) {
   const openMenu = page.getByRole('button', { name: 'Abrir menú' });
@@ -23,7 +23,7 @@ async function drag(page: Page, handle: Locator, target: Locator) {
 test('configuración › categorías: dar de alta una categoría y sus subcategorías', async ({
   page,
 }) => {
-  await page.goto('/');
+  await startEmpty(page);
   await openNav(page);
   const settings = page.getByRole('navigation', { name: 'Configuración' });
   await settings.getByRole('link', { name: 'Categorías' }).click();
@@ -75,7 +75,7 @@ test('configuración › categorías: dar de alta una categoría y sus subcatego
 test('editar una subcategoría y una categoría, y eliminarla con sus movimientos', async ({
   page,
 }) => {
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await openNav(page);
   await page.getByRole('link', { name: 'Categorías' }).click();
@@ -122,21 +122,8 @@ test('editar una subcategoría y una categoría, y eliminarla con sus movimiento
   await expect(page.getByRole('heading', { level: 3, name: 'Día a día' })).toHaveCount(0);
 });
 
-test('entrar en categorías no quita el acceso a la demo', async ({ page }) => {
-  await page.goto('/');
-  await openNav(page);
-  await page.getByRole('link', { name: 'Categorías' }).click();
-  await expect(page.getByRole('rowheader', { name: 'Variables', exact: true })).toBeVisible();
-
-  await openNav(page);
-  await page.getByRole('link', { name: 'Ver la demo' }).click();
-  // En móvil, mientras se cierra el menú, se ven a la vez su aviso y el de la barra superior.
-  await expect(page.getByRole('status').filter({ hasText: 'Modo demo' }).first()).toBeVisible();
-  await expect(page.getByText('septiembre de 2026')).toBeVisible();
-});
-
 test('/configuracion lleva a las categorías', async ({ page }) => {
-  await page.goto('/configuracion');
+  await startEmpty(page, '/configuracion');
   await expect(page).toHaveURL(/\/configuracion\/categorias$/);
   await expect(page.getByRole('heading', { level: 2, name: 'Categorías' })).toBeVisible();
 });
@@ -147,7 +134,7 @@ test('las categorías se ordenan arrastrando y el orden se ve en los dos resúme
 }) => {
   test.skip(isMobile, 'El arrastre se prueba con ratón');
   await page.setViewportSize({ width: 1280, height: 1600 });
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await openNav(page);
   const settings = page.getByRole('navigation', { name: 'Configuración' });

@@ -84,15 +84,13 @@ describe('Sidebar', () => {
     expect(spy).toHaveBeenCalled();
   });
 
-  it('ofrece ver la demo al pie y lo oculta dentro de ella', async () => {
+  it('no ofrece la demo: solo se abre desde la landing (ADR-0029)', async () => {
     const { fixture, element } = await setup();
-    const demo = element.querySelector<HTMLAnchorElement>('.footer a[href="/demo"]');
-
-    expect(demo?.textContent).toContain('Ver la demo');
-
-    await TestBed.inject(DbService).openDemo();
+    await TestBed.inject(DbService).openLocal();
     await fixture.whenStable();
-    expect(element.querySelector('a[href="/demo"]')).toBeNull();
+
+    expect(element.querySelector('.footer')).toBeNull();
+    expect(element.textContent).not.toContain('Ver la demo');
   });
 
   it('dentro de la demo, en el sitio del botón, avisa del modo demo y permite salir', async () => {
@@ -114,21 +112,6 @@ describe('Sidebar', () => {
     expect(db.mode()).toBeNull();
     expect(navigate).toHaveBeenCalled();
     expect(element.querySelector('.footer [role="status"]')).toBeNull();
-    expect(element.querySelector('a[href="/demo"]')).not.toBeNull();
-  });
-
-  it('sigue ofreciendo la demo con la BD del usuario abierta, hasta que tiene algo suyo', async () => {
-    const { fixture, element } = await setup();
-    const db = TestBed.inject(DbService);
-
-    // Abrirla (p. ej. al entrar en Categorías) solo carga la plantilla.
-    await db.openLocal();
-    await fixture.whenStable();
-    expect(element.querySelector('a[href="/demo"]')).not.toBeNull();
-
-    await db.createCategory({ parentId: null, name: 'Mascotas', color: null });
-    await fixture.whenStable();
-    expect(element.querySelector('a[href="/demo"]')).toBeNull();
   });
 
   it('muestra los accesos rápidos entre el logo y el menú', async () => {
@@ -257,7 +240,7 @@ describe('Sidebar', () => {
       expect(toggle(element)?.getAttribute('aria-expanded')).toBe('false');
     });
 
-    it('plegada conserva los enlaces con su nombre y ofrece la demo con un icono', async () => {
+    it('plegada conserva los enlaces con su nombre', async () => {
       const { element } = await collapsible(true);
 
       expect(element.classList.contains('collapsed')).toBe(true);
@@ -266,9 +249,6 @@ describe('Sidebar', () => {
       );
       expect(links).toEqual(['Resumen', 'Movimientos', 'Categorías']);
       expect(element.querySelector('h1')?.textContent).toContain('AstroFinance');
-      const demo = element.querySelector('a[href="/demo"]');
-      expect(demo?.getAttribute('aria-label')).toBe('Ver la demo');
-      expect(demo?.textContent?.trim()).toBe('science');
     });
   });
 });

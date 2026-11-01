@@ -1,7 +1,7 @@
-import { expect, movements, test } from './fixtures';
+import { expect, movements, openDemo, test } from './fixtures';
 
 test('cada total del resumen lleva a los movimientos que lo forman', async ({ page }) => {
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
 
   await page.getByRole('link', { name: '-808,94 €' }).click();

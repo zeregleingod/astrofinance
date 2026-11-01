@@ -115,6 +115,8 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 - [ ] **T3.6 Patrón de lectura**: consultas con `resource()`/equivalente dependientes de `dataVersion`; escrituras mediante *use-cases* que incrementan `dataVersion` y marcan `dirty`.
 - [x] **T3.7 Interfaz en varios idiomas** (ADR-0027): español (predeterminado), inglés y catalán, con un menú junto al modo oscuro que cambia todos los textos al momento, sin recargar, y se recuerda. Diccionarios en `ui/i18n/`; importes y fechas siguen a la española.
 
+- [x] **T3.8 Landing de entrada** (ADR-0029): sin BD abierta se ve una landing (`pages/shell/landing-page`) con dos entradas, abrir el fichero `.db` del usuario o la demo, y un enlace para empezar sin datos. Al lado, el último mes de la demo dentro de la órbita del logo. La demo solo se abre desde ahí: se quitan la ruta `/demo` y su botón del menú; al salir de ella se vuelve a la landing.
+
 ---
 
 ## Fase 4 — Categorías y reglas

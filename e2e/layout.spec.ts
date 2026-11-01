@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, openDemo, test } from './fixtures';
 
 const pages = [
   'Resumen',
@@ -15,7 +15,7 @@ const pages = [
 test.beforeEach(async ({ page, isMobile }) => {
   test.skip(isMobile, 'Solo aplica a escritorio');
   await page.setViewportSize({ width: 1920, height: 1080 });
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
 });
 

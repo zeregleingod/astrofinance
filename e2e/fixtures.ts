@@ -45,6 +45,24 @@ export const test = base.extend<Guards>({
 
 export { expect };
 
+/** Entra en la aplicación desde la landing (ADR-0029) con uno de sus botones, sin cambiar de URL. */
+export async function enterFrom(page: Page, button: string) {
+  await page.getByRole('button', { name: button }).click();
+  await expect(page.locator('app-landing-page')).toHaveCount(0);
+}
+
+/** Abre `path` y entra con la demo: datos ficticios en memoria. */
+export async function openDemo(page: Page, path = '/') {
+  await page.goto(path);
+  await enterFrom(page, 'Ver la demo');
+}
+
+/** Abre `path` y entra sin datos: la BD del usuario, solo con la plantilla de categorías. */
+export async function startEmpty(page: Page, path = '/') {
+  await page.goto(path);
+  await enterFrom(page, 'Empezar sin datos');
+}
+
 /**
  * La lista de movimientos se ve como tabla en escritorio y como tarjetas en móvil: estos
  * localizadores valen para las dos.

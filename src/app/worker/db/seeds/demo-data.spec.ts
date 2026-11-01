@@ -1,6 +1,7 @@
 import sqlite3InitModule, { type Database, type Sqlite3Static } from '@sqlite.org/sqlite-wasm';
 import { migrate } from '../migrate';
 import { MIGRATIONS } from '../migrations';
+import { monthReport } from '../queries/reports';
 import { wrapDatabase, type SqlDb } from '../sql-db';
 import { CATEGORY_TEMPLATE } from './category-template';
 import { DEMO_EXTRA_CATEGORIES, DEMO_PERIODS, loadDemoData } from './demo-data';
@@ -125,5 +126,23 @@ describe('datos de demo', () => {
     ]) {
       expect(texts).not.toContain(real);
     }
+  });
+
+  it('su último mes da las cifras que enseña la landing (pages/shell/demo-preview.ts)', () => {
+    const report = monthReport(db, '2026-09');
+    const spent = report.groups
+      .filter((g) => g.totalCents < 0)
+      .sort((a, b) => a.totalCents - b.totalCents)
+      .slice(0, 4);
+
+    expect([report.incomeCents, report.expenseCents, report.savingsCents]).toEqual([
+      185000, -80894, 20000,
+    ]);
+    expect(spent.map((g) => [g.name, g.totalCents])).toEqual([
+      ['Hipoteca y vivienda', -28757],
+      ['Préstamos y financiaciones', -27694],
+      ['Variables', -11793],
+      ['Suministros', -6500],
+    ]);
   });
 });

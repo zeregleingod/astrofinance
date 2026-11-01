@@ -27,8 +27,7 @@ export const EN: Texts = {
   dashboard: {
     title: 'Overview',
     empty: 'There are no transactions yet.',
-    emptyHint:
-      'Load a statement from your bank in “Import statement”, or explore the app with sample data from “View demo” in the menu.',
+    emptyHint: 'Load a statement from your bank in “Import statement”.',
     kpis: 'Monthly totals',
     kpiLink: 'View its transactions',
     income: 'Income',
@@ -619,6 +618,24 @@ export const EN: Texts = {
       'Nov',
       'Dec',
     ],
+  },
+  landing: {
+    title: 'Your finances,',
+    titleAccent: 'on your own computer.',
+    lead: 'Import your bank statements, sort them into categories and see where your money goes each month. No accounts, no cloud: your data stays on your computer, in a file you keep.',
+    actions: 'How to start',
+    openFile: 'Open my file',
+    startEmpty: 'Start with no data',
+    offline: 'Works offline',
+    opening: 'Opening…',
+    openError: 'The database could not be opened.',
+    preview: 'Example with the demo data',
+    groups: {
+      housing: 'Mortgage and housing',
+      loans: 'Loans and financing',
+      variable: 'Variable expenses',
+      utilities: 'Utilities',
+    },
   },
   demo: {
     banner: 'Demo mode: sample data that is not saved.',

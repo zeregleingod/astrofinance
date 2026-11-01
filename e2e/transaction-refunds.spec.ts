@@ -1,8 +1,8 @@
 import { type Page } from '@playwright/test';
-import { expect, movements, test } from './fixtures';
+import { expect, movements, openDemo, test } from './fixtures';
 
 async function openTransactions(page: Page) {
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   const menu = page.getByRole('button', { name: 'Abrir menú' });
   if (await menu.isVisible()) await menu.click();

@@ -1,0 +1,426 @@
+// La landing ocupa la pantalla entera, sobre la superficie lavanda de la app. Los colores son los
+// del tema; los del anillo y los satélites, los del logo.
+:host {
+  --landing-ring: #f2b33d;
+  --landing-planet: #4f8ff7;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 100dvh;
+  box-sizing: border-box;
+  background: var(--mat-sys-surface);
+  overflow-x: clip;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px clamp(16px, 3vw, 32px);
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0;
+  font: var(--mat-sys-title-large);
+  font-weight: 600;
+  color: var(--mat-sys-primary);
+}
+
+.tools {
+  display: flex;
+  gap: 4px;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.main {
+  flex: 1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.05fr);
+  align-items: center;
+  gap: 24px;
+  width: min(1280px, 100%);
+  box-sizing: border-box;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 3vw, 32px) 48px clamp(16px, 5vw, 64px);
+}
+
+h1 {
+  margin: 0 0 20px;
+  font-size: clamp(2.25rem, 1.4rem + 3vw, 3.75rem);
+  line-height: 1.05;
+  letter-spacing: -0.03em;
+  font-weight: 600;
+  text-wrap: balance;
+}
+
+.accent {
+  color: var(--mat-sys-primary);
+}
+
+.lead {
+  max-width: 42ch;
+  margin: 0 0 32px;
+  font: var(--mat-sys-body-large);
+  line-height: 1.6;
+  color: var(--mat-sys-on-surface-variant);
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.cta {
+  --mat-button-filled-container-height: 52px;
+  --mat-button-filled-container-shape: 999px;
+  --mat-button-filled-horizontal-padding: 28px;
+  --mat-button-filled-label-text-size: 1rem;
+  --mat-button-outlined-container-height: 52px;
+  --mat-button-outlined-container-shape: 999px;
+  --mat-button-outlined-horizontal-padding: 28px;
+  --mat-button-outlined-label-text-size: 1rem;
+  --mat-button-outlined-outline-color: var(--mat-sys-outline);
+
+  mat-progress-spinner {
+    --mat-progress-spinner-active-indicator-color: currentColor;
+  }
+}
+
+.cta[mat-flat-button]:not(:disabled) {
+  box-shadow: 0 8px 20px -10px color-mix(in srgb, var(--mat-sys-primary) 80%, transparent);
+}
+
+.cta[mat-stroked-button]:not(:disabled) {
+  background: var(--mat-sys-surface-container-lowest);
+}
+
+.error {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  max-width: 48ch;
+  margin: 16px 0 0;
+  color: var(--mat-sys-error);
+  font: var(--mat-sys-body-medium);
+  font-weight: 500;
+
+  mat-icon {
+    flex: none;
+    width: 20px;
+    height: 20px;
+    font-size: 20px;
+  }
+}
+
+.more {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 24px;
+  margin-top: 20px;
+}
+
+// Un enlace, aunque abre algo: no compite con los dos botones.
+.link {
+  min-height: 40px;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--mat-sys-primary);
+  font: var(--mat-sys-label-large);
+  text-decoration: underline;
+  text-underline-offset: 4px;
+  cursor: pointer;
+
+  &:hover:not(:disabled) {
+    text-decoration-thickness: 2px;
+  }
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  &:disabled {
+    color: var(--mat-sys-on-surface-variant);
+    cursor: default;
+  }
+}
+
+.offline {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-small);
+
+  mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+  }
+}
+
+// La órbita del logo con el último mes de la demo en el centro.
+.art {
+  position: relative;
+  height: min(560px, 70vh);
+  min-height: 420px;
+  margin: 0;
+}
+
+.orbit {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+
+  .path {
+    fill: none;
+    stroke: var(--mat-sys-on-surface);
+    stroke-opacity: 0.1;
+    stroke-width: 1.5;
+    stroke-dasharray: 4 8;
+  }
+
+  .ring {
+    fill: none;
+    stroke: var(--landing-ring);
+    stroke-width: 3;
+  }
+
+  .planet {
+    fill: var(--landing-planet);
+  }
+
+  .tertiary {
+    fill: #f0965a;
+  }
+
+  .primary {
+    fill: var(--mat-sys-primary);
+  }
+}
+
+.card {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 340px;
+  box-sizing: border-box;
+  padding: 20px;
+  border-radius: 20px;
+  background: var(--mat-sys-surface-container-lowest);
+  color: var(--mat-sys-on-surface);
+  box-shadow: 0 24px 48px -20px rgb(20 20 70 / 40%);
+  transform: translate(-50%, -50%) rotate(-3deg);
+}
+
+.card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.period {
+  font: var(--mat-sys-title-small);
+  font-weight: 600;
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 10px 2px 6px;
+  border-radius: 999px;
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+  font: var(--mat-sys-label-medium);
+
+  mat-icon {
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+  }
+}
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0 0 16px;
+
+  div {
+    padding: 8px 10px;
+    border-radius: 12px;
+    background: var(--mat-sys-surface);
+  }
+
+  dt {
+    font: var(--mat-sys-label-small);
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  dd {
+    margin: 0;
+    font: var(--mat-sys-label-large);
+    font-weight: 600;
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+}
+
+.positive {
+  color: var(--af-positive);
+}
+
+.negative {
+  color: var(--af-negative);
+}
+
+.groups {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  li {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    gap: 4px 12px;
+    font: var(--mat-sys-body-small);
+  }
+
+  .name {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .amount {
+    font-variant-numeric: tabular-nums;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  .bar {
+    grid-column: 1 / -1;
+    display: block;
+    width: 100%;
+    height: 6px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 999px;
+    appearance: none;
+    background: color-mix(in srgb, var(--mat-sys-primary) 14%, transparent);
+
+    &::-webkit-progress-bar {
+      background: transparent;
+    }
+
+    &::-webkit-progress-value {
+      border-radius: 999px;
+      background: var(--mat-sys-primary);
+    }
+
+    &::-moz-progress-bar {
+      border-radius: 999px;
+      background: var(--mat-sys-primary);
+    }
+  }
+}
+
+// La entrada: el anillo se traza y la tarjeta se posa en su sitio. Sin movimiento si se pide.
+@media (prefers-reduced-motion: no-preference) {
+  .ring {
+    stroke-dasharray: 1200;
+    animation: draw 1.4s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+
+  .moon {
+    animation: appear 0.6s 0.7s ease-out both;
+  }
+
+  .card {
+    animation: settle 0.9s 0.15s cubic-bezier(0.16, 1, 0.3, 1) both;
+  }
+}
+
+@keyframes draw {
+  from {
+    stroke-dashoffset: 1200;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes appear {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes settle {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -44%) rotate(2deg);
+  }
+}
+
+// En pantallas estrechas la órbita va arriba, más pequeña, y los botones ocupan todo el ancho.
+@media (max-width: 760px) {
+  .main {
+    grid-template-columns: minmax(0, 1fr);
+    align-content: start;
+    gap: 0;
+    padding: 0 16px 32px;
+  }
+
+  .art {
+    order: -1;
+    height: 300px;
+    min-height: 0;
+    margin: 0 -16px 8px;
+  }
+
+  .card {
+    transform: translate(-50%, -50%) rotate(-3deg) scale(0.74);
+  }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .card {
+      animation-name: settle-small;
+    }
+  }
+
+  .lead {
+    margin-bottom: 24px;
+    font: var(--mat-sys-body-medium);
+    line-height: 1.6;
+  }
+
+  .actions {
+    flex-direction: column;
+  }
+
+  .cta {
+    width: 100%;
+  }
+}
+
+@keyframes settle-small {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -44%) rotate(2deg) scale(0.74);
+  }
+}

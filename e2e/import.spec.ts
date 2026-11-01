@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { expect, movements, test } from './fixtures';
+import { expect, movements, openDemo, startEmpty, test } from './fixtures';
 
 /** Extracto ficticio con la forma del Banc Sabadell (`tools/make-sabadell-fixture.mjs`). */
 const STATEMENT = 'e2e/fixtures/sabadell-enero-2026.xls';
@@ -16,7 +16,7 @@ async function chooseStatement(page: Page) {
 }
 
 test('importar un extracto: revisar, editar, guardar y verlo en movimientos', async ({ page }) => {
-  await page.goto('/');
+  await startEmpty(page);
   await openNav(page);
   await page.getByRole('link', { name: 'Importar extracto' }).click();
   await expect(page.getByRole('button', { name: 'Elegir fichero' })).toBeVisible();
@@ -52,7 +52,7 @@ test('importar un extracto: revisar, editar, guardar y verlo en movimientos', as
 });
 
 test('la categoría viene propuesta por las reglas y se puede cambiar', async ({ page }) => {
-  await page.goto('/configuracion/reglas-de-categoria');
+  await startEmpty(page, '/configuracion/reglas-de-categoria');
   await page.getByRole('textbox', { name: 'Texto', exact: true }).fill('recibo luz');
   await page
     .getByRole('combobox', { name: 'Categoría', exact: true })
@@ -81,7 +81,7 @@ test('la categoría viene propuesta por las reglas y se puede cambiar', async ({
 });
 
 test('reimportar el mismo extracto no duplica movimientos', async ({ page }) => {
-  await page.goto('/importar');
+  await startEmpty(page, '/importar');
   await chooseStatement(page);
   await page.getByRole('button', { name: `Guardar (${TOTAL})` }).click();
   await expect(page.getByText(`Movimientos guardados: ${TOTAL}.`)).toBeVisible();
@@ -95,7 +95,7 @@ test('reimportar el mismo extracto no duplica movimientos', async ({ page }) => 
 });
 
 test('un fichero que no es un extracto se rechaza con un mensaje claro', async ({ page }) => {
-  await page.goto('/importar');
+  await startEmpty(page, '/importar');
   await page.locator('main input[type="file"]').setInputFiles({
     name: 'notas.csv',
     mimeType: 'text/csv',
@@ -107,7 +107,7 @@ test('un fichero que no es un extracto se rechaza con un mensaje claro', async (
 });
 
 test('en la demo no se puede importar', async ({ page }) => {
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await openNav(page);
   await page.getByRole('link', { name: 'Importar extracto' }).click();

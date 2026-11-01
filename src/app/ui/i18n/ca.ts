@@ -31,8 +31,7 @@ export const CA: Texts = {
   dashboard: {
     title: 'Resum',
     empty: 'Encara no hi ha moviments.',
-    emptyHint:
-      'Carrega un extracte del teu banc des d’«Importa un extracte» o explora l’aplicació amb dades d’exemple des de «Mostra la demo», al menú.',
+    emptyHint: 'Carrega un extracte del teu banc des d’«Importa un extracte».',
     kpis: 'Totals del mes',
     kpiLink: 'Mostra’n els moviments',
     income: 'Ingressos',
@@ -622,6 +621,24 @@ export const CA: Texts = {
       'nov',
       'des',
     ],
+  },
+  landing: {
+    title: 'Les teves finances,',
+    titleAccent: 'al teu ordinador.',
+    lead: 'Importa els extractes del teu banc, ordena’ls per categories i mira cada mes en què se’n van els diners. Sense comptes ni núvol: les teves dades es queden al teu ordinador, en un fitxer que guardes tu.',
+    actions: 'Com començar',
+    openFile: 'Obre el meu fitxer',
+    startEmpty: 'Comença sense dades',
+    offline: 'Funciona sense connexió',
+    opening: 'S’està obrint…',
+    openError: 'No s’ha pogut obrir la base de dades.',
+    preview: 'Exemple amb les dades de la demo',
+    groups: {
+      housing: 'Hipoteca i habitatge',
+      loans: 'Préstecs i finançaments',
+      variable: 'Variables',
+      utilities: 'Subministraments',
+    },
   },
   demo: {
     banner: 'Mode demo: dades fictícies que no es desen.',

@@ -1,26 +1,24 @@
 import { type Page } from '@playwright/test';
-import { expect, movements, test } from './fixtures';
+import { enterFrom, expect, movements, openDemo, test } from './fixtures';
 
 async function openNav(page: Page) {
   const openMenu = page.getByRole('button', { name: 'Abrir menú' });
   if (await openMenu.isVisible()) await openMenu.click();
 }
 
-test('la barra lateral ofrece ver la demo y la abre', async ({ page }) => {
-  await page.goto('/');
-  await expect(page.getByText('Todavía no hay movimientos.')).toBeVisible();
+test('la demo solo se abre desde la landing (ADR-0029)', async ({ page }) => {
+  await page.goto('/demo');
+  // La ruta ya no existe: lleva al inicio, que sin BD es la landing.
+  await expect(page).toHaveURL(/\/$/);
+  await enterFrom(page, 'Empezar sin datos');
   await openNav(page);
-  await page.getByRole('link', { name: 'Ver la demo' }).click();
-
-  // En móvil, mientras se cierra el menú, se ven a la vez su aviso y el de la barra superior.
-  await expect(page.getByRole('status').filter({ hasText: 'Modo demo' }).first()).toBeVisible();
-  await expect(page.getByText('septiembre de 2026')).toBeVisible();
+  await expect(page.getByRole('navigation', { name: 'Navegación principal' })).toBeVisible();
+  await expect(page.getByText('Ver la demo')).toHaveCount(0);
 });
 
 test('la demo carga datos ficticios en memoria y se puede recorrer', async ({ page, isMobile }) => {
-  await page.goto('/demo');
+  await openDemo(page);
 
-  await expect(page).toHaveURL(/\/$/);
   await expect(page.getByRole('status').filter({ hasText: 'Modo demo' })).toBeVisible();
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await expect(page.getByRole('heading', { level: 3, name: 'Hipoteca y vivienda' })).toBeVisible();
@@ -56,7 +54,7 @@ test('la demo carga datos ficticios en memoria y se puede recorrer', async ({ pa
 
 test('la tabla se ordena por columna y se filtra al escribir', async ({ page, isMobile }) => {
   test.skip(isMobile, 'En móvil no hay tabla: lo cubre mobile.spec.ts');
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await openNav(page);
   await page.getByRole('link', { name: 'Movimientos' }).click();
@@ -79,7 +77,7 @@ test('la tabla se ordena por columna y se filtra al escribir', async ({ page, is
 });
 
 test('los filtros de movimientos no se aplican hasta pulsar «Filtrar»', async ({ page }) => {
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await openNav(page);
   await page.getByRole('link', { name: 'Movimientos' }).click();
@@ -121,7 +119,7 @@ test('los filtros de movimientos no se aplican hasta pulsar «Filtrar»', async 
 
 test('cada movimiento ocupa una sola línea', async ({ page, isMobile }) => {
   test.skip(isMobile, 'En móvil cada movimiento es una tarjeta');
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
   await openNav(page);
   await page.getByRole('link', { name: 'Movimientos' }).click();
@@ -138,7 +136,7 @@ test('cada movimiento ocupa una sola línea', async ({ page, isMobile }) => {
 });
 
 test('el aviso de la demo no ocupa sitio sobre las páginas', async ({ page, isMobile }) => {
-  await page.goto('/demo');
+  await openDemo(page);
   await expect(page.getByRole('status').filter({ hasText: 'Modo demo' })).toBeVisible();
   const main = await page.locator('main').boundingBox();
   // En escritorio la página empieza arriba del todo; en móvil, bajo la barra de siempre.
@@ -146,13 +144,15 @@ test('el aviso de la demo no ocupa sitio sobre las páginas', async ({ page, isM
   expect(main?.y).toBe(toolbar);
 });
 
-test('salir de la demo descarta los datos', async ({ page }) => {
-  await page.goto('/demo');
+test('salir de la demo descarta los datos y vuelve a la landing', async ({ page }) => {
+  await openDemo(page);
   await expect(page.getByText('septiembre de 2026')).toBeVisible();
 
   await openNav(page);
   await page.getByRole('button', { name: 'Salir de la demo' }).click();
 
   await expect(page.getByText('Modo demo')).toHaveCount(0);
+  await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tus finanzas, en tu equipo.');
+  await enterFrom(page, 'Empezar sin datos');
   await expect(page.getByText('Todavía no hay movimientos.')).toBeVisible();
 });

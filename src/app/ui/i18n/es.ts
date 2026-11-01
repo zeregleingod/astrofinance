@@ -28,8 +28,7 @@ export const ES = {
   dashboard: {
     title: 'Resumen',
     empty: 'Todavía no hay movimientos.',
-    emptyHint:
-      'Carga un extracto de tu banco desde «Importar extracto» o explora la aplicación con datos de ejemplo desde «Ver la demo», en el menú.',
+    emptyHint: 'Carga un extracto de tu banco desde «Importar extracto».',
     kpis: 'Totales del mes',
     kpiLink: 'Ver sus movimientos',
     income: 'Ingresos',
@@ -634,6 +633,25 @@ export const ES = {
       'nov',
       'dic',
     ],
+  },
+  /** La primera pantalla, sin BD abierta (ADR-0029). */
+  landing: {
+    title: 'Tus finanzas,',
+    titleAccent: 'en tu equipo.',
+    lead: 'Importa los extractos de tu banco, ordénalos por categorías y mira cada mes en qué se va el dinero. Sin cuentas ni nube: tus datos se quedan en tu equipo, en un archivo que guardas tú.',
+    actions: 'Cómo empezar',
+    openFile: 'Abrir mi archivo',
+    startEmpty: 'Empezar sin datos',
+    offline: 'Funciona sin conexión',
+    opening: 'Abriendo…',
+    openError: 'No se ha podido abrir la base de datos.',
+    preview: 'Ejemplo con los datos de la demo',
+    groups: {
+      housing: 'Hipoteca y vivienda',
+      loans: 'Préstamos y financiaciones',
+      variable: 'Variables',
+      utilities: 'Suministros',
+    },
   },
   demo: {
     banner: 'Modo demo: datos ficticios que no se guardan.',

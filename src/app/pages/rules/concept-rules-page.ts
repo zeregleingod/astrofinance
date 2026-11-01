@@ -39,6 +39,7 @@ import {
 } from '@domain/rules/concept-rule';
 import { cleanPattern } from '@domain/rules/rule';
 import { ConfirmDialog, type ConfirmDialogData } from '@ui/confirm-dialog/confirm-dialog';
+import { InfoButton } from '@ui/info-button/info-button';
 import { CentsPipe } from '@ui/format/cents-pipe';
 import { IsoDatePipe } from '@ui/format/iso-date-pipe';
 
@@ -72,6 +73,7 @@ const EMPTY: ConceptRuleModel = {
     CentsPipe,
     FormField,
     FormRoot,
+    InfoButton,
     IsoDatePipe,
     MatButtonModule,
     MatIconModule,

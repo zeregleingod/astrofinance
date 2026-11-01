@@ -27,18 +27,6 @@
   gap: 4px;
 }
 
-.info {
-  --mat-icon-button-state-layer-size: 32px;
-  --mat-icon-button-icon-size: 20px;
-
-  padding: 6px;
-  color: var(--mat-sys-on-surface-variant);
-
-  &[aria-expanded='true'] {
-    color: var(--mat-sys-primary);
-  }
-}
-
 .memory-warning {
   max-width: calc(var(--af-table-width) - 24px);
   margin: 0 0 16px;
@@ -62,7 +50,6 @@
     margin: 12px 0 0;
   }
 
-  .info-text,
   p:first-child {
     margin-top: 0;
   }

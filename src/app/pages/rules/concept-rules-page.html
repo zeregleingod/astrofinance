@@ -17,22 +17,13 @@
     <section class="panel" aria-labelledby="new-concept-rule-title">
       <div class="title-row">
         <h3 id="new-concept-rule-title">{{ texts.conceptRules.newTitle }}</h3>
-        <button
-          mat-icon-button
-          type="button"
-          class="info"
-          aria-controls="new-concept-rule-info"
-          [attr.aria-expanded]="introOpen()"
-          [attr.aria-label]="texts.categories.moreInfo + ': ' + texts.conceptRules.newTitle"
-          [title]="texts.categories.moreInfo"
-          (click)="introOpen.set(!introOpen())"
-        >
-          <mat-icon fontIcon="info" aria-hidden="true" />
-        </button>
+        <app-info-button
+          infoId="new-concept-rule-info"
+          [topic]="texts.conceptRules.newTitle"
+          [text]="texts.conceptRules.intro"
+          [(open)]="introOpen"
+        />
       </div>
-      @if (introOpen()) {
-        <p id="new-concept-rule-info" class="hint info-text">{{ texts.conceptRules.intro }}</p>
-      }
 
       <form class="fields" [formRoot]="ruleForm">
         <label class="field">
@@ -120,22 +111,13 @@
           <h3 id="concept-rule-list-title" class="list-title" tabindex="-1">
             {{ texts.conceptRules.list }}
           </h3>
-          <button
-            mat-icon-button
-            type="button"
-            class="info"
-            aria-controls="concept-apply-hint"
-            [attr.aria-expanded]="listInfoOpen()"
-            [attr.aria-label]="texts.categories.moreInfo + ': ' + texts.conceptRules.list"
-            [title]="texts.categories.moreInfo"
-            (click)="listInfoOpen.set(!listInfoOpen())"
-          >
-            <mat-icon fontIcon="info" aria-hidden="true" />
-          </button>
+          <app-info-button
+            infoId="concept-apply-hint"
+            [topic]="texts.conceptRules.list"
+            [text]="texts.conceptRules.applyHint"
+            [(open)]="listInfoOpen"
+          />
         </div>
-        @if (listInfoOpen()) {
-          <p id="concept-apply-hint" class="hint list-hint">{{ texts.conceptRules.applyHint }}</p>
-        }
       </div>
       <button
         mat-stroked-button

@@ -22,18 +22,6 @@
   gap: 4px;
 }
 
-.info {
-  --mat-icon-button-state-layer-size: 32px;
-  --mat-icon-button-icon-size: 20px;
-
-  padding: 6px;
-  color: var(--mat-sys-on-surface-variant);
-
-  &[aria-expanded='true'] {
-    color: var(--mat-sys-primary);
-  }
-}
-
 .panel {
   // Con su relleno lateral, tan ancho como las tablas.
   max-width: calc(var(--af-table-width) - 48px);
@@ -50,10 +38,6 @@
 
   p {
     margin: 12px 0 0;
-  }
-
-  .info-text {
-    margin-top: 0;
   }
 }
 
@@ -165,10 +149,6 @@ input[type='color'] {
 
 .list-title-row {
   margin-bottom: 8px;
-}
-
-.list-hint {
-  margin: -4px 0 12px;
 }
 
 .table-wrap {

@@ -42,6 +42,7 @@ import {
   type CategoryTranslations,
 } from '@domain/categories/category-tree';
 import { ConfirmDialog, type ConfirmDialogData } from '@ui/confirm-dialog/confirm-dialog';
+import { InfoButton } from '@ui/info-button/info-button';
 import {
   TranslatableInput,
   emptyTranslations,
@@ -123,6 +124,7 @@ const NO_COLOR = '#9e9e9e';
     CdkDropList,
     FormField,
     FormRoot,
+    InfoButton,
     MatButtonModule,
     MatIconModule,
     NgTemplateOutlet,

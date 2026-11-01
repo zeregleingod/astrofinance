@@ -132,26 +132,30 @@ describe('CategoriesPage', () => {
     expect(text(element)).toContain('se pierden al recargar o cerrar la página');
   });
 
-  it('las descripciones se ven al pulsar el icono de información de su sección', async () => {
+  it('las descripciones salen en un globo al pulsar el icono de información, sin mover la página', async () => {
     const { element, tool, settled } = await setup();
     const intro = 'Una categoría agrupa subcategorías';
     const list = 'El tipo de una subcategoría decide';
-    expect(text(element)).not.toContain(intro);
-    expect(text(element)).not.toContain(list);
+    // El globo va en la capa de superposición, fuera de la página.
+    const bubble = (id: string) => document.getElementById(id);
+    expect(text(document.body)).not.toContain(intro);
 
     const introButton = tool('Más información: Nueva categoría');
     expect(introButton.getAttribute('aria-expanded')).toBe('false');
-    expect(introButton.getAttribute('aria-controls')).toBe('new-category-info');
     introButton.click();
-    await settled(() => expect(text(element.querySelector('#new-category-info'))).toContain(intro));
+    await settled(() => expect(text(bubble('new-category-info'))).toContain(intro));
     expect(introButton.getAttribute('aria-expanded')).toBe('true');
+    expect(introButton.getAttribute('aria-controls')).toBe('new-category-info');
+    expect(element.contains(bubble('new-category-info'))).toBe(false);
+
+    // Abrir otro cierra el primero.
+    tool('Más información: Tus categorías').click();
+    await settled(() => expect(text(bubble('category-list-info'))).toContain(list));
+    await settled(() => expect(bubble('new-category-info')).toBeNull());
+    expect(introButton.getAttribute('aria-expanded')).toBe('false');
 
     tool('Más información: Tus categorías').click();
-    await settled(() => expect(text(element.querySelector('#category-list-info'))).toContain(list));
-
-    introButton.click();
-    await settled(() => expect(element.querySelector('#new-category-info')).toBeNull());
-    expect(text(element)).toContain(list);
+    await settled(() => expect(bubble('category-list-info')).toBeNull());
   });
 
   it('la tabla no tiene desplazamiento propio: lo hace la página', async () => {

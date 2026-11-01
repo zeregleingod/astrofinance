@@ -17,22 +17,13 @@
     <section class="panel" aria-labelledby="new-rule-title">
       <div class="title-row">
         <h3 id="new-rule-title">{{ texts.categoryRules.newTitle }}</h3>
-        <button
-          mat-icon-button
-          type="button"
-          class="info"
-          aria-controls="new-rule-info"
-          [attr.aria-expanded]="introOpen()"
-          [attr.aria-label]="texts.categories.moreInfo + ': ' + texts.categoryRules.newTitle"
-          [title]="texts.categories.moreInfo"
-          (click)="introOpen.set(!introOpen())"
-        >
-          <mat-icon fontIcon="info" aria-hidden="true" />
-        </button>
+        <app-info-button
+          infoId="new-rule-info"
+          [topic]="texts.categoryRules.newTitle"
+          [text]="texts.categoryRules.intro"
+          [(open)]="introOpen"
+        />
       </div>
-      @if (introOpen()) {
-        <p id="new-rule-info" class="hint info-text">{{ texts.categoryRules.intro }}</p>
-      }
 
       <form class="fields" [formRoot]="ruleForm">
         <label class="field">
@@ -107,22 +98,13 @@
           <h3 id="rule-list-title" class="list-title" tabindex="-1">
             {{ texts.categoryRules.list }}
           </h3>
-          <button
-            mat-icon-button
-            type="button"
-            class="info"
-            aria-controls="apply-hint"
-            [attr.aria-expanded]="listInfoOpen()"
-            [attr.aria-label]="texts.categories.moreInfo + ': ' + texts.categoryRules.list"
-            [title]="texts.categories.moreInfo"
-            (click)="listInfoOpen.set(!listInfoOpen())"
-          >
-            <mat-icon fontIcon="info" aria-hidden="true" />
-          </button>
+          <app-info-button
+            infoId="apply-hint"
+            [topic]="texts.categoryRules.list"
+            [text]="texts.categoryRules.applyHint"
+            [(open)]="listInfoOpen"
+          />
         </div>
-        @if (listInfoOpen()) {
-          <p id="apply-hint" class="hint list-hint">{{ texts.categoryRules.applyHint }}</p>
-        }
       </div>
       <button
         mat-stroked-button

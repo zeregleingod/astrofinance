@@ -14,7 +14,8 @@ import { DbService } from '@services/db/db-service';
 
 /**
  * Barra lateral: marca, accesos rápidos (los que se proyecten, el modo oscuro y el idioma), una entrada por
- * sección (agrupadas en apartados) y, al pie, la salida: la de la demo, con su aviso, o «Salir».
+ * sección (agrupadas en apartados) y, al pie, la salida (la de la demo, con su aviso, o «Salir») y
+ * la política de privacidad.
  * En escritorio se pliega a una franja con solo los iconos; sus nombres salen al pasar por
  * encima y siguen ahí para los lectores de pantalla.
  */
@@ -87,17 +88,41 @@ import { DbService } from '@services/db/db-service';
         </mat-nav-list>
       }
     </nav>
-    <!-- Dentro de la demo, su aviso y la salida; la demo solo se abre desde la landing. -->
-    @if (db.mode() === 'demo') {
-      <footer class="footer">
+    <footer class="footer">
+      <!-- Dentro de la demo, su aviso y la salida; la demo solo se abre desde la landing. -->
+      @if (db.mode() === 'demo') {
         <app-demo-banner [rail]="collapsed()" (exited)="navigate.emit()" />
-      </footer>
-    } @else if (db.mode() === 'local') {
-      <!-- Con los datos del usuario, la salida que cierra la sesión de la pestaña (ADR-0031). -->
-      <footer class="footer">
+      } @else if (db.mode() === 'local') {
+        <!-- Con los datos del usuario, la salida que cierra la sesión de la pestaña (ADR-0031). -->
         <app-exit-button [rail]="collapsed()" (exited)="navigate.emit()" />
-      </footer>
-    }
+      }
+      <!-- La política de privacidad, fuera del menú (ADR-0032). -->
+      @if (collapsed()) {
+        <a
+          mat-icon-button
+          class="privacy"
+          routerLink="/privacidad"
+          ariaCurrentWhenActive="page"
+          [attr.aria-label]="texts.privacy.title"
+          [matTooltip]="texts.privacy.title"
+          matTooltipPosition="right"
+          (click)="navigate.emit()"
+        >
+          <mat-icon fontIcon="shield_lock" aria-hidden="true" />
+        </a>
+      } @else {
+        <a
+          mat-button
+          class="privacy"
+          routerLink="/privacidad"
+          ariaCurrentWhenActive="page"
+          (click)="navigate.emit()"
+        >
+          <mat-icon fontIcon="shield_lock" aria-hidden="true" />
+          {{ texts.privacy.title }}
+        </a>
+      }
+    </footer>
   `,
   styles: `
     :host {
@@ -176,8 +201,20 @@ import { DbService } from '@services/db/db-service';
     }
 
     .footer {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
       margin-top: auto;
       padding: 16px 8px 0;
+    }
+
+    .privacy {
+      align-self: center;
+      color: var(--mat-sys-on-surface-variant);
+    }
+
+    .privacy[aria-current='page'] {
+      color: var(--mat-sys-primary);
     }
 
     .brand-name {

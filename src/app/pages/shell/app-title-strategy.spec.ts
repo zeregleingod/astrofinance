@@ -13,6 +13,7 @@ describe('AppTitleStrategy', () => {
         provideRouter([
           { path: 'seccion', title: 'Resumen', children: [] },
           { path: 'sin-titulo', children: [] },
+          { path: 'privacidad', title: 'Privacidad', children: [] },
           {
             path: 'traducida',
             title: () => (language() === 'en' ? 'Overview' : 'Resumen'),
@@ -61,5 +62,12 @@ describe('AppTitleStrategy', () => {
     await db.openDemo();
     TestBed.tick();
     expect(TestBed.inject(Title).getTitle()).toBe('Resumen · AstroFinance');
+  });
+
+  it('sin BD, una página pública conserva su título (ADR-0032)', async () => {
+    TestBed.inject(DbService).close();
+    await TestBed.inject(Router).navigateByUrl('/privacidad');
+
+    expect(TestBed.inject(Title).getTitle()).toBe('Privacidad · AstroFinance');
   });
 });

@@ -4,7 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatSnackBar } from '@angular/material/snack-bar';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import type { BackupFailure } from '@domain/backup/backup-outcome';
 import { PreferenceButtons } from './preference-buttons';
 import { BackupService } from '@services/backup/backup-service';
@@ -25,7 +25,7 @@ type LandingFailure =
 /**
  * La primera pantalla (ADR-0029), mientras no hay BD abierta: se entra cargando el fichero `.db`
  * del usuario, con la demo o con una BD vacía. Al lado, el último mes de la demo dentro de la
- * órbita del logo enseña qué hace la aplicación.
+ * órbita del logo enseña qué hace la aplicación. Al pie, la política de privacidad (ADR-0032).
  */
 @Component({
   selector: 'app-landing-page',
@@ -35,6 +35,7 @@ type LandingFailure =
     MatIconModule,
     MatProgressSpinnerModule,
     PreferenceButtons,
+    RouterLink,
     CentsPipe,
     PeriodLabelPipe,
   ],

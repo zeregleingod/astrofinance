@@ -53,6 +53,19 @@ describe('Sidebar', () => {
     ]);
   });
 
+  it('enlaza la privacidad al pie, fuera del menú; plegada, solo el icono (ADR-0032)', async () => {
+    const { fixture, element } = await setup();
+    const link = () => element.querySelector('footer a.privacy');
+
+    expect(link()?.getAttribute('href')).toBe('/privacidad');
+    expect(link()?.textContent).toContain('Privacidad');
+    expect(element.querySelector('nav a[href="/privacidad"]')).toBeNull();
+
+    fixture.componentRef.setInput('collapsed', true);
+    await fixture.whenStable();
+    expect(link()?.getAttribute('aria-label')).toBe('Privacidad');
+  });
+
   it('agrupa los enlaces en apartados con su rótulo', async () => {
     const { element } = await setup();
 
@@ -86,7 +99,8 @@ describe('Sidebar', () => {
 
   it('no ofrece la demo (ADR-0029); con tus datos, al pie está «Salir» (ADR-0031)', async () => {
     const { fixture, element } = await setup();
-    expect(element.querySelector('.footer')).toBeNull();
+    // Sin BD, al pie solo la privacidad.
+    expect(element.querySelector('.footer app-exit-button, .footer app-demo-banner')).toBeNull();
 
     await TestBed.inject(DbService).openLocal();
     await fixture.whenStable();

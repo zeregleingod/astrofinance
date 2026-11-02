@@ -657,4 +657,139 @@ export const CA: Texts = {
     exitConfirm: 'Surt',
     exitCancel: 'Cancel·la',
   },
+  privacy: {
+    title: 'Privadesa',
+    heading: 'Política de privadesa',
+    updated: 'Última actualització: 2 de novembre de 2026',
+    back: 'Torna a l’inici',
+    newTab: '(s’obre en una pestanya nova)',
+    summary: {
+      title: 'En poques paraules',
+      lead: 'AstroFinance funciona sencera al teu navegador. Les teves dades financeres no surten del teu dispositiu.',
+      body: 'No hi ha cap servidor que les rebi, ni comptes d’usuari, ni analítica, ni publicitat, ni galetes. Ningú més que tu pot veure, copiar o vendre les teves dades, perquè l’aplicació no les envia mai enlloc. I no és només una promesa: està construïda perquè no ho pugui fer, i ho pots comprovar tu mateix.',
+    },
+    responsibility: {
+      title: 'Ús sota la teva responsabilitat',
+      body: 'AstroFinance és programari lliure, publicat amb llicència MIT i oferit tal com és, sense garanties de cap mena. No hi ha cap empresa ni persona al darrere que rebi, desi o tracti les teves dades: l’aplicació és una eina que s’executa al teu dispositiu, i tu decideixes què hi poses i on deses les teves còpies.',
+      own: 'Per això, l’ús de l’aplicació i la custòdia de les teves dades i fitxers són responsabilitat de cada usuari.',
+      questions:
+        'Si tens un dubte sobre aquesta política o trobes un error, obre’l a la secció «Issues» del repositori d’AstroFinance a GitHub.',
+      questionsWarning:
+        'Els «issues» són públics: no hi incloguis mai dades financeres reals, extractes ni fitxers .db.',
+    },
+    data: {
+      title: 'Quines dades fa servir l’aplicació i on queden',
+      financialTitle: 'Les teves dades financeres',
+      financial:
+        'Comptes, moviments, categories, regles, notes i repartiments que crees o importes. Viuen en una base de dades SQLite que s’executa dins del teu navegador. Poden ser en tres llocs, i tots tres són teus:',
+      when: 'Quan',
+      lasts: 'Quant dura',
+      places: [
+        {
+          name: 'Memòria de la pestanya',
+          when: 'Mentre fas servir l’aplicació.',
+          lasts: 'Fins que tanques la pestanya o prems «Surt».',
+        },
+        {
+          name: 'Emmagatzematge privat del navegador (OPFS)',
+          when: 'Una còpia de la pestanya, perquè una recàrrega no et faci perdre la feina.',
+          lasts:
+            'S’esborra en prémer «Surt»; si tanques la pestanya sense més, la propera vegada que obris l’aplicació en aquell navegador.',
+        },
+        {
+          name: 'Fitxer .db que baixes',
+          when: 'Només quan prems «Baixa la còpia».',
+          lasts: 'El que tu decideixis: és un fitxer teu, a la carpeta que triïs.',
+        },
+      ],
+      unencrypted:
+        'Important: en aquesta versió ni la còpia del navegador ni el fitxer baixat estan xifrats. Qualsevol persona amb accés al teu dispositiu, al teu perfil del navegador o al fitxer els podria llegir. Desa el .db en un lloc segur, com faries amb un extracte bancari en paper.',
+      importsTitle: 'Extractes bancaris que importes',
+      imports:
+        'Quan importes un extracte del teu banc, el fitxer es llegeix al teu navegador; no es puja enlloc. Només se’n conserva el que cal:',
+      kept: [
+        'La data, l’import, el concepte i el saldo de cada moviment.',
+        'Els 4 últims dígits de l’IBAN, per distingir els teus comptes. No es desa mai l’IBAN complet ni el nom del titular.',
+        'El nom del fitxer i la seva empremta SHA-256, per avisar-te si importes el mateix extracte dues vegades.',
+      ],
+      thirdParties:
+        'Els conceptes els escriu el teu banc i de vegades inclouen noms de terceres persones (per exemple, qui t’ha enviat un Bizum). Es desen tal com són, també només al teu dispositiu.',
+      preferencesTitle: 'Preferències de la interfície',
+      preferences:
+        'El navegador desa aquests valors perquè l’aplicació funcioni com li has demanat. Cap no conté dades financeres:',
+      storage: [
+        { key: 'astrofinance.language', what: 'L’idioma triat.' },
+        { key: 'astrofinance.theme', what: 'Mode clar o fosc.' },
+        { key: 'astrofinance.sidebar', what: 'Si el menú lateral està plegat.' },
+        {
+          key: 'astrofinance.session',
+          what: 'Un identificador aleatori de la pestanya, quina és l’última còpia desada i si hi ha canvis sense descarregar. S’esborra en tancar la pestanya.',
+        },
+      ],
+      noConsent:
+        'Això no són galetes i no s’envia a cap servidor. Per això no es mostra cap avís de consentiment: no hi ha res a consentir.',
+      demoTitle: 'El mode demo',
+      demo: 'La demo fa servir dades inventades que es creen en memòria. No toca el teu emmagatzematge ni es barreja amb les teves dades, i desapareix en sortir o en recarregar.',
+    },
+    never: {
+      title: 'El que l’aplicació no fa',
+      items: [
+        'No hi ha registre, comptes ni inici de sessió.',
+        'No hi ha analítica, telemetria, informes d’errors automàtics ni píxels de seguiment.',
+        'No hi ha publicitat ni es comparteixen o venen dades amb tercers.',
+        'No es carreguen recursos de tercers: ni CDN, ni fonts externes, ni scripts d’altres llocs. Les fonts i les icones van incloses a la mateixa aplicació.',
+        'No fa servir ni demana permís per a la càmera, el micròfon, la ubicació, els pagaments ni l’USB.',
+        'No hi ha intel·ligència artificial ni serveis externs que analitzin els teus moviments: els suggeriments de categoria es calculen al teu navegador a partir del teu propi historial.',
+      ],
+    },
+    hosting: {
+      title: 'L’allotjament: GitHub Pages',
+      body: 'L’aplicació se serveix des de GitHub Pages (github.io). Per fer-la servir, el teu navegador en baixa els fitxers. Com qualsevol web, GitHub registra dades tècniques d’aquesta visita, com la teva adreça IP, per motius de seguretat. Aquests registres són de GitHub, no del projecte, que no hi té accés ni els fa servir per a res.',
+      policyIntro: 'Es regeixen per la',
+      policyLink: 'Declaració de privadesa de GitHub',
+      policyUrl:
+        'https://docs.github.com/es/site-policy/privacy-policies/github-general-privacy-statement',
+      onlyRequest:
+        'Aquesta baixada és l’única comunicació amb la xarxa. Un cop carregada, l’aplicació no fa cap altra petició: la seva política de seguretat del contingut (CSP) impedeix al navegador connectar-se amb cap altre origen, i tampoc no s’envia l’adreça de la pàgina a altres llocs.',
+    },
+    verify: {
+      title: 'Com ho pots comprovar',
+      steps: [
+        'Obre les eines de desenvolupament del navegador (F12) i ves a la pestanya «Xarxa».',
+        'Fes servir l’aplicació: importa un extracte, categoritza, baixa una còpia.',
+        'Veuràs que totes les peticions van al mateix domini de l’aplicació i que cap no porta les teves dades.',
+      ],
+      code: 'A més, el codi és obert: les decisions de seguretat i privadesa estan documentades al repositori, i les seves proves automàtiques fallen si l’aplicació intenta connectar-se amb cap origen extern.',
+    },
+    delete: {
+      title: 'Com esborrar les teves dades',
+      intro: 'Com que les dades són al teu dispositiu, ets tu qui les controla:',
+      items: [
+        '«Surt», al peu del menú lateral, tanca les teves dades i esborra la còpia del navegador a l’acte. Si tens canvis sense descarregar, t’avisa abans.',
+        'Esborrar les dades del lloc des de la configuració del navegador elimina tot l’anterior, preferències incloses.',
+        'Els fitxers .db baixats s’esborren com qualsevol altre fitxer del teu ordinador.',
+      ],
+      noRecovery:
+        'Ningú no pot esborrar, recuperar ni exportar les teves dades per tu, perquè no són enlloc més. Si perds el fitxer .db i no hi ha còpia al navegador, no hi ha manera de recuperar-les: baixa còpies sovint.',
+    },
+    rights: {
+      title: 'Control total sobre les teves dades',
+      body: 'Els drets que reconeix el Reglament general de protecció de dades (accés, rectificació, supressió, portabilitat…) els exerceixes directament des de l’aplicació, sense demanar-ho a ningú: veus i edites totes les teves dades, les esborres amb «Surt» i te les emportes en un fitxer .db estàndard de SQLite, que pots obrir amb qualsevol eina compatible.',
+    },
+    minors: {
+      title: 'Menors',
+      body: 'AstroFinance no està adreçada a menors de 14 anys. Tot i així, com que l’aplicació no recull dades de ningú, tampoc no recull les seves.',
+    },
+    changes: {
+      title: 'Canvis en aquesta política',
+      intro:
+        'Si mai l’aplicació canvia la manera de tractar les teves dades, aquesta política s’actualitzarà abans de publicar aquest canvi, amb la data de dalt renovada. En concret:',
+      items: [
+        'Si s’hi afegeix la sincronització amb un servei al núvol (com Google Drive, prevista a llarg termini), serà opcional, l’activaràs tu, es connectarà només amb aquest servei i aquí s’explicarà què s’envia i a qui.',
+        'Si s’hi afegeix la instal·lació com a aplicació (PWA), el navegador desarà a la memòria cau els fitxers de l’aplicació per funcionar sense connexió; això no canvia res sobre les teves dades.',
+      ],
+      history:
+        'L’historial d’aquesta política queda al repositori del projecte, de manera que sempre pots veure què ha canviat i quan.',
+    },
+  },
 };

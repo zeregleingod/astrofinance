@@ -1,5 +1,5 @@
 import { TestBed } from '@angular/core/testing';
-import { provideRouter } from '@angular/router';
+import { Router, provideRouter } from '@angular/router';
 import { SIDEBAR_STORAGE_KEY } from '@pages/shell/sidebar-state';
 import { DB_WORKER_FACTORY, DbService } from '@services/db/db-service';
 import { inProcessDbWorker } from '../testing/in-process-db-worker';
@@ -44,6 +44,32 @@ describe('App', () => {
     db.close();
     await fixture.whenStable();
     expect(compiled.querySelector('app-landing-page')).not.toBeNull();
+  });
+
+  it('sin BD, la privacidad se ve en su marco en lugar de la landing (ADR-0032)', async () => {
+    const router = TestBed.inject(Router);
+    router.resetConfig([{ path: 'privacidad', children: [] }]);
+    const fixture = TestBed.createComponent(App);
+    await router.navigateByUrl('/privacidad');
+    await fixture.whenStable();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('app-public-frame')).not.toBeNull();
+    expect(compiled.querySelector('app-landing-page')).toBeNull();
+    expect(compiled.querySelector('mat-sidenav')).toBeNull();
+    expect(compiled.querySelector('app-public-frame a')?.getAttribute('href')).toBe('/');
+  });
+
+  it('con BD, la privacidad se ve dentro de la aplicación', async () => {
+    const router = TestBed.inject(Router);
+    router.resetConfig([{ path: 'privacidad', children: [] }]);
+    const fixture = await inside();
+    await router.navigateByUrl('/privacidad');
+    await fixture.whenStable();
+    const compiled = fixture.nativeElement as HTMLElement;
+
+    expect(compiled.querySelector('app-public-frame')).toBeNull();
+    expect(compiled.querySelector('mat-sidenav app-sidebar')).not.toBeNull();
   });
 
   it('se crea', () => {

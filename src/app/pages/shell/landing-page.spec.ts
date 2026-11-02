@@ -74,6 +74,14 @@ describe('LandingPage (ADR-0029)', () => {
     expect(text(element.querySelector('.more button'))).toBe('Empezar sin datos');
   });
 
+  it('enlaza la política de privacidad al pie (ADR-0032)', async () => {
+    const { element } = await setup();
+
+    const link = element.querySelector('footer a');
+    expect(text(link)).toBe('Privacidad');
+    expect(link?.getAttribute('href')).toBe('/privacidad');
+  });
+
   it('enseña el último mes de la demo, descrito como una imagen', async () => {
     const { element } = await setup();
 

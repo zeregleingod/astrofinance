@@ -6,6 +6,8 @@ import { MatToolbarModule } from '@angular/material/toolbar';
 import { RouterOutlet } from '@angular/router';
 import { LandingGate } from '@pages/shell/landing-gate';
 import { LandingPage } from '@pages/shell/landing-page';
+import { PublicFrame } from '@pages/shell/public-frame';
+import { PublicRoute } from '@pages/shell/public-route';
 import { DemoBanner } from '@pages/shell/demo-banner';
 import { Sidebar } from '@pages/shell/sidebar';
 import { SidebarState } from '@pages/shell/sidebar-state';
@@ -21,6 +23,7 @@ import { BackupQuickActions } from '@pages/shell/backup-quick-actions';
     BackupQuickActions,
     DemoBanner,
     LandingPage,
+    PublicFrame,
     Sidebar,
     MatButtonModule,
     MatIconModule,
@@ -31,6 +34,9 @@ import { BackupQuickActions } from '@pages/shell/backup-quick-actions';
     <!-- Tras recargar, nada hasta retomar los datos de la pestaña (ADR-0031). -->
     @if (session.resuming()) {
       <p class="resuming" role="status">{{ texts.session.resuming }}</p>
+    } @else if (!gate.inside() && publicRoute.active()) {
+      <!-- Las páginas públicas, como la privacidad, se ven también sin BD (ADR-0032). -->
+      <app-public-frame />
     } @else if (!gate.inside()) {
       <!-- Sin BD abierta se ve la landing (ADR-0029); la URL se conserva para entrar en esa sección. -->
       <app-landing-page />
@@ -81,6 +87,7 @@ export class App {
   protected readonly texts = TEXTS;
   protected readonly gate = inject(LandingGate);
   protected readonly session = inject(TabSession);
+  protected readonly publicRoute = inject(PublicRoute);
   /** En pantallas estrechas la barra lateral pasa a ser un panel desplegable. */
   protected readonly compact = inject(Viewport).compact;
   protected readonly sidebar = inject(SidebarState);

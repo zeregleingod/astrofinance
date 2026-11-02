@@ -4,12 +4,14 @@ import { RouterStateSnapshot, TitleStrategy } from '@angular/router';
 import { TEXTS, language } from '@ui/texts';
 import { LandingGate } from './landing-gate';
 import { routeText } from './nav-items';
+import { isPublicUrl } from './public-route';
 
 /**
  * El `title` de cada ruta es el nombre de la sección (el que aparece en la
  * navegación); el título del documento le añade el nombre de la aplicación.
  * Al cambiar de idioma se vuelve a escribir en el nuevo (ADR-0027). En la landing, que no es
- * ninguna sección, solo el nombre de la aplicación (ADR-0029).
+ * ninguna sección, solo el nombre de la aplicación (ADR-0029); las páginas públicas, que se ven sin
+ * BD, llevan el suyo (ADR-0032).
  */
 @Injectable()
 export class AppTitleStrategy extends TitleStrategy {
@@ -33,7 +35,7 @@ export class AppTitleStrategy extends TitleStrategy {
 
   private apply(): void {
     if (!this.snapshot) return;
-    if (!this.gate.inside()) {
+    if (!this.gate.inside() && !isPublicUrl(this.snapshot.url)) {
       this.title.setTitle(TEXTS.app.name);
       return;
     }

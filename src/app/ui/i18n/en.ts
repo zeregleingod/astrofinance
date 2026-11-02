@@ -654,4 +654,139 @@ export const EN: Texts = {
     exitConfirm: 'Exit',
     exitCancel: 'Cancel',
   },
+  privacy: {
+    title: 'Privacy',
+    heading: 'Privacy policy',
+    updated: 'Last updated: 2 November 2026',
+    back: 'Back to start',
+    newTab: '(opens in a new tab)',
+    summary: {
+      title: 'In short',
+      lead: 'AstroFinance runs entirely in your browser. Your financial data never leaves your device.',
+      body: 'There is no server that receives it, no user accounts, no analytics, no ads and no cookies. Nobody but you can see, copy or sell your data, because the app never sends it anywhere. And it is not just a promise: the app is built so that it cannot, and you can check it yourself.',
+    },
+    responsibility: {
+      title: 'Use at your own risk',
+      body: 'AstroFinance is free software, released under the MIT licence and provided as is, without warranty of any kind. There is no company or person behind it who receives, stores or processes your data: the app is a tool that runs on your device, and you decide what goes into it and where you keep your copies.',
+      own: 'For that reason, using the app and looking after your data and files is each user’s own responsibility.',
+      questions:
+        'If you have a question about this policy or find a bug, open it in the “Issues” section of the AstroFinance repository on GitHub.',
+      questionsWarning:
+        'Issues are public: never include real financial data, statements or .db files.',
+    },
+    data: {
+      title: 'What data the app handles and where it stays',
+      financialTitle: 'Your financial data',
+      financial:
+        'The accounts, transactions, categories, rules, notes and splits you create or import. They live in a SQLite database that runs inside your browser. They can be in three places, and all three are yours:',
+      when: 'When',
+      lasts: 'How long it lasts',
+      places: [
+        {
+          name: 'Tab memory',
+          when: 'While you use the app.',
+          lasts: 'Until you close the tab or press “Exit”.',
+        },
+        {
+          name: 'Browser private storage (OPFS)',
+          when: 'A copy of the tab, so that reloading does not cost you your work.',
+          lasts:
+            'Deleted when you press “Exit”; if you simply close the tab, the next time you open the app in that browser.',
+        },
+        {
+          name: 'The .db file you download',
+          when: 'Only when you press “Download copy”.',
+          lasts: 'As long as you decide: it is your file, in the folder you choose.',
+        },
+      ],
+      unencrypted:
+        'Important: in this version neither the browser copy nor the downloaded file is encrypted. Anyone with access to your device, your browser profile or the file could read them. Keep the .db somewhere safe, as you would a paper bank statement.',
+      importsTitle: 'Bank statements you import',
+      imports:
+        'When you import a statement from your bank, the file is read in your browser; it is not uploaded anywhere. Only what is needed is kept:',
+      kept: [
+        'The date, amount, description and balance of each transaction.',
+        'The last 4 digits of the IBAN, to tell your accounts apart. The full IBAN and the account holder’s name are never stored.',
+        'The file name and its SHA-256 fingerprint, to warn you if you import the same statement twice.',
+      ],
+      thirdParties:
+        'Descriptions are written by your bank and sometimes include other people’s names (for example, who sent you a Bizum). They are stored as they are, also only on your device.',
+      preferencesTitle: 'Interface preferences',
+      preferences:
+        'The browser stores these values so the app works the way you asked. None of them contains financial data:',
+      storage: [
+        { key: 'astrofinance.language', what: 'The chosen language.' },
+        { key: 'astrofinance.theme', what: 'Light or dark mode.' },
+        { key: 'astrofinance.sidebar', what: 'Whether the side menu is collapsed.' },
+        {
+          key: 'astrofinance.session',
+          what: 'A random identifier for the tab, which copy was saved last and whether there are changes not downloaded. Deleted when the tab is closed.',
+        },
+      ],
+      noConsent:
+        'These are not cookies and nothing is sent to any server. That is why there is no consent banner: there is nothing to consent to.',
+      demoTitle: 'Demo mode',
+      demo: 'The demo uses made-up data created in memory. It does not touch your storage or mix with your data, and it disappears when you leave or reload.',
+    },
+    never: {
+      title: 'What the app does not do',
+      items: [
+        'No sign-up, accounts or log-in.',
+        'No analytics, telemetry, automatic error reports or tracking pixels.',
+        'No ads, and no data is shared with or sold to third parties.',
+        'No third-party resources are loaded: no CDNs, no external fonts, no scripts from other sites. Fonts and icons are bundled with the app.',
+        'It does not use or ask for the camera, microphone, location, payments or USB.',
+        'No artificial intelligence or external services analyse your transactions: category suggestions are worked out in your browser from your own history.',
+      ],
+    },
+    hosting: {
+      title: 'Hosting: GitHub Pages',
+      body: 'The app is served from GitHub Pages (github.io). To use it, your browser downloads its files from there. Like any website, GitHub records technical data about that visit, such as your IP address, for security reasons. Those records belong to GitHub, not to the project, which has no access to them and does not use them for anything.',
+      policyIntro: 'They are governed by the',
+      policyLink: 'GitHub General Privacy Statement',
+      policyUrl:
+        'https://docs.github.com/en/site-policy/privacy-policies/github-general-privacy-statement',
+      onlyRequest:
+        'That download is the only network communication. Once loaded, the app makes no other request: its content security policy (CSP) stops the browser from connecting to any other origin, and the page address is not sent to other sites either.',
+    },
+    verify: {
+      title: 'How you can check it',
+      steps: [
+        'Open your browser’s developer tools (F12) and go to the “Network” tab.',
+        'Use the app: import a statement, categorise, download a copy.',
+        'You will see that every request goes to the app’s own domain and that none carries your data.',
+      ],
+      code: 'The code is also open: the security and privacy decisions are documented in the repository, and its automated tests fail if the app tries to connect to any external origin.',
+    },
+    delete: {
+      title: 'How to delete your data',
+      intro: 'Because the data is on your device, you are the one in control:',
+      items: [
+        '“Exit”, at the bottom of the side menu, closes your data and deletes the browser copy straight away. If you have changes not downloaded, it warns you first.',
+        'Clearing the site data in your browser settings removes all of the above, preferences included.',
+        'Downloaded .db files are deleted like any other file on your computer.',
+      ],
+      noRecovery:
+        'Nobody can delete, recover or export your data for you, because it is nowhere else. If you lose your .db file and there is no copy in the browser, there is no way to recover it: download copies regularly.',
+    },
+    rights: {
+      title: 'Full control over your data',
+      body: 'You exercise the rights granted by the General Data Protection Regulation (access, rectification, erasure, portability…) directly in the app, without asking anyone: you see and edit all your data, delete it with “Exit” and take it with you in a standard SQLite .db file that any compatible tool can open.',
+    },
+    minors: {
+      title: 'Children',
+      body: 'AstroFinance is not intended for children under 14. Even so, since the app collects nobody’s data, it does not collect theirs either.',
+    },
+    changes: {
+      title: 'Changes to this policy',
+      intro:
+        'If the app ever changes the way it handles your data, this policy will be updated before that change is released, with the date above renewed. In particular:',
+      items: [
+        'If syncing with a cloud service is added (such as Google Drive, planned for the long term), it will be optional, you will turn it on yourself, it will connect only to that service and this page will explain what is sent and to whom.',
+        'If installing as an app (PWA) is added, the browser will cache the app’s files to work offline; that changes nothing about your data.',
+      ],
+      history:
+        'The history of this policy is kept in the project repository, so you can always see what changed and when.',
+    },
+  },
 };

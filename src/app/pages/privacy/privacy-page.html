@@ -1,0 +1,130 @@
+<header class="page-header">
+  <h2>{{ t.heading }}</h2>
+</header>
+<p class="updated">{{ t.updated }}</p>
+
+<section class="panel summary" aria-labelledby="privacy-summary">
+  <h3 id="privacy-summary">{{ t.summary.title }}</h3>
+  <p class="lead">
+    <mat-icon fontIcon="shield_lock" aria-hidden="true" />
+    <strong>{{ t.summary.lead }}</strong>
+  </p>
+  <p>{{ t.summary.body }}</p>
+</section>
+
+<section class="panel" aria-labelledby="privacy-responsibility">
+  <h3 id="privacy-responsibility">{{ t.responsibility.title }}</h3>
+  <p>{{ t.responsibility.body }}</p>
+  <p>{{ t.responsibility.own }}</p>
+  <p>{{ t.responsibility.questions }}</p>
+  <p class="note">{{ t.responsibility.questionsWarning }}</p>
+</section>
+
+<section class="panel" aria-labelledby="privacy-data">
+  <h3 id="privacy-data">{{ t.data.title }}</h3>
+
+  <h4>{{ t.data.financialTitle }}</h4>
+  <p>{{ t.data.financial }}</p>
+  <ul class="places">
+    @for (place of t.data.places; track $index) {
+      <li>
+        <strong>{{ place.name }}</strong>
+        <dl>
+          <dt>{{ t.data.when }}</dt>
+          <dd>{{ place.when }}</dd>
+          <dt>{{ t.data.lasts }}</dt>
+          <dd>{{ place.lasts }}</dd>
+        </dl>
+      </li>
+    }
+  </ul>
+  <p class="note">{{ t.data.unencrypted }}</p>
+
+  <h4>{{ t.data.importsTitle }}</h4>
+  <p>{{ t.data.imports }}</p>
+  <ul>
+    @for (item of t.data.kept; track $index) {
+      <li>{{ item }}</li>
+    }
+  </ul>
+  <p>{{ t.data.thirdParties }}</p>
+
+  <h4>{{ t.data.preferencesTitle }}</h4>
+  <p>{{ t.data.preferences }}</p>
+  <dl class="storage">
+    @for (entry of t.data.storage; track entry.key) {
+      <div>
+        <dt>
+          <code>{{ entry.key }}</code>
+        </dt>
+        <dd>{{ entry.what }}</dd>
+      </div>
+    }
+  </dl>
+  <p>{{ t.data.noConsent }}</p>
+
+  <h4>{{ t.data.demoTitle }}</h4>
+  <p>{{ t.data.demo }}</p>
+</section>
+
+<section class="panel" aria-labelledby="privacy-never">
+  <h3 id="privacy-never">{{ t.never.title }}</h3>
+  <ul class="checks">
+    @for (item of t.never.items; track $index) {
+      <li><mat-icon fontIcon="block" aria-hidden="true" />{{ item }}</li>
+    }
+  </ul>
+</section>
+
+<section class="panel" aria-labelledby="privacy-hosting">
+  <h3 id="privacy-hosting">{{ t.hosting.title }}</h3>
+  <p>
+    {{ t.hosting.body }} {{ t.hosting.policyIntro }}
+    <a [href]="t.hosting.policyUrl" target="_blank" rel="noopener noreferrer"
+      >{{ t.hosting.policyLink }}<span class="visually-hidden"> {{ t.newTab }}</span></a
+    >.
+  </p>
+  <p>{{ t.hosting.onlyRequest }}</p>
+</section>
+
+<section class="panel" aria-labelledby="privacy-verify">
+  <h3 id="privacy-verify">{{ t.verify.title }}</h3>
+  <ol>
+    @for (step of t.verify.steps; track $index) {
+      <li>{{ step }}</li>
+    }
+  </ol>
+  <p>{{ t.verify.code }}</p>
+</section>
+
+<section class="panel" aria-labelledby="privacy-delete">
+  <h3 id="privacy-delete">{{ t.delete.title }}</h3>
+  <p>{{ t.delete.intro }}</p>
+  <ul>
+    @for (item of t.delete.items; track $index) {
+      <li>{{ item }}</li>
+    }
+  </ul>
+  <p>{{ t.delete.noRecovery }}</p>
+</section>
+
+<section class="panel" aria-labelledby="privacy-rights">
+  <h3 id="privacy-rights">{{ t.rights.title }}</h3>
+  <p>{{ t.rights.body }}</p>
+</section>
+
+<section class="panel" aria-labelledby="privacy-minors">
+  <h3 id="privacy-minors">{{ t.minors.title }}</h3>
+  <p>{{ t.minors.body }}</p>
+</section>
+
+<section class="panel" aria-labelledby="privacy-changes">
+  <h3 id="privacy-changes">{{ t.changes.title }}</h3>
+  <p>{{ t.changes.intro }}</p>
+  <ul>
+    @for (item of t.changes.items; track $index) {
+      <li>{{ item }}</li>
+    }
+  </ul>
+  <p>{{ t.changes.history }}</p>
+</section>

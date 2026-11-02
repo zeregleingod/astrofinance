@@ -1,4 +1,5 @@
 import { Routes } from '@angular/router';
+import { PRIVACY_PATH } from '@pages/shell/public-route';
 import { TEXTS } from '@ui/texts';
 
 /**
@@ -66,6 +67,13 @@ export const routes: Routes = [
         loadComponent: () => import('@pages/backup/backup-page').then((m) => m.BackupPage),
       },
     ],
+  },
+  {
+    // Fuera del menú: se enlaza desde el pie del menú y de la landing, y se ve sin BD (ADR-0032).
+    path: PRIVACY_PATH,
+    title: () => TEXTS.privacy.title,
+    data: { nav: false },
+    loadComponent: () => import('@pages/privacy/privacy-page').then((m) => m.PrivacyPage),
   },
   { path: '**', redirectTo: '' },
 ];

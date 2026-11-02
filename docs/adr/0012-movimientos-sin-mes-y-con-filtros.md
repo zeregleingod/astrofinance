@@ -1,6 +1,7 @@
 # ADR-0012: La lista de movimientos deja de ser mensual y se acota con filtros
 
-- **Estado:** aceptado
+- **Estado:** aceptado. Desde el 2026-11-02 no se ofrece el filtro de etiqueta en la interfaz;
+  el dominio aún lo admite (`TransactionFilter.tag`).
 - **Fecha:** 2026-10-12
 
 ## Contexto

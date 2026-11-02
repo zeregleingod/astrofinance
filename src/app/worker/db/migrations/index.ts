@@ -7,6 +7,7 @@ import { migration006 } from './006-categoria-sugerida';
 import { migration007 } from './007-submovimientos';
 import { migration008 } from './008-reglas-de-concepto';
 import { migration009 } from './009-traducciones-de-categorias';
+import { migration010 } from './010-idioma-del-nombre-de-categoria';
 import type { Migration } from './migration';
 
 /** Migraciones en orden de versión. Nunca se edita una ya publicada: se añade otra. */
@@ -20,4 +21,5 @@ export const MIGRATIONS: readonly Migration[] = [
   migration007,
   migration008,
   migration009,
+  migration010,
 ];

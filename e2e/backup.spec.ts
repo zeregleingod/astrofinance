@@ -1,6 +1,6 @@
 import { type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { expect, movements, openDemo, startEmpty, test } from './fixtures';
+import { exitApp, expect, keepsSession, movements, openDemo, startEmpty, test } from './fixtures';
 
 const STATEMENT = 'e2e/fixtures/sabadell-enero-2026.xls';
 const TOTAL = 44;
@@ -45,9 +45,15 @@ test('descargar una copia, recargar la página y volver a cargarla', async ({ pa
   const copy = await readFile(await download.path());
   expect(copy.subarray(0, 15).toString('latin1')).toBe('SQLite format 3');
 
-  // Al recargar se pierde lo que había en memoria: se vuelve a la landing (ADR-0029), desde la
-  // que se carga la copia y se entra en la misma página.
-  await page.reload();
+  // Al recargar, los datos de la pestaña siguen ahí (ADR-0031). Ya están descargados: no pregunta.
+  if (await keepsSession(page)) {
+    await page.reload();
+    await expect(page.getByRole('button', { name: 'Descargar copia' })).toBeEnabled();
+    // Al salir se pierden y se vuelve a la landing (ADR-0029).
+    await exitApp(page);
+  }
+  // Desde la landing se carga la copia y se entra en la página de la URL.
+  await page.goto('/configuracion/copia-de-seguridad');
   await expect(page.getByRole('button', { name: 'Abrir mi archivo' })).toBeVisible();
   await page
     .locator('app-landing-page input[type="file"]')

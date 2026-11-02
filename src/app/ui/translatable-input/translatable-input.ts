@@ -12,17 +12,17 @@ import { FormField, type FieldTree } from '@angular/forms/signals';
 import { MatIconModule } from '@angular/material/icon';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
-import { LANGUAGES, TEXTS, type Language } from '@ui/texts';
+import { LANGUAGES, TEXTS, language as interfaceLanguage, type Language } from '@ui/texts';
 
-/** Un texto por idioma de la interfaz, vacío si no se traduce. */
+/** Un texto por idioma de la interfaz, vacío si no se ha escrito en ese idioma. */
 export type TranslationsModel = Record<Language, string>;
 
-/** Ningún idioma traducido. */
+/** Ningún idioma escrito. */
 export function emptyTranslations(): TranslationsModel {
   return Object.fromEntries(LANGUAGES.map(({ code }) => [code, ''])) as TranslationsModel;
 }
 
-/** Las traducciones guardadas (por código de idioma), en el formulario. */
+/** Los textos guardados (por código de idioma), en el formulario. */
 export function translationsModel(
   translations: Readonly<Record<string, string>>,
 ): TranslationsModel {
@@ -41,13 +41,15 @@ export function filledTranslations(model: TranslationsModel): Record<string, str
 }
 
 /**
- * Campo de texto traducible (ADR-0028): un solo campo con un botón dentro, a la izquierda, que
- * elige qué se escribe en él. El texto por defecto (globo) vale para todos los idiomas; cada
- * idioma (su código) puede tener el suyo, y si no lo tiene se ve el de por defecto, que sale de
- * ejemplo. El menú del botón enseña lo que tiene cada uno.
+ * Campo de texto traducible (ADR-0028, ADR-0030): un solo campo con un botón dentro, a la
+ * izquierda, que elige en qué idioma de la interfaz se escribe. Empieza en el de la interfaz. No
+ * hace falta escribirlo en todos: en un idioma vacío se ve, de ejemplo, el texto de `source` (el
+ * idioma en que se escribió) o el primero que haya. El menú del botón enseña lo que tiene cada
+ * idioma o «Sin traducir».
  *
- * El formulario que lo usa valida y guarda los dos campos; los errores del texto por defecto los
- * enseña él (`invalid`, `describedBy`) y los de las traducciones, este componente.
+ * El formulario que lo usa valida y guarda los textos; este componente enseña sus errores: los
+ * del conjunto (`translations`, p. ej. «escribe un nombre») y los de cada idioma, con el idioma
+ * delante aunque no sea el que se ve.
  */
 @Component({
   selector: 'app-translatable-input',
@@ -59,29 +61,14 @@ export function filledTranslations(model: TranslationsModel): Record<string, str
         class="language"
         [class.invalid]="errors().length > 0"
         [matMenuTriggerFor]="menu"
-        [attr.aria-label]="texts.translatable.language + ': ' + current()"
-        [matTooltip]="texts.translatable.language + ': ' + current()"
+        [attr.aria-label]="texts.translatable.language + ': ' + current().name"
+        [matTooltip]="texts.translatable.language + ': ' + current().name"
       >
-        @if (language(); as code) {
-          <span class="code" aria-hidden="true">{{ code }}</span>
-        } @else {
-          <mat-icon fontIcon="language" aria-hidden="true" />
-        }
+        <span class="code" aria-hidden="true">{{ current().code }}</span>
         <mat-icon class="arrow" fontIcon="arrow_drop_down" aria-hidden="true" />
       </button>
-      @if (language() === null) {
-        <input
-          type="text"
-          autocomplete="off"
-          [id]="inputId()"
-          [formField]="defaultField()"
-          [attr.aria-label]="label()"
-          [attr.aria-invalid]="invalid()"
-          [attr.aria-describedby]="describedBy()"
-        />
-      }
       @for (option of languages; track option.code) {
-        @if (option.code === language()) {
+        @if (option.code === current().code) {
           @let field = translations()[option.code];
           <input
             type="text"
@@ -89,40 +76,23 @@ export function filledTranslations(model: TranslationsModel): Record<string, str
             [id]="inputId()"
             [attr.lang]="option.code"
             [formField]="field"
-            [placeholder]="defaultField()().value()"
+            [placeholder]="fallback()"
             [attr.aria-label]="label() + ' (' + option.name + ')'"
-            [attr.aria-invalid]="shown(field)"
-            [attr.aria-describedby]="errors().length > 0 ? inputId() + '-translations' : null"
+            [attr.aria-invalid]="shown(field) || ownErrors().length > 0"
+            [attr.aria-describedby]="errors().length > 0 ? inputId() + '-errors' : null"
           />
         }
       }
     </div>
 
     <mat-menu #menu="matMenu" [aria-label]="texts.translatable.language">
-      <button
-        mat-menu-item
-        type="button"
-        role="menuitemradio"
-        [attr.aria-checked]="language() === null"
-        (click)="choose(null)"
-      >
-        <span class="item">
-          <span class="mark" aria-hidden="true"><mat-icon fontIcon="language" /></span>
-          <span class="option">
-            <span>{{ texts.translatable.default }}</span>
-            <span class="value">{{
-              defaultField()().value() || texts.translatable.defaultHint
-            }}</span>
-          </span>
-        </span>
-      </button>
       @for (option of languages; track option.code) {
         @let text = translations()[option.code]().value();
         <button
           mat-menu-item
           type="button"
           role="menuitemradio"
-          [attr.aria-checked]="option.code === language()"
+          [attr.aria-checked]="option.code === current().code"
           (click)="choose(option.code)"
         >
           <span class="item">
@@ -139,10 +109,15 @@ export function filledTranslations(model: TranslationsModel): Record<string, str
     </mat-menu>
 
     @if (errors().length > 0) {
-      <p class="alert" [id]="inputId() + '-translations'">
-        @for (error of errors(); track error.language) {
-          <span [attr.lang]="error.language">{{ error.name }}</span
-          >: {{ error.message }}
+      <p class="alert" [id]="inputId() + '-errors'">
+        @for (error of errors(); track $index) {
+          <span>
+            @if (error.language) {
+              <span [attr.lang]="error.language">{{ error.name }}</span
+              >:
+            }
+            {{ error.message }}
+          </span>
         }
       </p>
     }
@@ -234,7 +209,7 @@ export function filledTranslations(model: TranslationsModel): Record<string, str
       }
     }
 
-    // Cada opción del menú: el globo o el código del idioma, y debajo de su nombre, su texto.
+    // Cada opción del menú: el código del idioma y, debajo de su nombre, su texto.
     .item {
       display: flex;
       align-items: center;
@@ -247,10 +222,6 @@ export function filledTranslations(model: TranslationsModel): Record<string, str
       justify-content: center;
       width: 24px;
       color: var(--mat-sys-on-surface-variant);
-
-      mat-icon {
-        margin: 0;
-      }
     }
 
     .option {
@@ -284,31 +255,49 @@ export class TranslatableInput {
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
   private readonly injector = inject(Injector);
 
-  /** El texto por defecto, para todos los idiomas. */
-  readonly defaultField = input.required<FieldTree<string>>();
-  /** Su texto en cada idioma de la interfaz. */
+  /** El texto en cada idioma de la interfaz; sus errores propios son los del conjunto. */
   readonly translations = input.required<FieldTree<TranslationsModel>>();
+  /** El idioma en que se escribió el texto: el que se ve en los idiomas vacíos. */
+  readonly source = input<string | null>(null);
   /** El `id` del campo, para su `<label for>`. */
   readonly inputId = input.required<string>();
-  /** Nombre accesible del campo; en un idioma se le añade el del idioma. */
+  /** Nombre accesible del campo; se le añade el del idioma. */
   readonly label = input.required<string>();
-  /** El texto por defecto no vale y se está enseñando por qué. */
-  readonly invalid = input(false);
-  /** Dónde explica el formulario por qué no vale el texto por defecto. */
-  readonly describedBy = input<string | null>(null);
   /** Se ha intentado guardar: los errores se enseñan aunque no se haya tocado el campo. */
   readonly attempted = input(false);
-  /** Qué se escribe en el campo: un idioma, o `null` para el texto por defecto. */
+  /** En qué idioma se escribe en el campo; sin elegir, en el de la interfaz. */
   readonly language = model<Language | null>(null);
 
   protected readonly current = computed(() => {
-    const code = this.language();
-    return LANGUAGES.find((option) => option.code === code)?.name ?? TEXTS.translatable.default;
+    const code = this.language() ?? interfaceLanguage();
+    return LANGUAGES.find((option) => option.code === code) ?? LANGUAGES[0];
   });
 
-  /** Los errores de las traducciones, de todos los idiomas: también los que no se ven. */
-  protected readonly errors = computed(() =>
-    LANGUAGES.flatMap(({ code, name }) => {
+  /** Lo que se verá en el idioma elegido si se deja vacío. */
+  protected readonly fallback = computed(() => {
+    const field = this.translations();
+    const text = (code: string) =>
+      LANGUAGES.some((option) => option.code === code)
+        ? field[code as Language]().value().trim()
+        : '';
+    const source = this.source();
+    return (
+      (source ? text(source) : '') ||
+      LANGUAGES.map(({ code }) => text(code)).find((value) => value !== '') ||
+      ''
+    );
+  });
+
+  /** Los errores del conjunto, que no son de ningún idioma. */
+  protected readonly ownErrors = computed(() => {
+    const field = this.translations()();
+    return field.dirty() || this.attempted() ? field.errors() : [];
+  });
+
+  /** Los del conjunto y los de cada idioma, también de los que no se ven. */
+  protected readonly errors = computed(() => [
+    ...this.ownErrors().map((error) => ({ language: null, name: '', message: error.message })),
+    ...LANGUAGES.flatMap(({ code, name }) => {
       const field = this.translations()[code];
       return this.shown(field)
         ? field()
@@ -316,14 +305,14 @@ export class TranslatableInput {
             .map((error) => ({ language: code, name, message: error.message }))
         : [];
     }),
-  );
+  ]);
 
   protected shown(field: FieldTree<string>): boolean {
     return field().invalid() && (field().dirty() || this.attempted());
   }
 
   /** Pasa a escribir en `code` y lleva allí el foco. */
-  protected choose(code: Language | null): void {
+  protected choose(code: Language): void {
     this.language.set(code);
     afterNextRender(() => this.host.querySelector<HTMLInputElement>('input')?.focus(), {
       injector: this.injector,

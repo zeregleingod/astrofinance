@@ -61,9 +61,10 @@ test('el botón de modo oscuro cambia el tema en caliente y se recuerda', async 
 
   await expect(toggle).toHaveAttribute('aria-pressed', 'true');
   await expect(page.locator('html')).toHaveClass(/theme-dark/);
-  // Se recuerda también en la landing, a la que se vuelve al recargar.
+  // Se recuerda al recargar, dentro de la aplicación (ADR-0031) o, sin OPFS, en la landing.
   await page.reload();
   await expect(page.locator('html')).toHaveClass(/theme-dark/);
+  if (await openMenu.isVisible()) await openMenu.click();
   await expect(page.getByRole('button', { name: 'Modo oscuro' })).toHaveAttribute(
     'aria-pressed',
     'true',

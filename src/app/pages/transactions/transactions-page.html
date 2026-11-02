@@ -277,26 +277,6 @@
                         {{ row.description }}
                       </td>
                     }
-                    @case ('tags') {
-                      <!--
-                        Cabe una etiqueta: si hay más, un «+n» con todas en el título; los lectores
-                        de pantalla las leen todas. El espacio las separa también para ellos.
-                      -->
-                      <td [title]="row.tags.join(', ')">
-                        <ng-container
-                          *ngTemplateOutlet="mark; context: { color: row.categoryColor }"
-                        />
-                        @if (row.tags[0]; as first) {
-                          <span class="badge">{{ first }}</span>
-                        }
-                        @if (row.tags.length > 1) {
-                          {{ ' '
-                          }}<span class="badge more" aria-hidden="true"
-                            >+{{ row.tags.length - 1 }}</span
-                          ><span class="visually-hidden">{{ row.tags.slice(1).join(' ') }}</span>
-                        }
-                      </td>
-                    }
                     @case ('category') {
                       <td [title]="place(row)">
                         <ng-container
@@ -435,25 +415,6 @@
                             texts.transactions.splits.partOf
                           }}</span>
                           {{ part.description }}
-                        </td>
-                      }
-                      @case ('tags') {
-                        <td
-                          [title]="
-                            part.refundsTo.length > 0
-                              ? texts.transactions.splits.refunds + ': ' + part.refundsTo.join(', ')
-                              : ''
-                          "
-                        >
-                          <ng-container
-                            *ngTemplateOutlet="mark; context: { color: part.categoryColor }"
-                          />
-                          @if (part.refundsTo.length > 0) {
-                            <span class="badge">{{ texts.transactions.splits.refunds }}</span>
-                            <span class="visually-hidden">{{ part.refundsTo.join(', ') }}</span>
-                          } @else if (part.shared) {
-                            <span class="badge">{{ texts.transactions.shared }}</span>
-                          }
                         </td>
                       }
                       @case ('category') {

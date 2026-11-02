@@ -1,6 +1,7 @@
 # ADR-0028: Nombres de categoría en varios idiomas
 
-- **Estado:** aceptado
+- **Estado:** aceptado; modificado por ADR-0030 (el nombre por defecto pasa a ser el nombre en
+  su idioma de origen, y el campo deja de ofrecer «Por defecto»)
 - **Fecha:** 2026-11-01
 
 ## Contexto

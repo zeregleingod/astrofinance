@@ -84,12 +84,16 @@ describe('Sidebar', () => {
     expect(spy).toHaveBeenCalled();
   });
 
-  it('no ofrece la demo: solo se abre desde la landing (ADR-0029)', async () => {
+  it('no ofrece la demo (ADR-0029); con tus datos, al pie está «Salir» (ADR-0031)', async () => {
     const { fixture, element } = await setup();
+    expect(element.querySelector('.footer')).toBeNull();
+
     await TestBed.inject(DbService).openLocal();
     await fixture.whenStable();
 
-    expect(element.querySelector('.footer')).toBeNull();
+    expect(element.querySelector('.footer app-exit-button')?.textContent?.trim()).toContain(
+      'Salir',
+    );
     expect(element.textContent).not.toContain('Ver la demo');
   });
 
@@ -156,8 +160,8 @@ describe('Sidebar', () => {
       const options = [...document.querySelectorAll<HTMLElement>('[role="menuitemradio"]')];
       expect(options.map((option) => option.textContent?.trim())).toEqual([
         'Español',
-        'English',
         'Català',
+        'English',
       ]);
       expect(options.map((option) => option.getAttribute('aria-checked'))).toEqual([
         'true',
@@ -165,7 +169,7 @@ describe('Sidebar', () => {
         'false',
       ]);
 
-      options[1]?.click();
+      options[2]?.click();
       await fixture.whenStable();
 
       expect(element.querySelector('button[aria-label="Language"]')).not.toBeNull();

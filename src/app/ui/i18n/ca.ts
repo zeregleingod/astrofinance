@@ -122,7 +122,6 @@ export const CA: Texts = {
       year: 'Any',
       from: 'Des de',
       to: 'Fins a',
-      tag: 'Etiqueta',
       category: 'Categoria',
       subcategory: 'Subcategoria',
       account: 'Compte',
@@ -325,8 +324,9 @@ export const CA: Texts = {
     newTitle: 'Nova categoria',
     moreInfo: 'Més informació',
     intro:
-      'Una categoria agrupa subcategories i els dona color. Les subcategories, que són les que s’assignen als moviments, s’afegeixen des de la taula amb el botó «+» de la seva categoria.',
+      'Una categoria agrupa subcategories i els dona color. Les subcategories, que són les que s’assignen als moviments, s’afegeixen des de la taula amb el botó «+» de la seva categoria. El nom s’escriu en l’idioma de la interfície; amb el botó de l’idioma, dins del camp, es pot escriure en els altres. Si en falta algun, es veu el d’un altre idioma.',
     name: 'Nom',
+    untranslated: 'Sense traduir: es veu en',
     color: 'Color',
     kind: 'Tipus',
     kinds: {
@@ -371,7 +371,7 @@ export const CA: Texts = {
     positionOf: 'de',
     reorderError: 'No s’ha pogut canviar l’ordre.',
     errors: {
-      'nombre-vacio': 'Escriu un nom.',
+      'nombre-vacio': 'Escriu el nom almenys en un idioma.',
       'nombre-largo': 'El nom no pot tenir més de 60 caràcters.',
       'nombre-repetido': 'Ja n’hi ha una amb aquest nom al mateix nivell.',
       'principal-inexistente': 'La categoria a què pertany ja no existeix.',
@@ -570,8 +570,6 @@ export const CA: Texts = {
   },
   translatable: {
     language: 'Idioma del text',
-    default: 'Per defecte',
-    defaultHint: 'Per a tots els idiomes',
     untranslated: 'Sense traduir',
   },
   datepicker: {
@@ -647,5 +645,16 @@ export const CA: Texts = {
     open: 'Mostra la demo',
     loading: 'S’està carregant la demo…',
     error: 'No s’ha pogut obrir la demo.',
+  },
+  session: {
+    resuming: 'S’estan recuperant les teves dades…',
+    exit: 'Surt',
+    exitTitle: 'Vols sortir d’AstroFinance?',
+    exitCloses: 'Es tancaran les teves dades i tornaràs a la pantalla d’inici.',
+    exitLoses: 'Tot el que no estigui desat en una còpia descarregada es perdrà.',
+    exitUnsaved:
+      'Tens canvis sense descarregar: si surts, es perdran. Descarrega una còpia abans si els vols conservar.',
+    exitConfirm: 'Surt',
+    exitCancel: 'Cancel·la',
   },
 };

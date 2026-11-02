@@ -1,4 +1,4 @@
-import { enterFrom, expect, startEmpty, test } from './fixtures';
+import { enterFrom, expect, keepsSession, startEmpty, test } from './fixtures';
 
 test.skip(({ isMobile }) => isMobile, 'En móvil el menú es un panel que se abre y se cierra');
 
@@ -22,8 +22,9 @@ test('el menú lateral se pliega a solo iconos, se despliega y lo recuerda', asy
     .poll(async () => (await page.locator('main').boundingBox())?.x)
     .toBeLessThan(wide / 2);
 
+  // Al recargar se sigue dentro (ADR-0031; sin OPFS, se vuelve a entrar) y el menú, plegado.
   await page.reload();
-  await enterFrom(page, 'Empezar sin datos');
+  if (!(await keepsSession(page))) await enterFrom(page, 'Empezar sin datos');
   await expect(page.getByRole('button', { name: 'Desplegar menú' })).toBeVisible();
 
   await page.getByRole('button', { name: 'Desplegar menú' }).click();

@@ -1,6 +1,7 @@
 # ADR-0020: Tabla de movimientos compacta y campos en blanco
 
-- **Estado:** aceptado
+- **Estado:** aceptado. Desde el 2026-11-02 la columna Etiquetas no se enseña, ni en la tabla ni
+  en las fichas del móvil (se quedan seis columnas); su cálculo sigue en el dominio por si vuelve.
 - **Fecha:** 2026-10-22
 
 ## Contexto

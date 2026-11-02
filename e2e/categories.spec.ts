@@ -33,7 +33,7 @@ test('configuración › categorías: dar de alta una categoría y sus subcatego
   await expect(page.getByRole('rowheader', { name: 'Variables', exact: true })).toBeVisible();
 
   // Arriba solo se crean categorías principales: nombre y color.
-  await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill('Mascotas');
+  await page.getByRole('textbox', { name: 'Nombre (Español)', exact: true }).fill('Mascotas');
   await page.getByLabel('Color', { exact: true }).fill('#ff8800');
   await page.getByRole('button', { name: 'Añadir categoría' }).click();
   await expect(page.getByRole('status').filter({ hasText: 'Añadida: Mascotas' })).toBeVisible();
@@ -55,7 +55,9 @@ test('configuración › categorías: dar de alta una categoría y sus subcatego
   // Repetir el nombre dentro de la misma categoría no se guarda.
   await add.click();
   await name.fill('veterinario');
-  await expect(page.getByText('Ya hay una con ese nombre en el mismo nivel.')).toBeVisible();
+  await expect(
+    page.getByText('Ya hay una con ese nombre en este idioma en el mismo nivel.'),
+  ).toBeVisible();
   await name.press('Enter');
   await name.press('Escape');
   await expect(name).toHaveCount(0);

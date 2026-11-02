@@ -64,6 +64,32 @@ export async function startEmpty(page: Page, path = '/') {
 }
 
 /**
+ * El navegador tiene OPFS, donde se copian los datos de la pestaña para que sobrevivan a una
+ * recarga (ADR-0031). El WebKit de Playwright en Windows no lo tiene: allí recargar vuelve a la
+ * landing, como en un navegador sin OPFS.
+ */
+export async function keepsSession(page: Page): Promise<boolean> {
+  return page.evaluate(() =>
+    navigator.storage.getDirectory().then(
+      () => true,
+      () => false,
+    ),
+  );
+}
+
+/** Sale de los datos del usuario con «Salir» del menú y su diálogo, y espera a la landing. */
+export async function exitApp(page: Page) {
+  const exit = page.getByRole('button', { name: 'Salir', exact: true });
+  // En móvil está en el menú, que hay que abrir si está cerrado.
+  if (!(await exit.isVisible())) await page.getByRole('button', { name: 'Abrir menú' }).click();
+  await exit.click();
+  await page.getByRole('alertdialog').getByRole('button', { name: 'Salir' }).click();
+  await expect(page.locator('app-landing-page')).toBeVisible();
+  // Vuelve al inicio: hasta que no termina de navegar, recargar cortaría la carga de la página.
+  await expect(page).toHaveURL(/\/$/);
+}
+
+/**
  * La lista de movimientos se ve como tabla en escritorio y como tarjetas en móvil: estos
  * localizadores valen para las dos.
  */

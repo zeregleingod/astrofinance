@@ -52,7 +52,9 @@ describe('CategoriesPage', () => {
       );
       return (
         labelled?.querySelector<T>('input, select') ??
-        element.querySelector<T>(`[aria-label="${label}"]`)
+        element.querySelector<T>(`[aria-label="${label}"]`) ??
+        // Un nombre se escribe, si no se elige otro idioma, en el de la interfaz.
+        element.querySelector<T>(`[aria-label="${label} (Español)"]`)
       );
     };
     const fill = async (label: string, value: string) => {
@@ -226,16 +228,18 @@ describe('CategoriesPage', () => {
       expect(field('Nombre')?.getAttribute('aria-invalid')).toBe('false');
       await submit();
       await settled(() =>
-        expect(text(element.querySelector('#name-error'))).toBe('Escribe un nombre.'),
+        expect(text(element.querySelector('#new-name-errors'))).toBe(
+          'Escribe el nombre al menos en un idioma.',
+        ),
       );
       expect(field('Nombre')?.getAttribute('aria-invalid')).toBe('true');
-      expect(field('Nombre')?.getAttribute('aria-describedby')).toBe('name-error');
+      expect(field('Nombre')?.getAttribute('aria-describedby')).toBe('new-name-errors');
 
       await fill('Nombre', 'variables');
       await submit();
       await settled(() =>
-        expect(text(element.querySelector('#name-error'))).toBe(
-          'Ya hay una con ese nombre en el mismo nivel.',
+        expect(text(element.querySelector('#new-name-errors'))).toBe(
+          'Español: Ya hay una con ese nombre en este idioma en el mismo nivel.',
         ),
       );
       expect(db.dataVersion()).toBe(version);
@@ -291,15 +295,17 @@ describe('CategoriesPage', () => {
 
       tool('Añadir subcategoría: Suministros').click();
       await settled(() => expect(field(name)).not.toBeNull());
-      expect(element.querySelector('#row-error')).toBeNull();
+      expect(element.querySelector('#row-name-errors')).toBeNull();
 
       tool('Guardar').click();
       await settled(() =>
-        expect(text(element.querySelector('#row-error'))).toBe('Escribe un nombre.'),
+        expect(text(element.querySelector('#row-name-errors'))).toBe(
+          'Escribe el nombre al menos en un idioma.',
+        ),
       );
       await fill(name, 'luz');
-      expect(text(element.querySelector('#row-error'))).toBe(
-        'Ya hay una con ese nombre en el mismo nivel.',
+      expect(text(element.querySelector('#row-name-errors'))).toBe(
+        'Español: Ya hay una con ese nombre en este idioma en el mismo nivel.',
       );
       expect(field(name)?.getAttribute('aria-invalid')).toBe('true');
       tool('Guardar').click();
@@ -346,7 +352,7 @@ describe('CategoriesPage', () => {
     });
   });
 
-  describe('nombre en otros idiomas (ADR-0028)', () => {
+  describe('nombre en varios idiomas (ADR-0028, ADR-0030)', () => {
     /** El botón de idioma del campo del nombre que se llama `label`. */
     const languageButton = (element: HTMLElement, label: string) => {
       const input = element.querySelector(
@@ -364,18 +370,23 @@ describe('CategoriesPage', () => {
       return found;
     };
 
-    it('un solo campo: el botón de su izquierda elige en qué idioma se escribe', async () => {
+    it('un solo campo, en el idioma de la interfaz: el botón de su izquierda elige otro', async () => {
       const { db, element, field, fill, submit, settled, status } = await setup();
       const button = languageButton(element, 'Nombre');
-      expect(button.getAttribute('aria-label')).toBe('Idioma del texto: Por defecto');
+      expect(button.getAttribute('aria-label')).toBe('Idioma del texto: Español');
 
       await fill('Nombre', 'Mascotas');
       button.click();
       await settled(() => expect(option('English')).toBeTruthy());
-      // Cada opción enseña lo que tiene escrito.
-      expect(option('Por defecto').textContent).toContain('Mascotas');
+      // Solo los idiomas, en su orden, y cada uno enseña lo que tiene escrito.
+      expect(
+        [...document.querySelectorAll('[role="menuitemradio"] [lang]')].map((item) =>
+          item.textContent?.trim(),
+        ),
+      ).toEqual(['Español', 'Català', 'English']);
+      expect(option('Español').textContent).toContain('Mascotas');
       expect(option('English').textContent).toContain('Sin traducir');
-      expect(option('Por defecto').getAttribute('aria-checked')).toBe('true');
+      expect(option('Español').getAttribute('aria-checked')).toBe('true');
 
       option('English').click();
       await settled(() => expect(field('Nombre (English)')).not.toBeNull());
@@ -389,11 +400,37 @@ describe('CategoriesPage', () => {
 
       await settled(() => expect(status()).toBe('Añadida: Mascotas'));
       expect((await db.categoryTree()).at(-1)).toMatchObject({
-        defaultName: 'Mascotas',
+        sourceName: 'Mascotas',
+        sourceLanguage: 'es',
         translations: { en: 'Pets' },
       });
-      // Tras guardar vuelve al nombre por defecto, vacío.
+      // Tras guardar vuelve al idioma de la interfaz, vacío.
       await settled(() => expect(field('Nombre')?.value).toBe(''));
+    });
+
+    it('basta con escribirlo en un idioma; donde falta se ve ese, marcado', async () => {
+      const { db, element, group, field, fill, submit, settled, status } = await setup();
+
+      languageButton(element, 'Nombre').click();
+      await settled(() => expect(option('English')).toBeTruthy());
+      option('English').click();
+      await settled(() => expect(field('Nombre (English)')).not.toBeNull());
+      await fill('Nombre (English)', 'Pets');
+      await submit();
+
+      await settled(() => expect(status()).toBe('Añadida: Pets'));
+      expect((await db.categoryTree()).at(-1)).toMatchObject({
+        sourceName: 'Pets',
+        sourceLanguage: 'en',
+        translations: {},
+      });
+      await settled(() =>
+        expect(text(group('Pets').querySelector('.untranslated'))).toBe(
+          'en(Sin traducir: se ve en English)',
+        ),
+      );
+      // Las que tienen nombre en español no se marcan.
+      expect(element.querySelectorAll('.untranslated')).toHaveLength(1);
     });
 
     it('no admite en un idioma el nombre que ya tiene allí una hermana', async () => {
@@ -406,10 +443,10 @@ describe('CategoriesPage', () => {
       option('English').click();
       await settled(() => expect(field('Nombre (English)')).not.toBeNull());
       await fill('Nombre (English)', 'utilities');
-      // Se ve aunque se vuelva al nombre por defecto.
+      // Se ve aunque se vuelva al español.
       languageButton(element, 'Nombre').click();
-      await settled(() => expect(option('Por defecto')).toBeTruthy());
-      option('Por defecto').click();
+      await settled(() => expect(option('Español')).toBeTruthy());
+      option('Español').click();
       await submit();
 
       await settled(() =>
@@ -438,8 +475,24 @@ describe('CategoriesPage', () => {
       tool('Guardar').click();
 
       await settled(() => expect(status()).toBe('Guardada: Suministros'));
-      const utilities = (await db.categoryTree()).find((g) => g.defaultName === 'Suministros');
+      const utilities = (await db.categoryTree()).find((g) => g.sourceName === 'Suministros');
       expect(utilities?.translations).toEqual({ en: 'Bills' });
+    });
+
+    it('si se borra el nombre en su idioma, pasa a ser el de otro idioma', async () => {
+      const { db, groupNames, tool, field, fill, settled } = await setup();
+
+      tool('Editar: Suministros').click();
+      await settled(() => expect(field('Nombre: Suministros')?.value).toBe('Suministros'));
+      await fill('Nombre: Suministros', '');
+      tool('Guardar').click();
+
+      await settled(() => expect(groupNames()).toContain('Subministraments'));
+      expect((await db.categoryTree()).find((g) => g.name === 'Subministraments')).toMatchObject({
+        sourceName: 'Subministraments',
+        sourceLanguage: 'ca',
+        translations: { en: 'Utilities' },
+      });
     });
 
     it('la tabla enseña cada categoría en el idioma de la interfaz', async () => {
@@ -481,8 +534,8 @@ describe('CategoriesPage', () => {
       await settled(() => expect(field('Nombre: Suministros')).not.toBeNull());
       await fill('Nombre: Suministros', 'variables');
 
-      expect(text(element.querySelector('#row-error'))).toBe(
-        'Ya hay una con ese nombre en el mismo nivel.',
+      expect(text(element.querySelector('#row-name-errors'))).toBe(
+        'Español: Ya hay una con ese nombre en este idioma en el mismo nivel.',
       );
       tool('Cancelar').click();
       await settled(() => expect(field('Nombre: Suministros')).toBeNull());

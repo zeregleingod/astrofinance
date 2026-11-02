@@ -6,7 +6,7 @@ import { language, type Language } from './i18n/language';
 export type { Texts } from './i18n/es';
 export { LANGUAGES, language, setLanguage, type Language } from './i18n/language';
 
-const DICTIONARIES: Readonly<Record<Language, Texts>> = { es: ES, en: EN, ca: CA };
+const DICTIONARIES: Readonly<Record<Language, Texts>> = { es: ES, ca: CA, en: EN };
 
 /** Cada apartado se crea una vez: `TEXTS.imports` es siempre el mismo objeto. */
 const sections = new Map<string, object>();

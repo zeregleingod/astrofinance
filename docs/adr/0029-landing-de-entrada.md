@@ -1,6 +1,7 @@
 # ADR-0029: Landing de entrada
 
-- **Estado:** aceptado
+- **Estado:** aceptado; modificado por ADR-0031 (recargar retoma los datos de la pestaña en lugar
+  de volver a la landing)
 - **Fecha:** 2026-11-01
 
 ## Contexto

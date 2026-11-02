@@ -20,11 +20,9 @@ import { TEXTS } from '@ui/texts';
 import { centsToInput, parseCents } from '@domain/money/parse-cents';
 import {
   NO_FILTER,
-  TRANSACTION_TAGS,
   type SubcategoryChoice,
   type TransactionFilter,
   type TransactionFilterOptions,
-  type TransactionTag,
 } from '@domain/reports/transaction-filter';
 import { dateToIso, isoToDate, provideEsDatepicker } from '@ui/dates/es-datepicker';
 
@@ -33,7 +31,6 @@ interface FilterModel {
   year: string;
   from: string;
   to: string;
-  tag: string;
   category: string;
   subcategory: string;
   account: string;
@@ -44,9 +41,6 @@ interface FilterModel {
 const t = TEXTS.transactions;
 const f = t.filters;
 
-/** Las etiquetas se llaman como su clave en los textos. */
-const tagLabel = (tag: TransactionTag): string => t[tag];
-
 /** Valor del desplegable de categoría para «Sin categoría». */
 const UNCATEGORIZED = '-';
 /** Prefijo del valor de una categoría con nombre, para que ninguna se confunda con lo anterior. */
@@ -56,7 +50,6 @@ const EMPTY: FilterModel = {
   year: '',
   from: '',
   to: '',
-  tag: '',
   category: '',
   subcategory: '',
   account: '',
@@ -87,9 +80,6 @@ export class TransactionFilters {
   protected readonly texts = TEXTS;
   protected readonly uncategorized = UNCATEGORIZED;
   protected readonly categoryValue = categoryValue;
-  protected readonly tags = computed(() =>
-    TRANSACTION_TAGS.map((tag) => ({ value: tag, label: tagLabel(tag) })),
-  );
 
   /** Lo que se puede elegir en los desplegables. */
   readonly options = input.required<TransactionFilterOptions>();
@@ -221,7 +211,8 @@ function toFilter(model: FilterModel): TransactionFilter {
     year: model.year === '' ? null : Number(model.year),
     dateFrom: model.from || null,
     dateTo: model.to || null,
-    tag: TRANSACTION_TAGS.find((tag) => tag === model.tag) ?? null,
+    // Las etiquetas no se filtran desde la interfaz, de momento.
+    tag: null,
     category: categoryOf(model.category),
     subcategory: subcategoryOf(model.subcategory),
     account: model.account || null,
@@ -235,7 +226,6 @@ function toModel(filter: TransactionFilter): FilterModel {
     year: filter.year === null ? '' : String(filter.year),
     from: filter.dateFrom ?? '',
     to: filter.dateTo ?? '',
-    tag: filter.tag ?? '',
     category: filter.category === null ? '' : categoryValue(filter.category.name),
     subcategory: filter.subcategory === null ? '' : subcategoryValue(filter.subcategory),
     account: filter.account ?? '',

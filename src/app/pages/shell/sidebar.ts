@@ -7,21 +7,23 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { TEXTS } from '@ui/texts';
 import { DemoBanner } from './demo-banner';
+import { ExitButton } from './exit-button';
 import { PreferenceButtons } from './preference-buttons';
 import { buildNavItems, groupNavItems } from './nav-items';
 import { DbService } from '@services/db/db-service';
 
 /**
  * Barra lateral: marca, accesos rápidos (los que se proyecten, el modo oscuro y el idioma), una entrada por
- * sección (agrupadas en apartados) y, dentro de la demo, su aviso. En
- * escritorio se pliega a una franja con solo los iconos; sus nombres salen al pasar por encima
- * y siguen ahí para los lectores de pantalla.
+ * sección (agrupadas en apartados) y, al pie, la salida: la de la demo, con su aviso, o «Salir».
+ * En escritorio se pliega a una franja con solo los iconos; sus nombres salen al pasar por
+ * encima y siguen ahí para los lectores de pantalla.
  */
 @Component({
   selector: 'app-sidebar',
   host: { '[class.collapsed]': 'collapsed()' },
   imports: [
     DemoBanner,
+    ExitButton,
     PreferenceButtons,
     NgOptimizedImage,
     MatButtonModule,
@@ -89,6 +91,11 @@ import { DbService } from '@services/db/db-service';
     @if (db.mode() === 'demo') {
       <footer class="footer">
         <app-demo-banner [rail]="collapsed()" (exited)="navigate.emit()" />
+      </footer>
+    } @else if (db.mode() === 'local') {
+      <!-- Con los datos del usuario, la salida que cierra la sesión de la pestaña (ADR-0031). -->
+      <footer class="footer">
+        <app-exit-button [rail]="collapsed()" (exited)="navigate.emit()" />
       </footer>
     }
   `,

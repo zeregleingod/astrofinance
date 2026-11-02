@@ -126,7 +126,6 @@ export const ES = {
       year: 'Año',
       from: 'Desde',
       to: 'Hasta',
-      tag: 'Etiqueta',
       category: 'Categoría',
       subcategory: 'Subcategoría',
       account: 'Cuenta',
@@ -334,8 +333,9 @@ export const ES = {
     newTitle: 'Nueva categoría',
     moreInfo: 'Más información',
     intro:
-      'Una categoría agrupa subcategorías y les da color. Las subcategorías, que son las que se asignan a los movimientos, se añaden desde la tabla con el botón «+» de su categoría.',
+      'Una categoría agrupa subcategorías y les da color. Las subcategorías, que son las que se asignan a los movimientos, se añaden desde la tabla con el botón «+» de su categoría. El nombre se escribe en el idioma de la interfaz; con el botón del idioma, dentro del campo, se puede escribir en los demás. Si falta en alguno, se ve el de otro idioma.',
     name: 'Nombre',
+    untranslated: 'Sin traducir: se ve en',
     color: 'Color',
     kind: 'Tipo',
     kinds: {
@@ -380,7 +380,7 @@ export const ES = {
     positionOf: 'de',
     reorderError: 'No se ha podido cambiar el orden.',
     errors: {
-      'nombre-vacio': 'Escribe un nombre.',
+      'nombre-vacio': 'Escribe el nombre al menos en un idioma.',
       'nombre-largo': 'El nombre no puede tener más de 60 caracteres.',
       'nombre-repetido': 'Ya hay una con ese nombre en el mismo nivel.',
       'principal-inexistente': 'La categoría a la que pertenece ya no existe.',
@@ -580,8 +580,6 @@ export const ES = {
   /** Campos de texto traducibles, como el nombre de una categoría (ADR-0028). */
   translatable: {
     language: 'Idioma del texto',
-    default: 'Por defecto',
-    defaultHint: 'Para todos los idiomas',
     untranslated: 'Sin traducir',
   },
   datepicker: {
@@ -660,6 +658,17 @@ export const ES = {
     open: 'Ver la demo',
     loading: 'Cargando la demo…',
     error: 'No se ha podido abrir la demo.',
+  },
+  session: {
+    resuming: 'Recuperando tus datos…',
+    exit: 'Salir',
+    exitTitle: '¿Salir de AstroFinance?',
+    exitCloses: 'Se cerrarán tus datos y volverás a la pantalla de inicio.',
+    exitLoses: 'Todo lo que no esté guardado en una copia descargada se perderá.',
+    exitUnsaved:
+      'Tienes cambios sin descargar: si sales, se perderán. Descarga una copia antes si quieres conservarlos.',
+    exitConfirm: 'Salir',
+    exitCancel: 'Cancelar',
   },
 } as const;
 

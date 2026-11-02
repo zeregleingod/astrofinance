@@ -1,10 +1,13 @@
 import { signal } from '@angular/core';
 
-/** Idiomas de la interfaz (ADR-0027). El primero es el predeterminado. */
+/**
+ * Idiomas de la interfaz (ADR-0027), en el orden en que se ofrecen en todas partes. El primero es
+ * el predeterminado.
+ */
 export const LANGUAGES = [
   { code: 'es', name: 'Español' },
-  { code: 'en', name: 'English' },
   { code: 'ca', name: 'Català' },
+  { code: 'en', name: 'English' },
 ] as const;
 
 export type Language = (typeof LANGUAGES)[number]['code'];

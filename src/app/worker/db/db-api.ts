@@ -42,6 +42,16 @@ export interface DbApi {
   openFile: { params: { bytes: Uint8Array }; result: RestoredDatabase };
   /** El contenido de la BD abierta como fichero de SQLite. */
   exportFile: { params: undefined; result: Uint8Array<ArrayBuffer> };
+  /**
+   * Guarda la BD abierta en la copia `name` de la sesión de la pestaña (ADR-0031), para que
+   * sobreviva a una recarga.
+   */
+  saveSession: { params: { name: string }; result: undefined };
+  /**
+   * Abre la primera de las copias de sesión `names` que exista y supere las mismas
+   * comprobaciones que un fichero cargado; si ninguna vale, falla y no abre nada.
+   */
+  openSession: { params: { names: readonly string[] }; result: undefined };
   close: { params: undefined; result: undefined };
   /**
    * Idioma en que se nombran las categorías en todas las consultas (ADR-0028): un código de la

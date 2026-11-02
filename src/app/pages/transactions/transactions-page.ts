@@ -44,7 +44,6 @@ import {
   linkedIds,
   nextSort,
   sortTransactions,
-  transactionTags,
   type LinkLabels,
   type TableLabels,
   type TransactionSort,
@@ -221,7 +220,6 @@ export class TransactionsPage {
   protected readonly columns = signal<readonly Column[]>([
     column('bookedDate'),
     column('description'),
-    column('tags'),
     column('category'),
     column('account'),
     column('amount', true),
@@ -299,7 +297,6 @@ export class TransactionsPage {
       .slice(0, this.limit())
       .map((row) => ({
         ...row,
-        tags: transactionTags(row, LABELS),
         linkTexts: linkDescriptions(row, LINK_LABELS),
       })),
   );

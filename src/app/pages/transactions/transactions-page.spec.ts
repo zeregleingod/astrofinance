@@ -113,7 +113,6 @@ describe('TransactionsPage', () => {
     expect([...element.querySelectorAll('thead th:not(.actions)')].map(text)).toEqual([
       'Fecha',
       'Descripción',
-      'Etiquetas',
       'Categoría',
       'Cuenta',
       'Importe',
@@ -146,7 +145,6 @@ describe('TransactionsPage', () => {
       // La fecha original va en la misma celda (y en su título) cuando difiere.
       '28/09/2026 (fecha modificada; original 03/10/2026)',
       'Bizum recibido - Alex - Cortinas',
-      'Reembolso',
       'Variables › Hogar',
       'Cuenta principal',
       '65,47 €',
@@ -155,16 +153,12 @@ describe('TransactionsPage', () => {
     expect(first?.querySelector('td')?.getAttribute('title')).toBe('Fecha original: 03/10/2026');
 
     const kitchen = rows().find((r) => text(r)?.includes('Financiación cocina'));
-    // Cabe una etiqueta; las demás, en un «+n» con todas en el título y para lectores de pantalla.
-    const tags = kitchen?.querySelectorAll('td')[2];
-    expect(text(tags?.querySelector('.badge'))).toBe('Compartido');
-    expect(text(tags?.querySelector('.badge.more'))).toBe('+1');
-    expect(text(tags?.querySelector('.visually-hidden'))).toBe('Cuota 10/10');
-    expect(tags?.getAttribute('title')).toBe('Compartido, Cuota 10/10');
-    expect(text(kitchen?.querySelectorAll('td')[3])).toBe(
+    expect(text(kitchen?.querySelectorAll('td')[2])).toBe(
       'Préstamos y financiaciones › Financiaciones',
     );
-    expect(rows().some((r) => text(r.querySelectorAll('td')[3]) === 'Sin categoría')).toBe(true);
+    expect(rows().some((r) => text(r.querySelectorAll('td')[2]) === 'Sin categoría')).toBe(true);
+    // Las etiquetas (compartido, cuota…) no se enseñan, de momento.
+    expect(rows().some((r) => r.querySelector('.badge'))).toBe(false);
 
     for (const cell of element.querySelectorAll('td.num')) {
       expect(cell.classList.contains('negative'), text(cell)).toBe(text(cell)?.startsWith('-'));
@@ -188,8 +182,8 @@ describe('TransactionsPage', () => {
       .find((r) => text(r)?.includes('Alex - Cortinas'))
       ?.querySelectorAll('td');
     expect(cells?.[1]?.getAttribute('title')).toBe('Bizum recibido - Alex - Cortinas');
-    expect(cells?.[3]?.getAttribute('title')).toBe('Variables › Hogar');
-    expect(cells?.[6]?.getAttribute('title')).toBe(
+    expect(cells?.[2]?.getAttribute('title')).toBe('Variables › Hogar');
+    expect(cells?.[5]?.getAttribute('title')).toBe(
       'Llega en octubre, pero devuelve un gasto de septiembre.',
     );
     expect(
@@ -209,7 +203,7 @@ describe('TransactionsPage', () => {
     it('ordena por la columna pulsada, ascendente y luego descendente', async () => {
       const { column, header, sortBy } = await setup(true);
       const amounts = () =>
-        column(5).map((a) =>
+        column(4).map((a) =>
           Number(
             a
               ?.replace(/[^\d,-]/g, '')
@@ -265,7 +259,7 @@ describe('TransactionsPage', () => {
 
       fixture.debugElement
         .query((el) => el.name === 'tr' && el.parent?.name === 'thead')
-        .triggerEventHandler('cdkDropListDropped', { previousIndex: 5, currentIndex: 0 });
+        .triggerEventHandler('cdkDropListDropped', { previousIndex: 4, currentIndex: 0 });
       await fixture.whenStable();
 
       expect(headers(element).slice(0, 3)).toEqual(['Importe', 'Fecha', 'Descripción']);
@@ -339,7 +333,7 @@ describe('TransactionsPage', () => {
       const { column, sortBy, search } = await setup(true);
       await sortBy('Importe');
       await search('bizum');
-      const amounts = column(5).map((a) =>
+      const amounts = column(4).map((a) =>
         Number(
           a
             ?.replace(/[^\d,-]/g, '')
@@ -372,19 +366,13 @@ describe('TransactionsPage', () => {
       const { filterOptions, filterField } = await setup(true);
 
       expect(filterOptions('Año')).toEqual(['Todos', '2026']);
-      expect(filterOptions('Etiqueta')).toEqual([
-        'Todas',
-        'Compartido',
-        'Reembolso',
-        'Traspaso',
-        'Cuota',
-        'Dividido',
-      ]);
+      // Las etiquetas no se filtran, de momento.
+      expect(() => filterOptions('Etiqueta')).toThrow();
       expect(filterOptions('Categoría')).toContain('Variables');
       expect(filterOptions('Categoría').at(-1)).toBe('Sin categoría');
       expect(filterOptions('Subcategoría')).toContain('Variables › Comida');
       expect(filterOptions('Cuenta')).toContain('Cuenta principal');
-      for (const label of ['Año', 'Desde', 'Hasta', 'Etiqueta', 'Categoría', 'Importe mínimo']) {
+      for (const label of ['Año', 'Desde', 'Hasta', 'Categoría', 'Importe mínimo']) {
         expect(filterField(label).value, label).toBe('');
       }
     });
@@ -403,8 +391,8 @@ describe('TransactionsPage', () => {
       expect(rows().length).toBeGreaterThan(0);
       expect(rows().length).toBeLessThan(total);
       expect(caption()).toBe(`Movimientos (${rows().length} de ${total})`);
-      expect(column(3).every((place) => place?.startsWith('Variables'))).toBe(true);
-      expect(Math.min(...amounts(column(5)))).toBeGreaterThanOrEqual(50);
+      expect(column(2).every((place) => place?.startsWith('Variables'))).toBe(true);
+      expect(Math.min(...amounts(column(4)))).toBeGreaterThanOrEqual(50);
     });
 
     it('filtra por rango de fechas, con los extremos incluidos', async () => {
@@ -420,32 +408,22 @@ describe('TransactionsPage', () => {
       expect(rows().length).toBe(shown.length);
     });
 
-    it('filtra por etiqueta, cuenta, subcategoría e importe máximo', async () => {
+    it('filtra por subcategoría e importe máximo, y por lo que no tiene categoría', async () => {
       const { rows, setFilter, applyFilters, column, filterButton, fixture } = await setup(true);
-      const total = rows().length;
-
-      await setFilter('Etiqueta', 'Reembolso');
-      await applyFilters();
-      expect(rows().length).toBeGreaterThan(0);
-      expect(column(2).every((tags) => tags?.includes('Reembolso'))).toBe(true);
-
-      filterButton('Limpiar').click();
-      await fixture.whenStable();
-      expect(rows().length).toBe(total);
 
       await setFilter('Subcategoría', 'Variables › Comida');
       await setFilter('Importe máximo', '20,00');
       await applyFilters();
       expect(rows().length).toBeGreaterThan(0);
-      expect(new Set(column(3))).toEqual(new Set(['Variables › Comida']));
-      expect(Math.max(...amounts(column(5)))).toBeLessThanOrEqual(20);
+      expect(new Set(column(2))).toEqual(new Set(['Variables › Comida']));
+      expect(Math.max(...amounts(column(4)))).toBeLessThanOrEqual(20);
 
       filterButton('Limpiar').click();
       await fixture.whenStable();
       await setFilter('Categoría', 'Sin categoría');
       await applyFilters();
       expect(rows().length).toBeGreaterThan(0);
-      expect(new Set(column(3))).toEqual(new Set(['Sin categoría']));
+      expect(new Set(column(2))).toEqual(new Set(['Sin categoría']));
     });
 
     it('al elegir categoría, las subcategorías son solo las suyas', async () => {
@@ -587,13 +565,19 @@ describe('TransactionsPage', () => {
     });
 
     it('lo pendiente de cobrar son gastos compartidos', async () => {
-      const { fixture, rows, column } = await setup(true);
+      const { fixture, rows } = await setup(true);
       fixture.componentRef.setInput('mes', '2026-09');
       fixture.componentRef.setInput('origen', 'pendiente');
       await fixture.whenStable();
 
-      expect(rows().length).toBeGreaterThan(0);
-      expect(column(2).every((tags) => tags?.includes('Compartido'))).toBe(true);
+      const db = TestBed.inject(DbService);
+      const ids = new Set(
+        await db.summaryTransactionIds({ period: '2026-09', total: 'pendiente' }),
+      );
+      const pending = (await db.allTransactions()).filter((tx) => ids.has(tx.id));
+      expect(rows().length).toBe(pending.length);
+      expect(pending.length).toBeGreaterThan(0);
+      expect(pending.every((tx) => tx.shared)).toBe(true);
     });
 
     it('el origen se quita y vuelven todos los movimientos', async () => {
@@ -830,8 +814,8 @@ describe('TransactionsPage', () => {
       );
       const row = rows().find((r) => text(r)?.includes('Gasolina del coche'));
       const cells = [...(row?.querySelectorAll('td') ?? [])].map(text);
-      expect(cells[3]).toBe('Variables › Ocio');
-      expect(cells[6]).toBe('Viaje a la playa');
+      expect(cells[2]).toBe('Variables › Ocio');
+      expect(cells[5]).toBe('Viaje a la playa');
       const saved = (await TestBed.inject(DbService).allTransactions()).find(
         (tx) => tx.description === 'Gasolina del coche',
       );
@@ -941,18 +925,17 @@ describe('TransactionsPage', () => {
       return { ...page, button, settled };
     }
 
-    it('enseña los submovimientos debajo de su movimiento, que lleva la etiqueta «Dividido»', async () => {
+    it('enseña los submovimientos debajo de su movimiento', async () => {
       const { rows, splitRows } = await setup(true);
 
       const bazaar = rows().find((r) => text(r)?.includes('Bazar Demo - Organizadores'));
-      expect(text(bazaar?.querySelectorAll('td')[2])).toContain('Dividido');
       const parts = splitRows().map((r) => [...r.querySelectorAll('td')].map(text));
-      expect(parts.map((cells) => [cells[1], cells[2], cells[3]])).toEqual([
-        ['Submovimiento: ORGANIZADORES', 'Compartido', 'Variables › Hogar'],
-        ['Submovimiento: PAPEL DE REGALO', '', 'Variables › Regalos'],
+      expect(parts.map((cells) => [cells[1], cells[2]])).toEqual([
+        ['Submovimiento: ORGANIZADORES', 'Variables › Hogar'],
+        ['Submovimiento: PAPEL DE REGALO', 'Variables › Regalos'],
       ]);
-      expect(parts[0]?.[5]).toMatch(/^-8,80\s€$/);
-      expect(parts[1]?.[5]).toMatch(/^-3,00\s€$/);
+      expect(parts[0]?.[4]).toMatch(/^-8,80\s€$/);
+      expect(parts[1]?.[4]).toMatch(/^-3,00\s€$/);
       // Van justo debajo de su movimiento.
       expect(bazaar?.nextElementSibling).toBe(splitRows()[0]);
     });
@@ -1119,7 +1102,7 @@ describe('TransactionsPage', () => {
       const cells = [...(refund?.querySelectorAll('td') ?? [])].map(text);
       expect(cells[0]).toBe('28/09/2026');
       expect(cells[1]).toBe('Devolución: Bizum recibido - Alex - Cortinas');
-      expect(cells[5]).toMatch(/^65,47\s€$/);
+      expect(cells[4]).toMatch(/^65,47\s€$/);
     });
 
     it('solo los gastos ofrecen vincular devoluciones', async () => {
@@ -1250,14 +1233,17 @@ describe('TransactionsPage', () => {
 
     it('las dos patas de un traspaso se enlazan entre sí', async () => {
       const { fixture, rows, column: columnOf } = await setup(true);
-      const leg = rows().find((r) => text(r.querySelectorAll('td')[2]) === 'Traspaso');
-      expect(linkButton(leg)?.title).toMatch(/^Traspaso con: /);
+      const leg = rows().find((r) => /^Traspaso con: /.test(linkButton(r)?.title ?? ''));
+      expect(leg).toBeDefined();
 
       linkButton(leg)?.click();
       await fixture.whenStable();
 
-      expect(columnOf(2)).toEqual(['Traspaso', 'Traspaso']);
-      expect(new Set(columnOf(4)).size).toBe(2);
+      expect(rows().map((r) => linkButton(r)?.title.startsWith('Traspaso con: '))).toEqual([
+        true,
+        true,
+      ]);
+      expect(new Set(columnOf(3)).size).toBe(2);
     });
 
     it('buscar o filtrar vuelve a la lista de siempre', async () => {

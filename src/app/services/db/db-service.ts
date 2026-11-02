@@ -35,8 +35,8 @@ import { RpcClient } from '../rpc/rpc-client';
 
 export type DbStatus = 'cerrada' | 'abriendo' | 'lista' | 'error';
 /**
- * `demo`: datos ficticios. `local`: los datos del usuario, que viven en memoria y se conservan
- * descargando una copia (ADR-0010).
+ * `demo`: datos ficticios. `local`: los datos del usuario, que viven en memoria (con una copia
+ * mientras dura la pestaña, ADR-0031) y se conservan descargando una copia (ADR-0010).
  */
 export type DbMode = 'demo' | 'local';
 
@@ -53,6 +53,7 @@ export const DB_WORKER_FACTORY = new InjectionToken<() => DbWorker>('DB_WORKER_F
 
 /** Cargar SQLite WASM y la demo puede tardar en móviles modestos. */
 const OPEN_TIMEOUT_MS = 30_000;
+const OPENING = { timeoutMs: OPEN_TIMEOUT_MS };
 /** Comprobar o serializar una BD grande y pasarla entre hilos tampoco es inmediato. */
 const FILE_TIMEOUT_MS = 60_000;
 
@@ -74,6 +75,8 @@ export class DbService {
   private readonly modeSignal = signal<DbMode | null>(null);
   private readonly versionSignal = signal(0);
   private readonly userDataSignal = signal(false);
+  private readonly unsavedSignal = signal(false);
+  private readonly localRevisionSignal = signal(0);
 
   readonly status = this.statusSignal.asReadonly();
   readonly mode = this.modeSignal.asReadonly();
@@ -83,19 +86,57 @@ export class DbService {
    * que se perdería al abrir la demo. Tenerla abierta solo con la plantilla no cuenta.
    */
   readonly hasUserData = this.userDataSignal.asReadonly();
+  /**
+   * La BD del usuario tiene cambios que no están en ninguna copia descargada ni en el fichero
+   * que se cargó: se perderían al cerrar la pestaña o salir (ADR-0031).
+   */
+  readonly unsavedChanges = this.unsavedSignal.asReadonly();
+  /**
+   * Cambia cada vez que cambia la BD del usuario (al abrirla, al cargar un fichero, con cada
+   * cambio): es cuando hay que volver a guardar la sesión de la pestaña (ADR-0031).
+   */
+  readonly localRevision = this.localRevisionSignal.asReadonly();
   readonly ready = computed(() => this.statusSignal() === 'lista');
 
   /** Abre la demo: una BD nueva en memoria con datos ficticios que nunca se guarda. */
   openDemo(): Promise<void> {
-    return this.open('demo');
+    return this.open('demo', (client) => client.call('openDemo', undefined, OPENING));
   }
 
   /**
-   * Abre la BD del usuario: vacía salvo la plantilla de categorías. Mientras no exista el
-   * guardado en disco (T2.7–T2.8) vive solo en memoria y se pierde al recargar la página.
+   * Abre la BD del usuario: vacía salvo la plantilla de categorías. Vive en memoria; mientras la
+   * pestaña está abierta se copia para sobrevivir a una recarga (ADR-0031).
    */
-  openLocal(): Promise<void> {
-    return this.open('local');
+  async openLocal(): Promise<void> {
+    await this.open('local', (client) => client.call('openNew', undefined, OPENING));
+    this.localRevisionSignal.update((v) => v + 1);
+  }
+
+  /**
+   * Retoma la BD del usuario de la copia de la sesión de la pestaña, tras una recarga
+   * (ADR-0031): la primera de `names` que valga. `state` es lo que se sabía de ella.
+   */
+  async resume(
+    names: readonly string[],
+    state: { readonly userData: boolean; readonly unsaved: boolean },
+  ): Promise<void> {
+    await this.open('local', (client) =>
+      client.call('openSession', { names }, { timeoutMs: FILE_TIMEOUT_MS }),
+    );
+    this.userDataSignal.set(state.userData);
+    this.unsavedSignal.set(state.unsaved);
+  }
+
+  /** Guarda la BD del usuario en la copia `name` de la sesión de la pestaña (ADR-0031). */
+  saveSession(name: string): Promise<void> {
+    return this.call((c) => c.call('saveSession', { name }, { timeoutMs: FILE_TIMEOUT_MS })).then(
+      () => undefined,
+    );
+  }
+
+  /** Lo que hay ahora en la BD ya está en una copia descargada. */
+  markSaved(): void {
+    this.unsavedSignal.set(false);
   }
 
   /**
@@ -111,7 +152,10 @@ export class DbService {
     );
     this.modeSignal.set('local');
     this.userDataSignal.set(true);
+    // Lo abierto es el fichero tal cual: no hay nada que no esté ya en él.
+    this.unsavedSignal.set(false);
     this.versionSignal.update((v) => v + 1);
+    this.localRevisionSignal.update((v) => v + 1);
     return restored;
   }
 
@@ -133,10 +177,13 @@ export class DbService {
     return this.call((c) => c.call('exportFile', undefined, { timeoutMs: FILE_TIMEOUT_MS }));
   }
 
-  private open(mode: DbMode): Promise<void> {
+  /** Abre un worker nuevo con la BD que cree `start`, salvo que ya esté abierta en `mode`. */
+  private open(mode: DbMode, start: (client: RpcClient<DbApi>) => Promise<unknown>): Promise<void> {
     if (this.opening) {
       // Si se está abriendo en otro modo, se espera a que termine y se abre el pedido.
-      return this.openingMode === mode ? this.opening : this.opening.then(() => this.open(mode));
+      return this.openingMode === mode
+        ? this.opening
+        : this.opening.then(() => this.open(mode, start));
     }
     if (this.modeSignal() === mode && this.ready()) return Promise.resolve();
 
@@ -147,8 +194,7 @@ export class DbService {
     this.connection = { worker, client };
     this.openingMode = mode;
 
-    this.opening = client
-      .call(mode === 'demo' ? 'openDemo' : 'openNew', undefined, { timeoutMs: OPEN_TIMEOUT_MS })
+    this.opening = start(client)
       // Cada apertura es un worker nuevo: hay que decirle en qué idioma nombrar las categorías.
       .then(() => client.call('setCategoryLanguage', { language: this.categoryLanguage }))
       .then(() => {
@@ -177,6 +223,7 @@ export class DbService {
     }
     this.modeSignal.set(null);
     this.userDataSignal.set(false);
+    this.unsavedSignal.set(false);
     this.statusSignal.set('cerrada');
   }
 
@@ -376,7 +423,10 @@ export class DbService {
   /** Avisa a las consultas de que hay datos nuevos y anota que la BD ya tiene algo del usuario. */
   private dataChanged(): void {
     this.versionSignal.update((v) => v + 1);
-    if (this.modeSignal() === 'local') this.userDataSignal.set(true);
+    if (this.modeSignal() !== 'local') return;
+    this.userDataSignal.set(true);
+    this.unsavedSignal.set(true);
+    this.localRevisionSignal.update((v) => v + 1);
   }
 
   private call<T>(fn: (client: RpcClient<DbApi>) => Promise<T>): Promise<T> {

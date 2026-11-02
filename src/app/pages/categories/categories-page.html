@@ -33,11 +33,8 @@
           <app-translatable-input
             inputId="new-name"
             [label]="texts.categories.name"
-            [defaultField]="categoryForm.name"
             [translations]="categoryForm.translations"
             [(language)]="newNameLanguage"
-            [invalid]="showNameError()"
-            [describedBy]="showNameError() ? 'name-error' : null"
             [attempted]="attemptedNew()"
           />
         </div>
@@ -51,13 +48,6 @@
         </button>
       </form>
 
-      @if (showNameError()) {
-        <p id="name-error" class="alert">
-          @for (problem of categoryForm.name().errors(); track problem.kind) {
-            {{ problem.message }}
-          }
-        </p>
-      }
       @if (error(); as message) {
         <p class="alert" role="alert">{{ message }}</p>
       }
@@ -135,6 +125,10 @@
                       <circle cx="5" cy="5" r="5" [attr.fill]="card.group.color" />
                     </svg>
                     <span class="name">{{ card.group.name }}</span>
+                    <ng-container
+                      [ngTemplateOutlet]="untranslated"
+                      [ngTemplateOutletContext]="{ $implicit: card.row }"
+                    />
                   }
                 </div>
               </th>
@@ -196,6 +190,10 @@
                           <span class="kind-inline">{{ texts.categories.kinds[row.kind] }}</span>
                         }
                       </span>
+                      <ng-container
+                        [ngTemplateOutlet]="untranslated"
+                        [ngTemplateOutletContext]="{ $implicit: row }"
+                      />
                     </div>
                   </th>
                   <td class="kind">{{ row.kind ? texts.categories.kinds[row.kind] : '' }}</td>
@@ -258,22 +256,13 @@
     <app-translatable-input
       inputId="row-name"
       [label]="texts.categories.name + ': ' + editor()?.label"
-      [defaultField]="rowForm.name"
       [translations]="rowForm.translations"
+      [source]="editor()?.sourceLanguage ?? null"
       [(language)]="rowNameLanguage"
-      [invalid]="showRowError()"
-      [describedBy]="showRowError() ? 'row-error' : null"
       [attempted]="attemptedRow()"
     />
     @if (kind && compact()) {
       <ng-container [ngTemplateOutlet]="kindEditor" />
-    }
-    @if (showRowError()) {
-      <p id="row-error" class="alert">
-        @for (problem of rowForm.name().errors(); track problem.kind) {
-          {{ problem.message }}
-        }
-      </p>
     }
   </form>
 </ng-template>
@@ -371,4 +360,17 @@
   >
     <mat-icon fontIcon="delete" aria-hidden="true" />
   </button>
+</ng-template>
+
+<!--
+  Sin nombre en el idioma de la interfaz se ve el de origen, marcado con su idioma: así se sabe
+  qué falta traducir sin abrir cada una.
+-->
+<ng-template #untranslated let-row>
+  @if (row.fallback; as fallback) {
+    <span class="untranslated" [title]="texts.categories.untranslated + ' ' + fallback.name">
+      <span aria-hidden="true">{{ fallback.code }}</span>
+      <span class="visually-hidden">({{ texts.categories.untranslated }} {{ fallback.name }})</span>
+    </span>
+  }
 </ng-template>

@@ -6,9 +6,8 @@ import { canSplit, type TransactionRow } from '@domain/reports/transaction-row';
 import { CentsPipe } from '@ui/format/cents-pipe';
 import { IsoDatePipe } from '@ui/format/iso-date-pipe';
 
-/** Un movimiento con sus etiquetas y sus vínculos ya traducidos. */
+/** Un movimiento con sus vínculos ya traducidos. */
 export type TransactionCard = TransactionRow & {
-  readonly tags: readonly string[];
   readonly linkTexts: readonly string[];
 };
 
@@ -91,14 +90,6 @@ interface DateParts {
                 >{{ row.amountCents | cents }}</span
               >
             </div>
-
-            @if (row.tags.length > 0) {
-              <div class="chips">
-                @for (tag of row.tags; track tag) {
-                  <span class="badge">{{ tag }}</span>
-                }
-              </div>
-            }
 
             <!-- El concepto del banco, solo si el usuario lo ha cambiado. -->
             @let bank =
@@ -442,18 +433,11 @@ interface DateParts {
       }
     }
 
-    // --- Etiquetas, panel de detalles y apartados, alineados con el concepto ---
+    // --- Panel de detalles y apartados, alineados con el concepto ---
 
-    .chips,
     .panel,
     .section {
       margin-inline-start: var(--indent);
-    }
-
-    .chips {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 6px;
     }
 
     .badge {

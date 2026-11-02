@@ -1,6 +1,7 @@
 # ADR-0010: Copia de seguridad en fichero antes que el guardado en OPFS
 
-- **Estado:** aceptado
+- **Estado:** aceptado; modificado por ADR-0031 (los datos sobreviven a una recarga mientras la
+  pestaña está abierta)
 - **Fecha:** 2026-10-12
 
 ## Contexto

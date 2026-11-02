@@ -86,7 +86,8 @@ describe('consultas de categorías', () => {
     expect(categoryTree(db).at(-1)).toEqual({
       id,
       name: 'Mascotas',
-      defaultName: 'Mascotas',
+      sourceName: 'Mascotas',
+      sourceLanguage: 'es',
       translations: {},
       color: '#4F46E5',
       transactionCount: 0,
@@ -102,7 +103,8 @@ describe('consultas de categorías', () => {
     expect(group('Ingresos').subcategories.at(-1)).toEqual({
       id,
       name: 'Devoluciones',
-      defaultName: 'Devoluciones',
+      sourceName: 'Devoluciones',
+      sourceLanguage: 'es',
       translations: {},
       kind: 'gasto',
       transactionCount: 0,
@@ -472,6 +474,16 @@ describe('consultas de categorías', () => {
       );
     });
 
+    it('acepta el idioma del nombre solo si es un código', () => {
+      expect(newCategoryParam({ name: 'A', color: null, language: 'ca' })).toMatchObject({
+        language: 'ca',
+      });
+      expect(newCategoryParam({ name: 'A', color: null })).not.toHaveProperty('language');
+      expect(() => categoryUpdateParam({ id: 3, name: 'A', color: null, language: 'CAT' })).toThrow(
+        RangeError,
+      );
+    });
+
     it.each([
       ['con un idioma que no es un código', { EN: 'B' }],
       ['con un nombre que no es texto', { en: 3 }],
@@ -491,19 +503,56 @@ describe('consultas de categorías', () => {
     const zoo = (extra: Record<string, string>) =>
       createCategory(db, { parentId: null, name: 'Zoo', color: null, translations: extra });
 
-    it('da de alta con traducciones, sin las vacías ni las iguales al nombre', () => {
-      const id = zoo({ en: ' Animals ', ca: '', fr: 'zoo' });
+    it('da de alta con traducciones, sin las vacías ni la del idioma de origen', () => {
+      const id = zoo({ en: ' Animals ', ca: '', es: 'Zoológico', fr: 'zoo' });
 
-      expect(translations(id)).toEqual({ en: 'Animals' });
-      expect(group('Zoo')).toMatchObject({ defaultName: 'Zoo', translations: { en: 'Animals' } });
+      expect(translations(id)).toEqual({ en: 'Animals', fr: 'zoo' });
+      expect(group('Zoo')).toMatchObject({
+        sourceName: 'Zoo',
+        sourceLanguage: 'es',
+        translations: { en: 'Animals', fr: 'zoo' },
+      });
     });
 
-    it('cada idioma ve su traducción o, si no la tiene, el nombre por defecto', () => {
+    it('guarda el idioma en que se escribe el nombre y lo conserva si no se dice otro', () => {
+      const id = createCategory(db, {
+        parentId: null,
+        name: 'Pets',
+        language: 'en',
+        color: null,
+        translations: { en: 'Pets', es: 'Mascotas' },
+      });
+      const pets = () => categoryTree(db, 'ca').find((candidate) => candidate.id === id);
+
+      expect(pets()).toMatchObject({
+        name: 'Pets',
+        sourceName: 'Pets',
+        sourceLanguage: 'en',
+        translations: { es: 'Mascotas' },
+      });
+
+      updateCategory(db, { id, name: 'Animals', color: null });
+      expect(pets()).toMatchObject({ sourceName: 'Animals', sourceLanguage: 'en' });
+
+      updateCategory(db, {
+        id,
+        name: 'Animals',
+        language: 'ca',
+        color: null,
+        translations: { es: 'Mascotas', en: 'Animals' },
+      });
+      expect(pets()).toMatchObject({
+        sourceLanguage: 'ca',
+        translations: { es: 'Mascotas', en: 'Animals' },
+      });
+    });
+
+    it('cada idioma ve su traducción o, si no la tiene, el nombre de origen', () => {
       const id = zoo({ en: 'Animals' });
       const named = (language: string | null) =>
         categoryTree(db, language).find((candidate) => candidate.id === id);
 
-      expect(named('en')).toMatchObject({ name: 'Animals', defaultName: 'Zoo' });
+      expect(named('en')).toMatchObject({ name: 'Animals', sourceName: 'Zoo' });
       expect(named('ca')?.name).toBe('Zoo');
       expect(named(null)?.name).toBe('Zoo');
     });

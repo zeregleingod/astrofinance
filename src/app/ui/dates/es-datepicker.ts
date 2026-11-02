@@ -19,8 +19,8 @@ const TYPED_DATE = /^(\d{1,2})[/.-](\d{1,2})[/.-](\d{4})$/;
  */
 const CALENDAR_LOCALES: Readonly<Record<Language, string>> = {
   es: 'es-ES',
-  en: 'en-GB',
   ca: 'ca-ES',
+  en: 'en-GB',
 };
 
 const FORMATS: MatDateFormats = {

@@ -9,6 +9,7 @@ import { LandingPage } from '@pages/shell/landing-page';
 import { DemoBanner } from '@pages/shell/demo-banner';
 import { Sidebar } from '@pages/shell/sidebar';
 import { SidebarState } from '@pages/shell/sidebar-state';
+import { TabSession } from '@services/session/tab-session';
 import { Viewport } from '@services/viewport/viewport';
 import { TEXTS } from '@ui/texts';
 import { BackupQuickActions } from '@pages/shell/backup-quick-actions';
@@ -27,8 +28,11 @@ import { BackupQuickActions } from '@pages/shell/backup-quick-actions';
     MatToolbarModule,
   ],
   template: `
-    <!-- Sin BD abierta se ve la landing (ADR-0029); la URL se conserva para entrar en esa sección. -->
-    @if (!gate.inside()) {
+    <!-- Tras recargar, nada hasta retomar los datos de la pestaña (ADR-0031). -->
+    @if (session.resuming()) {
+      <p class="resuming" role="status">{{ texts.session.resuming }}</p>
+    } @else if (!gate.inside()) {
+      <!-- Sin BD abierta se ve la landing (ADR-0029); la URL se conserva para entrar en esa sección. -->
       <app-landing-page />
     } @else {
       <!-- autosize: el contenido se recoloca al plegar o desplegar la barra lateral. -->
@@ -76,9 +80,14 @@ import { BackupQuickActions } from '@pages/shell/backup-quick-actions';
 export class App {
   protected readonly texts = TEXTS;
   protected readonly gate = inject(LandingGate);
+  protected readonly session = inject(TabSession);
   /** En pantallas estrechas la barra lateral pasa a ser un panel desplegable. */
   protected readonly compact = inject(Viewport).compact;
   protected readonly sidebar = inject(SidebarState);
   /** En escritorio la barra lateral se puede plegar a solo iconos; en móvil es un panel. */
   protected readonly collapsed = computed(() => !this.compact() && this.sidebar.collapsed());
+
+  constructor() {
+    void this.session.start();
+  }
 }

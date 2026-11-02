@@ -67,15 +67,23 @@ import {
 import { suggestCategoriesFor, suggestionRequestParam } from './queries/suggestions';
 import type { CategoryLanguage } from './queries/category-names';
 import { isLanguageCode } from '@domain/categories/category-tree';
+import { isSessionFileName } from '@domain/session/tab-session';
 import {
   categoryTemplateStatements,
   categoryTranslationStatements,
 } from './seeds/category-template';
 import { loadDemoData } from './seeds/demo-data';
+import type { SessionFiles } from './session-files';
 import { wrapDatabase, type SqlDb } from './sql-db';
 
-/** Implementación del contrato `DbApi`. SQLite se carga la primera vez que hace falta. */
-export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcHandlers<DbApi> {
+/**
+ * Implementación del contrato `DbApi`. SQLite se carga la primera vez que hace falta. Sin
+ * `sessionFiles` (los tests, un navegador sin OPFS) la sesión de la pestaña no se guarda.
+ */
+export function createDbHandlers(
+  loadSqlite: () => Promise<Sqlite3Static>,
+  sessionFiles?: SessionFiles,
+): RpcHandlers<DbApi> {
   let sqlite: Promise<Sqlite3Static> | undefined;
   let current: { raw: Database; db: SqlDb } | undefined;
   /** Idioma de los nombres de categoría; lo fija la interfaz (ADR-0028). */
@@ -92,6 +100,10 @@ export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcH
     return current;
   };
   const requireDb = () => requireCurrent().db;
+  const requireSessionFiles = () => {
+    if (!sessionFiles) throw new Error('Este navegador no puede guardar la sesión.');
+    return sessionFiles;
+  };
 
   /** BD nueva en memoria, migrada y con los datos iniciales que cargue `seed`. */
   const open = async (seed: (db: SqlDb) => void): Promise<undefined> => {
@@ -131,6 +143,31 @@ export function createDbHandlers(loadSqlite: () => Promise<Sqlite3Static>): RpcH
       return { transactions: Number(db.value('SELECT count(*) FROM transactions')) };
     },
     exportFile: async () => exportDatabase(await (sqlite ??= loadSqlite()), requireCurrent().raw),
+    saveSession: async (params) => {
+      const name = sessionFileParam(params);
+      const bytes = exportDatabase(await (sqlite ??= loadSqlite()), requireCurrent().raw);
+      await requireSessionFiles().write(name, bytes);
+      return undefined;
+    },
+    openSession: async (params) => {
+      const names = sessionFilesParam(params);
+      const sqlite3 = await (sqlite ??= loadSqlite());
+      for (const name of names) {
+        const bytes = await requireSessionFiles().read(name);
+        if (!bytes) continue;
+        let raw: Database;
+        try {
+          // Lo que hay en disco se comprueba como cualquier fichero: pudo quedar a medias.
+          raw = openDatabaseFile(sqlite3, bytes);
+        } catch {
+          continue;
+        }
+        close();
+        current = { raw, db: wrapDatabase(raw) };
+        return undefined;
+      }
+      throw new Error('No hay ninguna copia de la sesión que se pueda abrir.');
+    },
     close,
     setCategoryLanguage: (params) => {
       language = languageParam(params);
@@ -207,6 +244,24 @@ function languageParam(params: unknown): CategoryLanguage {
       : undefined;
   if (value !== null && !isLanguageCode(value)) throw new RangeError('Idioma no válido.');
   return value;
+}
+
+function sessionFileParam(params: unknown): string {
+  const name: unknown =
+    typeof params === 'object' && params !== null ? (params as { name?: unknown }).name : undefined;
+  if (!isSessionFileName(name)) throw new RangeError('Copia de sesión no válida.');
+  return name;
+}
+
+function sessionFilesParam(params: unknown): readonly string[] {
+  const names: unknown =
+    typeof params === 'object' && params !== null
+      ? (params as { names?: unknown }).names
+      : undefined;
+  if (!Array.isArray(names) || names.length > 2 || !names.every(isSessionFileName)) {
+    throw new RangeError('Copias de sesión no válidas.');
+  }
+  return names;
 }
 
 function bytesParam(params: unknown): Uint8Array {

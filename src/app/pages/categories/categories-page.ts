@@ -19,12 +19,13 @@ import {
   FormRoot,
   form,
   validate,
+  type SchemaPathTree,
   type TreeValidationResult,
 } from '@angular/forms/signals';
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
-import { LANGUAGES, TEXTS, type Language } from '@ui/texts';
+import { LANGUAGES, TEXTS, language, type Language } from '@ui/texts';
 import { Viewport } from '@services/viewport/viewport';
 import { DbService } from '@services/db/db-service';
 import type { CategoryKind } from '@domain/categories/category-kind';
@@ -32,12 +33,15 @@ import {
   CATEGORY_COLORS,
   CATEGORY_KINDS,
   categoryErrorCode,
-  categoryNameError,
   categoryTranslationError,
   groupTransactionCount,
+  localizedName,
   moveItem,
   nextCategoryColor,
+  sourcedNames,
+  untranslatedLanguages,
   type CategoryGroup,
+  type SourcedNames,
   type CategoryNames,
   type CategoryTranslations,
 } from '@domain/categories/category-tree';
@@ -56,6 +60,9 @@ interface CategoryRow extends CategoryNames {
   readonly id: number;
   /** En el idioma de la interfaz. */
   readonly name: string;
+  readonly sourceLanguage: string;
+  /** Sin nombre en el idioma de la interfaz: el idioma del que se ve en su lugar. */
+  readonly fallback: { readonly code: string; readonly name: string } | null;
   /** `Principal › Subcategoría`, o solo el nombre si es una principal. */
   readonly label: string;
   /** La principal de una subcategoría; `null` si la fila es una principal. */
@@ -82,10 +89,9 @@ interface CategoryCard {
 
 /** Lo que se puede cambiar en una fila: el color en las principales, el tipo en las subcategorías. */
 interface RowModel {
-  /** El nombre por defecto. */
-  name: string;
   kind: CategoryKind;
   color: string;
+  /** El nombre en cada idioma de la interfaz. */
   translations: TranslationsModel;
 }
 
@@ -103,7 +109,9 @@ interface RowEditor {
   readonly colorless: boolean;
   /** Dónde vuelve el foco al terminar. */
   readonly returnFocusTo: string;
-  /** Traducciones a idiomas que ya no tiene la interfaz: se conservan al guardar. */
+  /** El idioma en que estaba escrito el nombre: lo sigue estando si no se borra. */
+  readonly sourceLanguage: string | null;
+  /** Nombres en idiomas que ya no tiene la interfaz: se conservan al guardar. */
   readonly otherTranslations: CategoryTranslations;
 }
 
@@ -157,7 +165,7 @@ export class CategoriesPage {
     computation: (value, previous) => value ?? previous?.value ?? [],
   });
 
-  protected readonly cards = computed(() => toCards(this.groups()));
+  protected readonly cards = computed(() => toCards(this.groups(), language()));
 
   protected readonly error = signal<string | null>(null);
   /** Último cambio guardado, para anunciarlo. */
@@ -166,39 +174,20 @@ export class CategoriesPage {
   // --- Alta de una categoría principal ---
 
   private readonly model = signal({
-    name: '',
     color: CATEGORY_COLORS[0] as string,
     translations: emptyTranslations(),
   });
 
   protected readonly categoryForm = form(
     this.model,
-    (path) => {
-      validate(path.name, ({ value }) => {
-        const names = this.groups().map((group) => group.defaultName);
-        const code = categoryNameError(value(), names);
-        return code ? { kind: code, message: t.errors[code] } : null;
-      });
-      for (const { code: language } of LANGUAGES) {
-        validate(path.translations[language], ({ value }) => {
-          const code = categoryTranslationError(value(), language, this.groups());
-          return code ? { kind: code, message: t.errors[code] } : null;
-        });
-      }
-    },
+    (path) => validateNames(path.translations, () => this.groups()),
     { submission: { action: () => this.save(), onInvalid: () => this.attempted.set(true) } },
   );
 
   /** Se ha intentado guardar el alta con un nombre que no vale. */
   private readonly attempted = signal(false);
 
-  /** El error del nombre no se enseña por pasar por el campo vacío: solo al escribir o guardar. */
-  protected readonly showNameError = computed(() => {
-    const name = this.categoryForm.name();
-    return name.invalid() && (name.dirty() || this.attempted());
-  });
-
-  /** En qué idioma se escribe el nombre (ADR-0028); `null`, el nombre por defecto. */
+  /** En qué idioma se escribe el nombre (ADR-0030); `null`, en el de la interfaz. */
   protected readonly newNameLanguage = signal<Language | null>(null);
   protected readonly attemptedNew = this.attempted.asReadonly();
 
@@ -206,7 +195,6 @@ export class CategoriesPage {
 
   protected readonly editor = signal<RowEditor | null>(null);
   private readonly rowModel = signal<RowModel>({
-    name: '',
     kind: 'gasto',
     color: NO_COLOR,
     translations: emptyTranslations(),
@@ -214,33 +202,13 @@ export class CategoriesPage {
 
   protected readonly rowForm = form(
     this.rowModel,
-    (path) => {
-      validate(path.name, ({ value }) => {
-        const siblings = this.editor()?.siblings ?? [];
-        const code = categoryNameError(
-          value(),
-          siblings.map((sibling) => sibling.defaultName),
-        );
-        return code ? { kind: code, message: t.errors[code] } : null;
-      });
-      for (const { code: language } of LANGUAGES) {
-        validate(path.translations[language], ({ value }) => {
-          const code = categoryTranslationError(value(), language, this.editor()?.siblings ?? []);
-          return code ? { kind: code, message: t.errors[code] } : null;
-        });
-      }
-    },
+    (path) => validateNames(path.translations, () => this.editor()?.siblings ?? []),
     { submission: { action: () => this.saveRow(), onInvalid: () => this.rowAttempted.set(true) } },
   );
 
   private readonly rowAttempted = signal(false);
   protected readonly attemptedRow = this.rowAttempted.asReadonly();
   protected readonly rowNameLanguage = signal<Language | null>(null);
-
-  protected readonly showRowError = computed(() => {
-    const name = this.rowForm.name();
-    return name.invalid() && (name.dirty() || this.rowAttempted());
-  });
 
   /** Descripciones de cada sección: se ven al pulsar su icono de información. */
   protected readonly introOpen = signal(false);
@@ -289,12 +257,12 @@ export class CategoriesPage {
   }
 
   protected edit(row: CategoryRow): void {
+    // El nombre de origen va en el campo de su idioma, como uno más.
+    const names = { ...row.translations, [row.sourceLanguage]: row.sourceName };
     const original: RowModel = {
-      // Se edita el nombre por defecto; los de cada idioma, en sus campos.
-      name: row.defaultName,
       kind: row.kind ?? 'gasto',
       color: row.color ?? NO_COLOR,
-      translations: translationsModel(row.translations),
+      translations: translationsModel(names),
     };
     this.openEditor(original, {
       id: row.id,
@@ -304,10 +272,9 @@ export class CategoriesPage {
       original,
       colorless: row.color === null,
       returnFocusTo: `#edit-${row.id}`,
+      sourceLanguage: row.sourceLanguage,
       otherTranslations: Object.fromEntries(
-        Object.entries(row.translations).filter(
-          ([code]) => !LANGUAGES.some((language) => language.code === code),
-        ),
+        Object.entries(names).filter(([code]) => !LANGUAGES.some((option) => option.code === code)),
       ),
     });
   }
@@ -316,7 +283,6 @@ export class CategoriesPage {
   protected addSubcategory(group: CategoryGroup): void {
     this.openEditor(
       {
-        name: '',
         kind: group.subcategories.at(-1)?.kind ?? 'gasto',
         color: NO_COLOR,
         translations: emptyTranslations(),
@@ -329,6 +295,7 @@ export class CategoriesPage {
         original: null,
         colorless: false,
         returnFocusTo: `#add-${group.id}`,
+        sourceLanguage: null,
         otherTranslations: {},
       },
     );
@@ -431,29 +398,40 @@ export class CategoriesPage {
     this.rowForm().reset(model);
     this.rowAttempted.set(false);
     this.rowNameLanguage.set(null);
-    this.afterRender(() => this.rowForm.name().focusBoundControl());
+    this.focusAfterRender('#row-name');
   }
 
   private async save(): Promise<TreeValidationResult> {
-    const { name, color } = this.model();
-    const translations = filledTranslations(this.model().translations);
+    const { color } = this.model();
+    // El nombre es del idioma de la interfaz o, si no se ha escrito en él, del primero escrito.
+    const names = sourcedNames(filledTranslations(this.model().translations), [language()]);
+    if (!names) return undefined;
+    const { language: sourceLanguage, name, translations } = names;
 
     this.error.set(null);
     this.notice.set(null);
     try {
-      await this.db.createCategory({ parentId: null, name, color, translations });
+      await this.db.createCategory({
+        parentId: null,
+        name,
+        language: sourceLanguage,
+        color,
+        translations,
+      });
     } catch (error) {
       const code = categoryErrorCode(error);
-      if (code) return { kind: code, message: t.errors[code], fieldTree: this.categoryForm.name };
+      if (code) {
+        return { kind: code, message: t.errors[code], fieldTree: this.categoryForm.translations };
+      }
       this.error.set(t.saveError);
       return undefined;
     }
-    this.notice.set(`${t.added} ${name.trim()}`);
+    this.notice.set(`${t.added} ${shownName(names)}`);
     // Al recargarse la lista se propone el siguiente color libre.
-    this.categoryForm().reset({ name: '', color, translations: emptyTranslations() });
+    this.categoryForm().reset({ color, translations: emptyTranslations() });
     this.attempted.set(false);
     this.newNameLanguage.set(null);
-    this.categoryForm.name().focusBoundControl();
+    this.focusAfterRender('#new-name');
     return undefined;
   }
 
@@ -461,15 +439,17 @@ export class CategoriesPage {
     const editor = this.editor();
     if (!editor) return undefined;
     const { kind, color } = this.rowModel();
-    const name = this.rowModel().name.trim();
-    const translations = {
-      ...editor.otherTranslations,
-      ...filledTranslations(this.rowModel().translations),
-    };
+    // Sigue en el idioma en que estaba escrito si no se ha borrado; si no, como en un alta.
+    const names = sourcedNames(
+      filledTranslations(this.rowModel().translations),
+      editor.sourceLanguage ? [editor.sourceLanguage, language()] : [language()],
+    );
+    if (!names) return undefined;
+    const { language: sourceLanguage, name } = names;
+    const translations = { ...editor.otherTranslations, ...names.translations };
     const { original, group } = editor;
     const changed =
       !original ||
-      name !== original.name ||
       kind !== original.kind ||
       color !== original.color ||
       JSON.stringify(this.rowModel().translations) !== JSON.stringify(original.translations);
@@ -477,29 +457,31 @@ export class CategoriesPage {
     this.error.set(null);
     this.notice.set(null);
     if (changed) {
+      const sourced = { name, language: sourceLanguage, translations };
       try {
         if (editor.id === null) {
           if (group) {
-            await this.db.createCategory({ parentId: group.id, name, kind, translations });
+            await this.db.createCategory({ parentId: group.id, kind, ...sourced });
           }
         } else if (group) {
-          await this.db.updateCategory({ id: editor.id, name, kind, translations });
+          await this.db.updateCategory({ id: editor.id, kind, ...sourced });
         } else {
           const untouched = editor.colorless && color === original?.color;
           await this.db.updateCategory({
             id: editor.id,
-            name,
             color: untouched ? null : color,
-            translations,
+            ...sourced,
           });
         }
       } catch (error) {
         const code = categoryErrorCode(error);
-        if (code) return { kind: code, message: t.errors[code], fieldTree: this.rowForm.name };
+        if (code) {
+          return { kind: code, message: t.errors[code], fieldTree: this.rowForm.translations };
+        }
         this.error.set(t.saveError);
         return undefined;
       }
-      const label = group ? `${group.name} › ${name}` : name;
+      const label = group ? `${group.name} › ${shownName(names)}` : shownName(names);
       this.notice.set(`${editor.id === null ? t.added : t.saved} ${label}`);
     }
     this.cancelEdit();
@@ -530,14 +512,16 @@ export class CategoriesPage {
   }
 }
 
-function toCards(groups: readonly CategoryGroup[]): CategoryCard[] {
+function toCards(groups: readonly CategoryGroup[], shown: Language): CategoryCard[] {
   return groups.map((group, position) => ({
     group,
     row: {
       id: group.id,
       name: group.name,
-      defaultName: group.defaultName,
+      sourceName: group.sourceName,
+      sourceLanguage: group.sourceLanguage,
       translations: group.translations,
+      fallback: fallbackOf(group, shown),
       label: group.name,
       group: null,
       kind: null,
@@ -551,8 +535,10 @@ function toCards(groups: readonly CategoryGroup[]): CategoryCard[] {
     rows: group.subcategories.map((subcategory, index) => ({
       id: subcategory.id,
       name: subcategory.name,
-      defaultName: subcategory.defaultName,
+      sourceName: subcategory.sourceName,
+      sourceLanguage: subcategory.sourceLanguage,
       translations: subcategory.translations,
+      fallback: fallbackOf(subcategory, shown),
       label: `${group.name} › ${subcategory.name}`,
       group,
       kind: subcategory.kind,
@@ -576,4 +562,40 @@ function inOrder<T extends { readonly id: number }>(
 
 function except<T extends { readonly id: number }>(items: readonly T[], id: number): T[] {
   return items.filter((item) => item.id !== id);
+}
+
+/** Sin nombre en `shown`, el idioma del nombre que se ve en su lugar, el de origen. */
+function fallbackOf(
+  category: CategoryNames & { readonly sourceLanguage: string },
+  shown: Language,
+): CategoryRow['fallback'] {
+  if (untranslatedLanguages(category, [shown]).length === 0) return null;
+  const code = category.sourceLanguage;
+  return { code, name: LANGUAGES.find((option) => option.code === code)?.name ?? code };
+}
+
+/** El nombre guardado tal como se ve en el idioma de la interfaz. */
+function shownName(names: SourcedNames): string {
+  return localizedName({ sourceName: names.name, translations: names.translations }, language());
+}
+
+/**
+ * El nombre tiene que escribirse en algún idioma, y en cada uno no puede coincidir con el de una
+ * hermana en ese idioma.
+ */
+function validateNames(
+  path: SchemaPathTree<TranslationsModel>,
+  siblings: () => readonly CategoryNames[],
+): void {
+  validate(path, ({ value }) =>
+    Object.values(value()).some((name) => name.trim() !== '')
+      ? null
+      : { kind: 'nombre-vacio', message: t.errors['nombre-vacio'] },
+  );
+  for (const { code: language } of LANGUAGES) {
+    validate(path[language], ({ value }) => {
+      const code = categoryTranslationError(value(), language, siblings());
+      return code ? { kind: code, message: t.errors[code] } : null;
+    });
+  }
 }

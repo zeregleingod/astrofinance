@@ -134,29 +134,25 @@ thead th {
   width: 132px;
 }
 
-.col-tags {
-  width: 148px;
-}
-
 .col-amount {
   width: 108px;
 }
 
 // Columnas de texto libre: se reparten el resto y recortan con «…». La descripción es lo que se
-// lee primero: la más ancha.
-.col-description {
-  width: 21%;
-}
-
+// lee primero: se queda con todo el ancho que sobra. Las observaciones, cortas, con poco.
 .col-category {
-  width: 17%;
+  width: 16%;
 }
 
 .col-account {
-  width: 12.5%;
+  width: 10%;
 }
 
-// .col-notes: el ancho restante.
+.col-notes {
+  width: 10%;
+}
+
+// .col-description: el ancho restante.
 
 // Dividir y editar, al final de cada fila.
 // Caben los tres botones: devoluciones, dividir y editar.

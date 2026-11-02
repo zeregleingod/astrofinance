@@ -23,15 +23,21 @@ export const CATEGORY_COLORS = [
 ] as const;
 
 /**
- * El nombre de una categoría en otros idiomas de la interfaz, por código (`en`, `ca`…), sin
- * vacíos (ADR-0028). Los idiomas que no aparecen usan el nombre por defecto.
+ * El nombre de una categoría en los demás idiomas de la interfaz, por código (`ca`, `en`…), sin
+ * vacíos (ADR-0028, ADR-0030). Los idiomas que no aparecen usan el nombre de origen.
  */
 export type CategoryTranslations = Readonly<Record<string, string>>;
 
-/** Los nombres de una categoría: el de por defecto y sus traducciones. */
+/** Idioma del nombre de una categoría que se guarda sin decir en qué idioma está. */
+export const CATEGORY_SOURCE_LANGUAGE = 'es';
+
+/** Los nombres de una categoría: el de origen y sus traducciones. */
 export interface CategoryNames {
-  /** El que escribe el usuario al crearla; se ve en los idiomas sin traducción. */
-  readonly defaultName: string;
+  /**
+   * El nombre en el idioma en que se escribió (`sourceLanguage` de la categoría); se ve en los
+   * idiomas sin traducción.
+   */
+  readonly sourceName: string;
   readonly translations: CategoryTranslations;
 }
 
@@ -42,8 +48,10 @@ export const CATEGORY_TRANSLATIONS_MAX = 16;
 export interface CategoryRecord extends CategoryNames {
   readonly id: number;
   readonly parentId: number | null;
-  /** En el idioma de la interfaz: su traducción o, si no la tiene, el nombre por defecto. */
+  /** En el idioma de la interfaz: su traducción o, si no la tiene, el nombre de origen. */
   readonly name: string;
+  /** El idioma de `sourceName`. */
+  readonly sourceLanguage: string;
   readonly kind: CategoryKind | null;
   readonly color: string | null;
   /** Movimientos que la tienen asignada directamente. */
@@ -54,6 +62,7 @@ export interface CategoryRecord extends CategoryNames {
 export interface Subcategory extends CategoryNames {
   readonly id: number;
   readonly name: string;
+  readonly sourceLanguage: string;
   readonly kind: CategoryKind;
   readonly transactionCount: number;
 }
@@ -62,6 +71,7 @@ export interface Subcategory extends CategoryNames {
 export interface CategoryGroup extends CategoryNames {
   readonly id: number;
   readonly name: string;
+  readonly sourceLanguage: string;
   readonly color: string | null;
   /** Movimientos asignados a la principal, sin contar los de sus subcategorías. */
   readonly transactionCount: number;
@@ -70,21 +80,23 @@ export interface CategoryGroup extends CategoryNames {
 
 /**
  * Alta de una categoría principal (con color) o de una subcategoría (con tipo). `name` es el
- * nombre por defecto; las traducciones son opcionales.
+ * nombre de origen, en `language` (sin él, `CATEGORY_SOURCE_LANGUAGE`); las traducciones son
+ * opcionales.
  */
 export type NewCategory = (
   | { readonly parentId: null; readonly name: string; readonly color: string | null }
   | { readonly parentId: number; readonly name: string; readonly kind: CategoryKind }
-) & { readonly translations?: CategoryTranslations };
+) & { readonly language?: string; readonly translations?: CategoryTranslations };
 
 /**
- * Cambios en una categoría principal (nombre y color) o en una subcategoría (nombre y tipo). Con
- * `translations` se sustituyen todas sus traducciones; sin ellas, se quedan como estaban.
+ * Cambios en una categoría principal (nombre y color) o en una subcategoría (nombre y tipo). Sin
+ * `language`, el nombre sigue en el idioma que tenía. Con `translations` se sustituyen todas sus
+ * traducciones; sin ellas, se quedan como estaban.
  */
 export type CategoryUpdate = (
   | { readonly id: number; readonly name: string; readonly color: string | null }
   | { readonly id: number; readonly name: string; readonly kind: CategoryKind }
-) & { readonly translations?: CategoryTranslations };
+) & { readonly language?: string; readonly translations?: CategoryTranslations };
 
 /**
  * Nuevo orden de las hermanas de un nivel: las principales (`parentId: null`) o las
@@ -145,24 +157,64 @@ export function isLanguageCode(value: unknown): value is string {
   return typeof value === 'string' && /^[a-z]{2}$/.test(value);
 }
 
-/** El nombre de una categoría en `language`: su traducción o, si no la tiene, el de por defecto. */
+/** El nombre de una categoría en `language`: su traducción o, si no la tiene, el de origen. */
 export function localizedName(names: CategoryNames, language: string): string {
-  return names.translations[language] ?? names.defaultName;
+  return names.translations[language] ?? names.sourceName;
 }
 
 /**
- * Las traducciones que se guardan: sin espacios sobrantes y sin las vacías o iguales al nombre por
- * defecto, que no dicen nada nuevo.
+ * Las traducciones que se guardan: sin espacios sobrantes, sin las vacías y sin la del idioma de
+ * origen, que es el propio nombre. Las que se escriben igual que el nombre sí: dicen que ese
+ * idioma está traducido.
  */
 export function cleanTranslations(
-  defaultName: string,
+  sourceLanguage: string,
   translations: CategoryTranslations,
 ): CategoryTranslations {
-  const base = nameKey(defaultName);
   return Object.fromEntries(
     Object.entries(translations)
       .map(([language, name]) => [language, name.trim()] as const)
-      .filter(([, name]) => name !== '' && nameKey(name) !== base),
+      .filter(([language, name]) => name !== '' && language !== sourceLanguage),
+  );
+}
+
+/** Los nombres de una categoría como se guardan: el de origen, su idioma y las traducciones. */
+export interface SourcedNames {
+  readonly language: string;
+  readonly name: string;
+  readonly translations: CategoryTranslations;
+}
+
+/**
+ * Reparte los nombres escritos en cada idioma (ADR-0030). El de origen es el del primer idioma de
+ * `preferred` que tenga nombre (el que ya tenía, el de la interfaz…) o, si ninguno, el primero
+ * escrito; los demás son sus traducciones. `null` si no hay ninguno escrito.
+ */
+export function sourcedNames(
+  names: Readonly<Record<string, string>>,
+  preferred: readonly string[],
+): SourcedNames | null {
+  const filled = Object.entries(names)
+    .map(([language, name]) => [language, name.trim()] as const)
+    .filter(([, name]) => name !== '');
+  const source =
+    preferred.flatMap((code) => filled.filter(([language]) => language === code))[0] ?? filled[0];
+  if (!source) return null;
+  const [language, name] = source;
+  return {
+    language,
+    name,
+    translations: Object.fromEntries(filled.filter(([code]) => code !== language)),
+  };
+}
+
+/** Los idiomas de `languages` sin nombre propio de la categoría: en ellos se ve el de origen. */
+export function untranslatedLanguages<T extends string>(
+  category: CategoryNames & { readonly sourceLanguage: string },
+  languages: readonly T[],
+): T[] {
+  return languages.filter(
+    (language) => language !== category.sourceLanguage && !(language in category.translations),
   );
 }
 
@@ -185,24 +237,24 @@ export function categoryTranslationError(
 }
 
 /**
- * Por qué no valen los nombres de una categoría, o `null` si valen: el nombre por defecto no puede
+ * Por qué no valen los nombres de una categoría, o `null` si valen: el nombre de origen no puede
  * repetirse entre hermanas, ni ninguno de sus nombres en un idioma con el de una hermana en ese
- * mismo idioma. Si choca el nombre por defecto (en un idioma que no traduce), el error es suyo.
+ * mismo idioma. Si choca el nombre de origen (en un idioma que no traduce), el error es suyo.
  */
 export function categoryNamesError(
   names: CategoryNames,
   siblings: readonly CategoryNames[],
 ): CategoryErrorCode | null {
   const nameError = categoryNameError(
-    names.defaultName,
-    siblings.map((sibling) => sibling.defaultName),
+    names.sourceName,
+    siblings.map((sibling) => sibling.sourceName),
   );
   if (nameError) return nameError;
   for (const [language, translation] of Object.entries(names.translations)) {
     const error = categoryTranslationError(translation, language, siblings);
     if (error) return error;
   }
-  const own = nameKey(names.defaultName);
+  const own = nameKey(names.sourceName);
   const clash = siblings.some((sibling) =>
     Object.entries(sibling.translations).some(
       ([language, name]) => !(language in names.translations) && nameKey(name) === own,
@@ -233,16 +285,18 @@ export function buildCategoryTree(records: readonly CategoryRecord[]): CategoryG
     .map((group) => ({
       id: group.id,
       name: group.name,
-      defaultName: group.defaultName,
+      sourceName: group.sourceName,
+      sourceLanguage: group.sourceLanguage,
       translations: group.translations,
       color: group.color,
       transactionCount: group.transactionCount,
       subcategories: records
         .filter((record) => record.parentId === group.id)
-        .map(({ id, name, defaultName, translations, kind, transactionCount }) => ({
+        .map(({ id, name, sourceName, sourceLanguage, translations, kind, transactionCount }) => ({
           id,
           name,
-          defaultName,
+          sourceName,
+          sourceLanguage,
           translations,
           // El esquema exige tipo en toda subcategoría; esto solo cubre datos imposibles.
           kind: kind ?? 'gasto',

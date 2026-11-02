@@ -26,7 +26,6 @@ describe('TransactionCards', () => {
     refunds: [],
     refundable: true,
     links: [],
-    tags: [],
     linkTexts: [],
     ...overrides,
   });

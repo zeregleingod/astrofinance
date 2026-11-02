@@ -62,7 +62,11 @@ export class BackupService {
         },
         () => this.db.exportFile(),
       );
-      if (saved) this.noticeState.set({ task: 'exportando', fileName });
+      if (saved) {
+        this.noticeState.set({ task: 'exportando', fileName });
+        // Lo descargado ya no se pierde al cerrar la pestaña (ADR-0031).
+        this.db.markSaved();
+      }
       return saved;
     } catch {
       this.errorState.set({ task: 'exportando' });

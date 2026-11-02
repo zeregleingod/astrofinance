@@ -108,7 +108,7 @@ Cada tarea sigue el ciclo **rojo → verde → refactor** y es lo bastante peque
 - [ ] **T3.1 Rutas lazy y layout Material** responsive (navegación lateral en escritorio, inferior en móvil), tema claro/oscuro, textos en español centralizados.
 - [ ] **T3.2 `DbService` (fachada)**: signals de solo lectura `status`, `dirty`, `lastSavedAt`, `dataVersion`, `error`. *(Hechos `status`, `mode` (`demo` o `local`), `dataVersion` y `ready`; faltan `dirty`, `lastSavedAt` y `error`.)*
   - Test primero: transiciones de estado con un worker falso.
-- [ ] **T3.3 Barra de persistencia global**: botones **Guardar** y **Descartar**, indicador de cambios sin guardar, `beforeunload` y *guard* de navegación cuando `dirty`.
+- [ ] **T3.3 Barra de persistencia global**: botones **Guardar** y **Descartar**, indicador de cambios sin guardar, `beforeunload` y *guard* de navegación cuando `dirty`. *(Hecho el `beforeunload` con cambios sin descargar y la salida con aviso, ADR-0031.)*
   - Test primero: componente + e2e (editar → recargar sin guardar → aviso).
 - [ ] **T3.4 Primer arranque**: crear BD nueva (con plantilla opcional de categorías, `worker/db/seeds/category-template.ts`), cargar un `.db` existente o **probar la demo** (`/demo`, ADR-0006, ya disponible).
 - [ ] **T3.5 Errores y notificaciones**: manejador global, `MatSnackBar`, sin volcar datos financieros a la consola.

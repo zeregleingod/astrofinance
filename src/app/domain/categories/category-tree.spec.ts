@@ -9,6 +9,8 @@ import {
   cleanTranslations,
   isLanguageCode,
   localizedName,
+  sourcedNames,
+  untranslatedLanguages,
   groupTransactionCount,
   isCategoryColor,
   isReorderOf,
@@ -18,8 +20,8 @@ import {
   type CategoryRecord,
 } from './category-tree';
 
-const names = (defaultName: string, translations: Record<string, string> = {}): CategoryNames => ({
-  defaultName,
+const names = (sourceName: string, translations: Record<string, string> = {}): CategoryNames => ({
+  sourceName,
   translations,
 });
 
@@ -27,16 +29,38 @@ describe('nombres en varios idiomas (ADR-0028)', () => {
   const food = names('Comida', { en: 'Food', ca: 'Menjar' });
   const leisure = names('Ocio');
 
-  it('cada idioma ve su traducción o, si no la hay, el nombre por defecto', () => {
+  it('cada idioma ve su traducción o, si no la hay, el nombre de origen', () => {
     expect(localizedName(food, 'en')).toBe('Food');
     expect(localizedName(food, 'es')).toBe('Comida');
     expect(localizedName(leisure, 'en')).toBe('Ocio');
   });
 
-  it('solo guarda las traducciones que dicen algo: sin vacías ni iguales al nombre', () => {
-    expect(cleanTranslations('Comida', { en: ' Food ', ca: '  ', es: 'comida' })).toEqual({
-      en: 'Food',
+  it('guarda las traducciones escritas, también las iguales al nombre, menos la de origen', () => {
+    expect(cleanTranslations('es', { en: ' Food ', ca: '  ', es: 'Comida', fr: 'comida' })).toEqual(
+      { en: 'Food', fr: 'comida' },
+    );
+  });
+
+  it('el nombre de origen es el del primer idioma preferido que esté escrito (ADR-0030)', () => {
+    const written = { es: ' Comida ', ca: '', en: 'Food' };
+
+    expect(sourcedNames(written, ['ca', 'en'])).toEqual({
+      language: 'en',
+      name: 'Food',
+      translations: { es: 'Comida' },
     });
+    expect(sourcedNames(written, ['ca'])).toEqual({
+      language: 'es',
+      name: 'Comida',
+      translations: { en: 'Food' },
+    });
+    expect(sourcedNames({ es: ' ', en: '' }, ['es'])).toBeNull();
+  });
+
+  it('sabe en qué idiomas se ve el nombre de origen porque falta el suyo', () => {
+    const category = { ...names('Comida', { en: 'Food' }), sourceLanguage: 'es' };
+
+    expect(untranslatedLanguages(category, ['es', 'ca', 'en'])).toEqual(['ca']);
   });
 
   it('una traducción vacía vale: es no traducir', () => {
@@ -126,7 +150,8 @@ describe('buildCategoryTree', () => {
     id,
     parentId,
     name,
-    defaultName: name,
+    sourceName: name,
+    sourceLanguage: 'es',
     translations: {},
     kind: parentId === null ? null : 'gasto',
     color: parentId === null ? '#112233' : null,
@@ -146,24 +171,47 @@ describe('buildCategoryTree', () => {
       {
         id: 1,
         name: 'Variables',
-        defaultName: 'Variables',
+        sourceName: 'Variables',
+        sourceLanguage: 'es',
         translations: {},
         color: '#112233',
         transactionCount: 2,
         subcategories: [
-          { id: 4, ...names('Comida'), name: 'Comida', kind: 'gasto', transactionCount: 7 },
-          { id: 5, ...names('Sueldo'), name: 'Sueldo', kind: 'ingreso', transactionCount: 0 },
+          {
+            id: 4,
+            ...names('Comida'),
+            sourceLanguage: 'es',
+            name: 'Comida',
+            kind: 'gasto',
+            transactionCount: 7,
+          },
+          {
+            id: 5,
+            ...names('Sueldo'),
+            sourceLanguage: 'es',
+            name: 'Sueldo',
+            kind: 'ingreso',
+            transactionCount: 0,
+          },
         ],
       },
       {
         id: 2,
         name: 'Suministros',
-        defaultName: 'Suministros',
+        sourceName: 'Suministros',
+        sourceLanguage: 'es',
         translations: {},
         color: '#112233',
         transactionCount: 0,
         subcategories: [
-          { id: 3, ...names('Luz'), name: 'Luz', kind: 'gasto', transactionCount: 4 },
+          {
+            id: 3,
+            ...names('Luz'),
+            sourceLanguage: 'es',
+            name: 'Luz',
+            kind: 'gasto',
+            transactionCount: 4,
+          },
         ],
       },
     ]);

@@ -118,7 +118,6 @@ export const EN: Texts = {
       year: 'Year',
       from: 'From',
       to: 'To',
-      tag: 'Tag',
       category: 'Category',
       subcategory: 'Subcategory',
       account: 'Account',
@@ -320,8 +319,9 @@ export const EN: Texts = {
     newTitle: 'New category',
     moreInfo: 'More information',
     intro:
-      'A category groups subcategories and gives them a colour. Subcategories, which are the ones assigned to transactions, are added from the table with the “+” button of their category.',
+      'A category groups subcategories and gives them a colour. Subcategories, which are the ones assigned to transactions, are added from the table with the “+” button of their category. The name is written in the interface language; with the language button, inside the field, you can write it in the others. If one is missing, the name in another language is shown.',
     name: 'Name',
+    untranslated: 'Not translated: shown in',
     color: 'Colour',
     kind: 'Type',
     kinds: {
@@ -366,7 +366,7 @@ export const EN: Texts = {
     positionOf: 'of',
     reorderError: 'The order could not be changed.',
     errors: {
-      'nombre-vacio': 'Write a name.',
+      'nombre-vacio': 'Write the name in at least one language.',
       'nombre-largo': 'The name cannot be longer than 60 characters.',
       'nombre-repetido': 'There is already one with that name at the same level.',
       'principal-inexistente': 'The category it belongs to no longer exists.',
@@ -567,8 +567,6 @@ export const EN: Texts = {
   },
   translatable: {
     language: 'Text language',
-    default: 'Default',
-    defaultHint: 'For all languages',
     untranslated: 'Not translated',
   },
   datepicker: {
@@ -644,5 +642,16 @@ export const EN: Texts = {
     open: 'View demo',
     loading: 'Loading demo…',
     error: 'The demo could not be opened.',
+  },
+  session: {
+    resuming: 'Recovering your data…',
+    exit: 'Exit',
+    exitTitle: 'Exit AstroFinance?',
+    exitCloses: 'Your data will be closed and you will go back to the start screen.',
+    exitLoses: 'Anything not saved in a downloaded copy will be lost.',
+    exitUnsaved:
+      'You have changes that are not downloaded: if you exit, they will be lost. Download a copy first to keep them.',
+    exitConfirm: 'Exit',
+    exitCancel: 'Cancel',
   },
 };

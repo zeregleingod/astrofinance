@@ -310,6 +310,27 @@ tbody:last-child tr:last-child > * {
   overflow-wrap: anywhere;
 }
 
+// Sin nombre en el idioma de la interfaz: el código del idioma del que se ve.
+.untranslated {
+  flex: none;
+  padding: 0 6px;
+  border: 1px dashed var(--mat-sys-outline);
+  border-radius: 4px;
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-label-small);
+  text-transform: uppercase;
+  cursor: help;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 .kind {
   color: var(--mat-sys-on-surface-variant);
 }

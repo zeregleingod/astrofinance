@@ -49,16 +49,6 @@
   </mat-form-field>
 
   <mat-form-field appearance="outline" subscriptSizing="dynamic">
-    <mat-label>{{ texts.transactions.filters.tag }}</mat-label>
-    <select matNativeControl [formField]="filterForm.tag">
-      <option value="">{{ texts.transactions.filters.anyFeminine }}</option>
-      @for (tag of tags(); track tag.value) {
-        <option [value]="tag.value">{{ tag.label }}</option>
-      }
-    </select>
-  </mat-form-field>
-
-  <mat-form-field appearance="outline" subscriptSizing="dynamic">
     <mat-label>{{ texts.transactions.filters.category }}</mat-label>
     <select matNativeControl [formField]="filterForm.category">
       <option value="">{{ texts.transactions.filters.anyFeminine }}</option>

@@ -8,7 +8,8 @@ import { inProcessDbWorker } from '../../../testing/in-process-db-worker';
 import { TransactionsPage } from './transactions-page';
 
 describe('TransactionsPage', () => {
-  async function setup(demo: boolean, compact = false) {
+  /** `prepare` cambia la demo antes de abrir la página. */
+  async function setup(demo: boolean, compact = false, prepare?: (db: DbService) => Promise<void>) {
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
@@ -18,6 +19,7 @@ describe('TransactionsPage', () => {
       ],
     });
     if (demo) await TestBed.inject(DbService).openDemo();
+    if (prepare) await prepare(TestBed.inject(DbService));
     const fixture = TestBed.createComponent(TransactionsPage);
     await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
@@ -938,6 +940,34 @@ describe('TransactionsPage', () => {
       expect(parts[1]?.[4]).toMatch(/^-3,00\s€$/);
       // Van justo debajo de su movimiento.
       expect(bazaar?.nextElementSibling).toBe(splitRows()[0]);
+    });
+
+    it('un submovimiento que devuelve un gasto lleva «Devuelve» con el gasto (ADR-0019)', async () => {
+      let refunded = '';
+      const { splitRows } = await setup(true, false, async (db) => {
+        const all = await db.allTransactions();
+        const income = all.find((t) => t.description.startsWith('Transferencia recibida'));
+        const expense = all.find((t) => t.description.startsWith('Pizzería Demo'));
+        if (!income || !expense) throw new Error('Faltan movimientos de la demo');
+        await db.saveSplits({
+          transactionId: income.id,
+          splits: [{ id: null, description: 'Pizza', categoryId: null, amountCents: 1709 }],
+        });
+        const options = await db.expenseRefundOptions(expense.id);
+        const part = options.candidates.find((c) => c.id === income.id && c.splitId !== null);
+        if (!part) throw new Error('Sin el submovimiento entre las devoluciones posibles');
+        await db.saveRefunds({
+          expenseId: expense.id,
+          links: [
+            { reimbursementTxId: income.id, reimbursementSplitId: part.splitId, amountCents: 1709 },
+          ],
+        });
+        refunded = expense.description;
+      });
+
+      const pizza = splitRows().find((r) => text(r)?.includes('PIZZA'));
+      expect(text(pizza?.querySelector('.badge'))).toBe('Devuelve');
+      expect(text(pizza)).toContain(`Devuelve ${refunded}`);
     });
 
     it('un movimiento vinculado sin submovimientos no se puede dividir', async () => {

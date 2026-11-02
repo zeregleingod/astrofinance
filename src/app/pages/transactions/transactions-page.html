@@ -432,6 +432,11 @@
                               {{ part.categoryName }}
                             }
                           }
+                          <!-- La parte de un ingreso que devuelve gastos lo dice, como en las tarjetas (ADR-0019). -->
+                          @if (part.refundsTo.length > 0) {
+                            <span class="badge">{{ texts.transactions.splits.refunds }}</span>
+                            {{ part.refundsTo.join(', ') }}
+                          }
                         </td>
                       }
                       @case ('amount') {

@@ -179,6 +179,13 @@ describe('consultas de importación', () => {
     ).toEqual([{ category_source: 'regla', rule_id: null }]);
   });
 
+  it('si el nombre por defecto ya lo tiene otra cuenta, la nueva se numera', () => {
+    db.run(
+      `INSERT INTO accounts (name, institution, kind) VALUES ('Banc Sabadell ·4321', 'BBVA', 'corriente')`,
+    );
+    expect(commitImport(db, batch()).accountName).toBe('Banc Sabadell ·4321 (2)');
+  });
+
   it('reimportar el mismo fichero no añade nada', () => {
     commitImport(db, batch());
     const hashes = statement.movements.map((m) => m.dedupeHash);

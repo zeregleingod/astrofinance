@@ -23,13 +23,19 @@ pasar el ratón por encima.
   cambiado y los vínculos con su texto a la vista. Los «devuelto por» no se repiten: ya salen en
   la lista de devoluciones debajo del gasto.
 
-- **Diseño de la ficha** (elegido entre tres maquetas: libro de cuentas, app bancaria y dos
-  columnas): el de app bancaria, con la fecha en un bloque (día, mes y año) en lugar de un icono
-  de categoría. Arriba, el concepto con «Categoría › Subcategoría · Cuenta» y el importe; debajo,
-  alineado con el concepto, las etiquetas, un panel tintado con el concepto del banco, la nota, la
-  fecha original y los vínculos (término y valor, con icono), y los apartados «Submovimientos» y
-  «Devoluciones». Las acciones van al pie **con su nombre** («Devoluciones», «Dividir», «Editar»),
-  no solo con icono.
+- **Diseño de la ficha: tres zonas, «cuándo, qué y cuánto»** (revisado el 2026-11-06, elegido
+  entre tres maquetas de 3 columnas: cuadrícula de fichas, ficha en tres columnas y mosaico
+  compacto; sustituye al de app bancaria del 2026-10-27).
+  - **Cuándo:** la fecha (día grande, mes y año), el día de la semana y la cuenta, sobre un fondo
+    tintado; si la fecha se imputó a otra, el tinte es el terciario.
+  - **Qué:** el concepto, la categoría con un punto de su color y las etiquetas; debajo, el
+    concepto del banco, la nota, la fecha original y los vínculos (término y valor, con icono), y
+    los «Submovimientos» y «Devoluciones» como una tabla con borde.
+  - **Cuánto:** el importe grande y las acciones **con su nombre** («Devoluciones», «Dividir»,
+    «Editar»), una debajo de otra y «Editar» destacada.
+  - En la vista detallada las tres zonas son columnas (200 px, el resto y 240 px). En móvil se
+    apilan: arriba la fecha y el importe, luego el concepto con sus detalles y, al pie, las
+    acciones en fila.
 
 ## Consecuencias
 

@@ -6,6 +6,7 @@ const pages = [
   'Resumen anual',
   'Movimientos',
   'Importar extracto',
+  'Cuentas',
   'Categorías',
   'Reglas de categoría',
   'Reglas de concepto',

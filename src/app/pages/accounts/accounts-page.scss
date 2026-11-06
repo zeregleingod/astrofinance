@@ -1,0 +1,427 @@
+:host {
+  position: relative;
+  display: block;
+}
+
+// --- Alta, como en las demás pantallas de Configuración ---
+
+.panel {
+  max-width: calc(var(--af-table-width) - 48px);
+  margin: 0 0 24px;
+  padding: 24px;
+  border-radius: 16px;
+  background: var(--mat-sys-surface-container-lowest);
+
+  h3 {
+    margin: 0;
+    font: var(--mat-sys-title-large);
+    font-weight: 600;
+  }
+
+  p {
+    margin: 12px 0 0;
+  }
+
+  p:first-child {
+    margin-top: 0;
+  }
+}
+
+.title-row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.hint {
+  color: var(--mat-sys-on-surface-variant);
+  font: var(--mat-sys-body-medium);
+}
+
+.warning {
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--mat-sys-tertiary-container);
+  color: var(--mat-sys-on-tertiary-container);
+}
+
+.memory-warning {
+  max-width: calc(var(--af-table-width) - 24px);
+  margin: 0 0 16px;
+}
+
+.error,
+.done {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.error {
+  background: var(--mat-sys-error-container);
+  color: var(--mat-sys-on-error-container);
+}
+
+// Región viva siempre presente: sin mensaje no ocupa sitio.
+.done:empty {
+  display: none;
+}
+
+.alert {
+  color: var(--mat-sys-error);
+  font-weight: 500;
+}
+
+.fields {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 16px;
+  margin-top: 16px;
+}
+
+.field {
+  display: flex;
+  flex: 0 1 220px;
+  flex-direction: column;
+  gap: 4px;
+  font: var(--mat-sys-label-large);
+  color: var(--mat-sys-on-surface-variant);
+
+  &.wide {
+    flex: 1 1 260px;
+  }
+
+  // En móvil, cada campo ocupa toda la fila.
+  @media (width < 600px) {
+    flex-basis: 100%;
+  }
+}
+
+input,
+select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 44px;
+  padding: 8px 12px;
+  border: 1px solid var(--mat-sys-outline);
+  border-radius: 8px;
+  background: var(--mat-sys-surface-container-lowest);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-large);
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: -1px;
+    border-color: var(--mat-sys-primary);
+  }
+
+  &[aria-invalid='true'] {
+    border-color: var(--mat-sys-error);
+  }
+
+  &:disabled {
+    border-color: var(--mat-sys-outline-variant);
+    color: var(--mat-sys-on-surface-variant);
+    cursor: not-allowed;
+  }
+}
+
+.fields button {
+  min-height: 44px;
+}
+
+// --- Bancos: el botón de opción, invisible; la tarjeta entera es la opción ---
+
+.banks {
+  flex: 1 1 100%;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: none;
+
+  legend {
+    margin-bottom: 8px;
+    padding: 0;
+    font: var(--mat-sys-label-large);
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.bank-options {
+  display: grid;
+  // Ocho bancos: dos filas de cuatro; en pantallas estrechas, de dos en dos.
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+
+  @media (width < 900px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.bank-option {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 8px 12px;
+  border: 1px solid var(--mat-sys-outline-variant);
+  border-radius: 12px;
+  background: var(--mat-sys-surface-container-lowest);
+  color: var(--mat-sys-on-surface);
+  font: var(--mat-sys-body-medium);
+  cursor: pointer;
+  transition:
+    border-color 0.15s ease,
+    background-color 0.15s ease;
+
+  &:hover {
+    border-color: var(--mat-sys-outline);
+    background: color-mix(
+      in srgb,
+      var(--mat-sys-primary) 4%,
+      var(--mat-sys-surface-container-lowest)
+    );
+  }
+
+  // Fuera de la vista pero accesible: se elige con el teclado y lo anuncia el lector.
+  input {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    opacity: 0;
+  }
+
+  &:has(input:focus-visible) {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+  }
+
+  // Elegido: borde, tinte y una marca; no solo el color.
+  &:has(input:checked) {
+    border-color: var(--mat-sys-primary);
+    background: color-mix(
+      in srgb,
+      var(--mat-sys-primary) 8%,
+      var(--mat-sys-surface-container-lowest)
+    );
+    font-weight: 600;
+
+    .check {
+      visibility: visible;
+    }
+  }
+
+  // Los nombres saltan de línea entre palabras, nunca a mitad de una.
+  .bank-name {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: normal;
+  }
+
+  // En la esquina, sin quitarle sitio al nombre.
+  .check {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    color: var(--mat-sys-primary);
+    visibility: hidden;
+  }
+}
+
+.banks[aria-invalid='true'] .bank-option {
+  border-color: var(--mat-sys-error);
+}
+
+// --- Lista: una ficha por cuenta, en tres columnas ---
+
+.list-title {
+  margin: 0 0 12px;
+  font: var(--mat-sys-title-medium);
+  font-weight: 600;
+
+  &:focus-visible {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  .count {
+    font-weight: 400;
+    color: var(--mat-sys-on-surface-variant);
+  }
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+  align-items: start;
+  max-width: var(--af-table-width);
+  margin: 0;
+  padding: 0;
+  list-style: none;
+
+  @media (width < 1200px) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  @media (width < 700px) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+.card {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 18px 18px 6px;
+  border-radius: 16px;
+  background: var(--mat-sys-surface-container-lowest);
+  box-shadow:
+    0 1px 2px color-mix(in srgb, var(--mat-sys-shadow) 4%, transparent),
+    0 4px 12px color-mix(in srgb, var(--mat-sys-shadow) 5%, transparent);
+  transition: box-shadow 0.2s ease;
+
+  &:hover,
+  &.editing {
+    box-shadow:
+      0 2px 4px color-mix(in srgb, var(--mat-sys-shadow) 6%, transparent),
+      0 8px 24px color-mix(in srgb, var(--mat-sys-shadow) 8%, transparent);
+  }
+
+  &.editing {
+    outline: 2px solid var(--mat-sys-primary);
+    outline-offset: -2px;
+  }
+}
+
+.head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+// El distintivo del banco: sus iniciales en un bloque, como la fecha de las fichas de movimientos.
+.badge {
+  display: flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  border-radius: 12px;
+  background: color-mix(
+    in srgb,
+    var(--mat-sys-primary) 9%,
+    var(--mat-sys-surface-container-lowest)
+  );
+  color: var(--mat-sys-primary);
+  font: var(--mat-sys-title-medium);
+  font-weight: 600;
+  letter-spacing: 0.02em;
+}
+
+.title-block {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  margin: 0;
+  font: var(--mat-sys-title-medium);
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.bank {
+  margin: 2px 0 0;
+  font: var(--mat-sys-body-medium);
+  color: var(--mat-sys-on-surface-variant);
+  overflow-wrap: anywhere;
+}
+
+.iban {
+  margin: 0;
+  font: var(--mat-sys-body-small);
+  color: var(--mat-sys-on-surface-variant);
+  font-variant-numeric: tabular-nums;
+}
+
+.movements {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  background: color-mix(
+    in srgb,
+    var(--mat-sys-primary) 4%,
+    var(--mat-sys-surface-container-lowest)
+  );
+  font: var(--mat-sys-body-medium);
+  font-weight: 500;
+
+  mat-icon {
+    width: 18px;
+    height: 18px;
+    font-size: 18px;
+    color: var(--mat-sys-on-surface-variant);
+  }
+
+  &.unused {
+    color: var(--mat-sys-on-surface-variant);
+    font-weight: 400;
+  }
+}
+
+.foot {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 2px;
+  padding-top: 4px;
+  border-top: 1px solid var(--mat-sys-outline-variant);
+}
+
+.delete:not([aria-disabled='true']) {
+  color: var(--mat-sys-error);
+}
+
+// --- Edición en la ficha ---
+
+.editor {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+
+  .field {
+    flex: none;
+  }
+
+  .foot {
+    gap: 8px;
+    padding-block: 8px 6px;
+  }
+}
+
+.small {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: -4px 0 0;
+  font: var(--mat-sys-body-small);
+
+  mat-icon {
+    flex: none;
+    width: 16px;
+    height: 16px;
+    font-size: 16px;
+  }
+}

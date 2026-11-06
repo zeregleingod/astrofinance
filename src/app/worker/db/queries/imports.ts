@@ -149,13 +149,25 @@ export function findAccount(
 const defaultAccountName = (batch: ImportBatchInput) =>
   batch.ibanLast4 ? `${batch.institution} ·${batch.ibanLast4}` : batch.institution;
 
+/**
+ * El nombre por defecto, o con « (2)», « (3)»… si el usuario ya ha llamado así a otra cuenta en
+ * Configuración › Cuentas: los nombres no se repiten.
+ */
+function freeName(db: SqlDb, base: string): string {
+  const taken = (name: string) =>
+    db.value('SELECT 1 FROM accounts WHERE name = ?', [name]) !== undefined;
+  let name = base;
+  for (let n = 2; taken(name); n++) name = `${base} (${n})`;
+  return name;
+}
+
 /** Primera importación de una cuenta: se da de alta con el saldo anterior al extracto. */
 function createAccount(
   db: SqlDb,
   batch: ImportBatchInput,
   rows: readonly ImportRowInput[],
 ): Account {
-  const name = defaultAccountName(batch);
+  const name = freeName(db, defaultAccountName(batch));
   const openingDate = rows.map((row) => row.opDate).sort()[0] ?? batch.dateFrom;
   db.run(
     `INSERT INTO accounts (name, institution, kind, iban_last4, opening_balance_cents,

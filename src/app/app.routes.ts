@@ -40,6 +40,12 @@ export const routes: Routes = [
     children: [
       { path: '', pathMatch: 'full', redirectTo: 'categorias' },
       {
+        path: 'cuentas',
+        title: () => TEXTS.accounts.title,
+        data: { icon: 'account_balance' },
+        loadComponent: () => import('@pages/accounts/accounts-page').then((m) => m.AccountsPage),
+      },
+      {
         path: 'categorias',
         title: () => TEXTS.categories.title,
         data: { icon: 'category' },

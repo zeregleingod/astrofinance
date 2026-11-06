@@ -65,6 +65,15 @@ import {
   updateConceptRule,
 } from './queries/concept-rules';
 import { suggestCategoriesFor, suggestionRequestParam } from './queries/suggestions';
+import {
+  accountIdParam,
+  accountUpdateParam,
+  createAccount,
+  deleteAccount,
+  listAccounts,
+  newAccountParam,
+  updateAccount,
+} from './queries/accounts';
 import type { CategoryLanguage } from './queries/category-names';
 import { isLanguageCode } from '@domain/categories/category-tree';
 import { isSessionFileName } from '@domain/session/tab-session';
@@ -190,6 +199,10 @@ export function createDbHandlers(
     updateCategory: (params) => updateCategory(requireDb(), categoryUpdateParam(params)),
     deleteCategory: (params) => deleteCategory(requireDb(), categoryIdParam(params)),
     reorderCategories: (params) => reorderCategories(requireDb(), categoryOrderParam(params)),
+    accounts: () => listAccounts(requireDb()),
+    createAccount: (params) => createAccount(requireDb(), newAccountParam(params)),
+    updateAccount: (params) => updateAccount(requireDb(), accountUpdateParam(params)),
+    deleteAccount: (params) => deleteAccount(requireDb(), accountIdParam(params)),
     rules: () => listRules(requireDb(), language),
     createRule: (params) => createRule(requireDb(), newRuleParam(params)),
     updateRule: (params) => updateRule(requireDb(), ruleUpdateParam(params)),

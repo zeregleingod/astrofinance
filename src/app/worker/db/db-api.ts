@@ -1,3 +1,4 @@
+import type { AccountRow, AccountUpdate, NewAccount } from '@domain/accounts/account';
 import type { RestoredDatabase } from '@domain/backup/database-file';
 import type {
   CategoryGroup,
@@ -78,6 +79,14 @@ export interface DbApi {
   expenseRefundOptions: { params: { expenseId: number }; result: ExpenseRefundOptions };
   /** Sustituye las devoluciones de un gasto; una lista vacía lo deja sin devoluciones. */
   saveRefunds: { params: ExpenseRefunds; result: undefined };
+  /** Las cuentas por nombre, con cuántos movimientos tiene cada una (ADR-0034). */
+  accounts: { params: undefined; result: readonly AccountRow[] };
+  /** Da de alta una cuenta y devuelve su id. */
+  createAccount: { params: NewAccount; result: number };
+  /** Renombra la cuenta; el banco solo cambia si no tiene movimientos. */
+  updateAccount: { params: AccountUpdate; result: undefined };
+  /** Elimina una cuenta sin movimientos ni extractos. */
+  deleteAccount: { params: { id: number }; result: undefined };
   categoryOptions: { params: undefined; result: readonly CategoryOption[] };
   categoryTree: { params: undefined; result: readonly CategoryGroup[] };
   /** Da de alta una categoría o subcategoría y devuelve su id. */

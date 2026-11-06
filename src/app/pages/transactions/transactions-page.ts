@@ -219,9 +219,9 @@ export class TransactionsPage {
   /** En el orden elegido por el usuario; se conserva al filtrar. */
   protected readonly columns = signal<readonly Column[]>([
     column('bookedDate'),
+    column('account'),
     column('description'),
     column('category'),
-    column('account'),
     column('amount', true),
     column('notes'),
   ]);

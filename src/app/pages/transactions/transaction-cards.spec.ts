@@ -54,13 +54,30 @@ describe('TransactionCards', () => {
     expect(same?.querySelector('.bank')).toBeNull();
   });
 
-  it('marca cada ficha a la izquierda con el color de su categoría', async () => {
+  it('pone delante de la categoría un punto con su color', async () => {
     const element = await setup([card(), card({ id: 2, categoryColor: null })]);
-    const fills = [...element.querySelectorAll('li.card > .band rect')].map((rect) =>
-      rect.getAttribute('fill'),
+    const fills = [...element.querySelectorAll('li.card .category .dot circle')].map((dot) =>
+      dot.getAttribute('fill'),
     );
     // Sin color, sin atributo: la hoja de estilos pone el neutro del tema.
     expect(fills).toEqual(['#9C3A00', null]);
+  });
+
+  it('enseña junto a la fecha el día de la semana y la cuenta', async () => {
+    const element = await setup([card()]);
+    expect(text(element.querySelector('.when .weekday'))).toBe('Miércoles');
+    expect(text(element.querySelector('.when .account'))).toBe('Cuenta Demo');
+  });
+
+  it('separa la ficha en cuándo, qué y cuánto', async () => {
+    const element = await setup([card()], true);
+    const zones = element.querySelectorAll('li.card > div');
+    expect([...zones].map((zone) => zone.className.split(' ')[0])).toEqual([
+      'when',
+      'main',
+      'side',
+    ]);
+    expect(text(element.querySelector('.side .total'))).toMatch(/^-62,15\s€$/);
   });
 
   it('enseña la fecha en un bloque y, si se imputó a otra, la original en el panel', async () => {

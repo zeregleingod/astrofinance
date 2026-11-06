@@ -1,4 +1,5 @@
 import { InjectionToken, Service, computed, inject, signal } from '@angular/core';
+import type { AccountRow, AccountUpdate, NewAccount } from '@domain/accounts/account';
 import type { RestoredDatabase } from '@domain/backup/database-file';
 import type {
   CategoryGroup,
@@ -350,6 +351,29 @@ export class DbService {
     );
     if (changed > 0) this.dataChanged();
     return changed;
+  }
+
+  /** Las cuentas por nombre, con cuántos movimientos tiene cada una. */
+  accounts(signal?: AbortSignal): Promise<readonly AccountRow[]> {
+    return this.call((c) => c.call('accounts', undefined, { signal }));
+  }
+
+  async createAccount(account: NewAccount): Promise<number> {
+    const id = await this.call((c) => c.call('createAccount', account));
+    this.dataChanged();
+    return id;
+  }
+
+  /** Renombra la cuenta; el nombre nuevo se ve en todos sus movimientos. */
+  async updateAccount(update: AccountUpdate): Promise<void> {
+    await this.call((c) => c.call('updateAccount', update));
+    this.dataChanged();
+  }
+
+  /** Elimina una cuenta sin movimientos ni extractos. */
+  async deleteAccount(id: number): Promise<void> {
+    await this.call((c) => c.call('deleteAccount', { id }));
+    this.dataChanged();
   }
 
   /** Las reglas de concepto, en el orden en que se aplican. */

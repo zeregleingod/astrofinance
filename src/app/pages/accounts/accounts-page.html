@@ -1,0 +1,211 @@
+<header class="page-header">
+  <h2>{{ texts.accounts.title }}</h2>
+</header>
+
+@if (!db.ready()) {
+  @if (db.status() === 'error') {
+    <p class="panel error" role="alert">
+      <mat-icon fontIcon="error" aria-hidden="true" />
+      {{ texts.accounts.loadError }}
+    </p>
+  } @else {
+    <p class="panel" role="status">{{ texts.accounts.loading }}</p>
+  }
+} @else {
+  <section class="panel" aria-labelledby="new-account-title">
+    <div class="title-row">
+      <h3 id="new-account-title">{{ texts.accounts.newTitle }}</h3>
+      <app-info-button
+        infoId="new-account-info"
+        [topic]="texts.accounts.newTitle"
+        [text]="texts.accounts.intro"
+        [(open)]="introOpen"
+      />
+    </div>
+
+    <form class="fields" [formRoot]="accountForm">
+      <!-- Los bancos: un grupo de opciones que se recorre con las flechas. -->
+      <fieldset
+        class="banks"
+        [attr.aria-invalid]="showBankError()"
+        [attr.aria-describedby]="showBankError() ? 'account-bank-error' : null"
+      >
+        <legend>{{ texts.accounts.bank }}</legend>
+        <div class="bank-options">
+          @for (bank of banks; track bank) {
+            <label class="bank-option">
+              <input type="radio" [value]="bank" [formField]="accountForm.institution" />
+              <span class="bank-name">{{ bank }}</span>
+              <mat-icon class="check" fontIcon="check_circle" aria-hidden="true" />
+            </label>
+          }
+        </div>
+      </fieldset>
+      <label class="field wide">
+        <span>{{ texts.accounts.name }}</span>
+        <input
+          type="text"
+          autocomplete="off"
+          [placeholder]="texts.accounts.namePlaceholder"
+          [formField]="accountForm.name"
+          [attr.aria-invalid]="showNameError()"
+          [attr.aria-describedby]="showNameError() ? 'account-name-error' : null"
+        />
+      </label>
+      <button mat-flat-button type="submit" [disabled]="accountForm().submitting()">
+        <mat-icon fontIcon="add" aria-hidden="true" />
+        {{ texts.accounts.add }}
+      </button>
+    </form>
+
+    @if (showBankError()) {
+      <p id="account-bank-error" class="alert">
+        @for (problem of accountForm.institution().errors(); track problem.kind) {
+          {{ problem.message }}
+        }
+      </p>
+    }
+    @if (showNameError()) {
+      <p id="account-name-error" class="alert">
+        @for (problem of accountForm.name().errors(); track problem.kind) {
+          {{ problem.message }}
+        }
+      </p>
+    }
+    @if (error(); as message) {
+      <p class="alert" role="alert">{{ message }}</p>
+    }
+    <p class="done" role="status">
+      @if (notice(); as message) {
+        <mat-icon fontIcon="check_circle" aria-hidden="true" />
+        {{ message }}
+      }
+    </p>
+  </section>
+
+  @if (db.mode() === 'local') {
+    <p class="hint warning memory-warning">{{ texts.imports.memoryOnly }}</p>
+  }
+
+  <section aria-labelledby="account-list-title">
+    <h3 id="account-list-title" class="list-title" tabindex="-1">
+      {{ texts.accounts.list }} <span class="count">({{ accounts().length }})</span>
+    </h3>
+
+    @if (accounts().length === 0) {
+      <p class="panel hint">{{ texts.accounts.empty }}</p>
+    } @else {
+      <ul class="grid">
+        @for (account of accounts(); track account.id) {
+          @let used = account.transactionCount > 0;
+          <li class="card" [class.editing]="isEditing(account)">
+            <div class="head">
+              <!-- Editando, el distintivo sigue al banco elegido en el formulario. -->
+              @let shownBank =
+                isEditing(account) ? rowForm.institution().value() : account.institution;
+              <span class="badge" aria-hidden="true">{{ initials(shownBank) }}</span>
+              <div class="title-block">
+                @if (isEditing(account)) {
+                  <p class="bank">{{ account.institution ?? texts.accounts.noBank }}</p>
+                } @else {
+                  <h4 class="name">{{ account.name }}</h4>
+                  <p class="bank">{{ account.institution ?? texts.accounts.noBank }}</p>
+                  @if (account.ibanLast4) {
+                    <p class="iban">{{ texts.accounts.ibanEnding }} {{ account.ibanLast4 }}</p>
+                  }
+                }
+              </div>
+            </div>
+
+            @if (isEditing(account)) {
+              <form class="editor" [formRoot]="rowForm" (keydown.escape)="cancelEdit()">
+                <label class="field">
+                  <span>{{ texts.accounts.name }}</span>
+                  <input
+                    type="text"
+                    autocomplete="off"
+                    [formField]="rowForm.name"
+                    [attr.aria-invalid]="showRowError()"
+                    [attr.aria-describedby]="showRowError() ? 'account-row-error' : null"
+                  />
+                </label>
+                <label class="field">
+                  <span>{{ texts.accounts.bank }}</span>
+                  <select
+                    [formField]="rowForm.institution"
+                    [attr.aria-describedby]="used ? 'account-bank-locked' : null"
+                  >
+                    <option value="" disabled>{{ texts.accounts.bankPlaceholder }}</option>
+                    @for (bank of banksFor(account); track bank) {
+                      <option [value]="bank">{{ bank }}</option>
+                    }
+                  </select>
+                </label>
+                @if (used) {
+                  <p id="account-bank-locked" class="hint small">
+                    <mat-icon fontIcon="lock" aria-hidden="true" />
+                    {{ texts.accounts.bankLocked }}
+                  </p>
+                }
+                @if (showRowError()) {
+                  <p id="account-row-error" class="alert">
+                    @for (problem of rowForm.name().errors(); track problem.kind) {
+                      {{ problem.message }}
+                    }
+                    @for (problem of rowForm.institution().errors(); track problem.kind) {
+                      {{ problem.message }}
+                    }
+                  </p>
+                }
+                <div class="foot">
+                  <button mat-button type="button" (click)="cancelEdit()">
+                    {{ texts.accounts.cancelEdit }}
+                  </button>
+                  <button mat-flat-button type="submit" [disabled]="rowForm().submitting()">
+                    <mat-icon fontIcon="check" aria-hidden="true" />
+                    {{ texts.accounts.save }}
+                  </button>
+                </div>
+              </form>
+            } @else {
+              <p class="movements" [class.unused]="!used">
+                <mat-icon fontIcon="receipt_long" aria-hidden="true" />
+                {{ movements(account) }}
+              </p>
+              <div class="foot">
+                <button
+                  mat-button
+                  type="button"
+                  class="edit"
+                  [id]="'edit-account-' + account.id"
+                  [attr.aria-label]="texts.accounts.edit + ': ' + account.name"
+                  (click)="edit(account)"
+                >
+                  <mat-icon fontIcon="edit" aria-hidden="true" />
+                  {{ texts.accounts.edit }}
+                </button>
+                <button
+                  mat-button
+                  type="button"
+                  class="delete"
+                  disabledInteractive
+                  [disabled]="used"
+                  [attr.aria-label]="
+                    used
+                      ? texts.accounts.deleteBlocked + ' ' + account.name
+                      : texts.accounts.delete + ': ' + account.name
+                  "
+                  [title]="used ? texts.accounts.deleteBlocked : ''"
+                  (click)="remove(account)"
+                >
+                  <mat-icon fontIcon="delete" aria-hidden="true" />
+                  {{ texts.accounts.delete }}
+                </button>
+              </div>
+            }
+          </li>
+        }
+      </ul>
+    }
+  </section>
+}

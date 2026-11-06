@@ -134,22 +134,25 @@ thead th {
   width: 132px;
 }
 
+// Cabe «-12.345,67 €».
 .col-amount {
-  width: 108px;
+  width: 112px;
 }
 
 // Columnas de texto libre: se reparten el resto y recortan con «…». La descripción es lo que se
-// lee primero: se queda con todo el ancho que sobra. Las observaciones, cortas, con poco.
+// lee primero: se queda con todo el ancho que sobra. La cuenta, junto a la fecha, cabe entera con
+// un nombre habitual («Cuenta principal»); la categoría, con su subcategoría; las observaciones,
+// cortas, con poco.
+.col-account {
+  width: 13%;
+}
+
 .col-category {
   width: 16%;
 }
 
-.col-account {
-  width: 10%;
-}
-
 .col-notes {
-  width: 10%;
+  width: 9%;
 }
 
 // .col-description: el ancho restante.

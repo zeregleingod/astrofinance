@@ -24,7 +24,7 @@
     </div>
 
     <form class="fields" [formRoot]="accountForm">
-      <!-- Los bancos: un grupo de opciones que se recorre con las flechas. -->
+      <!-- Los bancos, con su logotipo: un grupo de opciones que se recorre con las flechas. -->
       <fieldset
         class="banks"
         [attr.aria-invalid]="showBankError()"
@@ -35,6 +35,9 @@
           @for (bank of banks; track bank) {
             <label class="bank-option">
               <input type="radio" [value]="bank" [formField]="accountForm.institution" />
+              @if (logoFor(bank); as logo) {
+                <img class="logo" [src]="logo" alt="" width="32" height="32" />
+              }
               <span class="bank-name">{{ bank }}</span>
               <mat-icon class="check" fontIcon="check_circle" aria-hidden="true" />
             </label>
@@ -100,10 +103,14 @@
           @let used = account.transactionCount > 0;
           <li class="card" [class.editing]="isEditing(account)">
             <div class="head">
-              <!-- Editando, el distintivo sigue al banco elegido en el formulario. -->
+              <!-- Editando, el logotipo sigue al banco elegido en el formulario. -->
               @let shownBank =
                 isEditing(account) ? rowForm.institution().value() : account.institution;
-              <span class="badge" aria-hidden="true">{{ initials(shownBank) }}</span>
+              @if (logoFor(shownBank); as logo) {
+                <img class="badge logo" [src]="logo" alt="" width="48" height="48" />
+              } @else {
+                <span class="badge" aria-hidden="true">{{ initials(shownBank) }}</span>
+              }
               <div class="title-block">
                 @if (isEditing(account)) {
                   <p class="bank">{{ account.institution ?? texts.accounts.noBank }}</p>

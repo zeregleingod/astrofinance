@@ -24,9 +24,14 @@ las cuentas que el usuario cree; para eso primero hace falta poder crearlas.
   no tiene movimientos, porque con él se reconocen sus extractos al importar.
 - **Eliminar:** solo se puede eliminar una cuenta sin movimientos ni extractos importados, y
   siempre tras confirmarlo. Con movimientos, el botón queda desactivado y explica por qué.
-- **Selección del banco:** al dar de alta, el banco se elige en una rejilla de tarjetas con su
-  nombre (botones de opción: se recorren con las flechas). La elegida se marca con borde, tinte y
-  una marca, no solo con color. No se usan logotipos de los bancos: son marcas de terceros.
+- **Logotipos de los bancos:** cada banco que se ofrece tiene su logotipo en `public/banks/<id>.webp`,
+  con el identificador de su perfil de importación (`bankLogo`). Cada logotipo es marca de su banco
+  y aquí solo identifica la entidad. Se sirven desde la propia app (`img-src 'self'`), sin pedir
+  nada fuera. Al dar de alta, el banco se elige en una rejilla de tarjetas con su logotipo
+  (botones de opción: se recorren con las flechas). La elegida se marca con borde, tinte y una
+  marca, no solo con color. El logotipo va con `alt=""` porque el nombre del banco está al lado.
+  En cada ficha, el logotipo sustituye a las iniciales; un banco sin logotipo (el de la demo, por
+  ejemplo) sigue con sus iniciales.
 - **Diseño:** el panel de alta es como en las demás pantallas de Configuración. Debajo, una ficha
   por cuenta en tres columnas (dos en pantallas medianas y una en móvil), con el estilo de las
   fichas de movimientos (ADR-0023). Cada ficha lleva un distintivo con las iniciales del banco, el
@@ -37,8 +42,7 @@ las cuentas que el usuario cree; para eso primero hace falta poder crearlas.
 
 ## Consecuencias
 
-- Una cuenta creada a mano todavía **no recibe** los movimientos de un extracto. La importación
-  sigue buscando la cuenta por banco y final del IBAN, y si no la encuentra crea otra. El enlace
-  entre extractos y cuentas es el siguiente paso.
+- ~~Una cuenta creada a mano todavía no recibe los movimientos de un extracto.~~ Resuelto en
+  ADR-0035: al importar se elige la cuenta, y la importación ya no crea cuentas ni las numera.
 - Un banco que no se sabe importar todavía no se puede elegir. Las cuentas antiguas que tienen otro
   banco (las de la demo, por ejemplo) lo conservan y lo enseñan.

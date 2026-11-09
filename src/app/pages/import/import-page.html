@@ -14,16 +14,47 @@
 
   @switch (step()) {
     @case ('elegir') {
-      <section class="panel">
-        <p>{{ texts.imports.intro }}</p>
-        <p class="hint">{{ texts.imports.banks }} {{ banks }}. {{ texts.imports.formats }}</p>
-        <input #file hidden type="file" accept=".xls,.xlsx,.csv" (change)="choose(file)" />
-        <button mat-flat-button type="button" (click)="file.click()">
-          <mat-icon fontIcon="upload_file" aria-hidden="true" />
-          {{ texts.imports.choose }}
-        </button>
-        <p class="hint warning">{{ texts.imports.memoryOnly }}</p>
-      </section>
+      @if (accounts.loaded() && accounts.account() === null) {
+        <!-- Sin ninguna cuenta a la que subirlo, los primeros pasos (ADR-0035). -->
+        <app-getting-started page="import" />
+      } @else {
+        <section class="panel">
+          <p>{{ texts.imports.intro }}</p>
+          <p class="hint">{{ texts.imports.banks }} {{ banks }}. {{ texts.imports.formats }}</p>
+          @if (accounts.account(); as current) {
+            <div class="target">
+              <label for="import-account">{{ texts.imports.target }}</label>
+              <select
+                #picker
+                id="import-account"
+                aria-describedby="import-account-hint"
+                (change)="accounts.select(+picker.value)"
+              >
+                @for (account of accounts.accounts(); track account.id) {
+                  <option [value]="account.id" [selected]="account.id === current.id">
+                    {{ account.name }}
+                    @if (account.institution) {
+                      ({{ account.institution }})
+                    }
+                  </option>
+                }
+              </select>
+              <p id="import-account-hint" class="hint">{{ texts.imports.targetHint }}</p>
+            </div>
+          }
+          <input #file hidden type="file" accept=".xls,.xlsx,.csv" (change)="choose(file)" />
+          <button
+            mat-flat-button
+            type="button"
+            [disabled]="accounts.account() === null"
+            (click)="file.click()"
+          >
+            <mat-icon fontIcon="upload_file" aria-hidden="true" />
+            {{ texts.imports.choose }}
+          </button>
+          <p class="hint warning">{{ texts.imports.memoryOnly }}</p>
+        </section>
+      }
     }
 
     @case ('leyendo') {
@@ -45,12 +76,16 @@
             }
           </h3>
           <p class="hint">
-            {{ texts.imports.account }}: {{ current.institution }}
+            {{ texts.imports.account }}: <strong>{{ target()?.name }}</strong> —
+            {{ texts.imports.statementBank }}: {{ current.institution }}
             @if (current.ibanLast4) {
               ·{{ current.ibanLast4 }}
             }
             — {{ texts.imports.file }}: {{ current.fileName }}
           </p>
+          @if (bankMismatch()) {
+            <p class="hint warning" role="status">{{ texts.imports.bankMismatch }}</p>
+          }
 
           <dl class="summary" [attr.aria-label]="texts.imports.summary">
             <div>

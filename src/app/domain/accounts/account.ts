@@ -18,6 +18,14 @@ export const ACCOUNT_BANKS: readonly string[] = [
   ...new Set(BANK_PROFILES.map((profile) => profile.institution)),
 ].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
 
+/**
+ * El logotipo de un banco: el identificador de su perfil de importación, que es también el
+ * nombre de su imagen (`public/banks/<id>.webp`). `null` si no se sabe importar.
+ */
+export function bankLogo(institution: string | null): string | null {
+  return BANK_PROFILES.find((profile) => profile.institution === institution)?.id ?? null;
+}
+
 /** Una cuenta tal como se lista. */
 export interface AccountRow {
   readonly id: number;
@@ -96,6 +104,17 @@ export function accountError(
   if (institution === '') return 'banco-vacio';
   if (institution.length > INSTITUTION_MAX) return 'banco-largo';
   return null;
+}
+
+/**
+ * La cuenta con la que se trabaja (ADR-0035): la pedida si sigue existiendo o, si no, la primera
+ * de la lista. `null` si no hay ninguna.
+ */
+export function resolveAccount<T extends Pick<AccountRow, 'id'>>(
+  requestedId: number | null,
+  accounts: readonly T[],
+): T | null {
+  return accounts.find((account) => account.id === requestedId) ?? accounts[0] ?? null;
 }
 
 /** Para comparar nombres: sin mayúsculas, acentos ni espacios repetidos. */

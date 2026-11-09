@@ -25,6 +25,50 @@ export const ES = {
   quickActions: {
     label: 'Accesos rápidos',
   },
+  /** La cuenta con la que se trabaja (ADR-0035), en la barra lateral y al importar. */
+  accountPicker: {
+    label: 'Cuenta',
+    change: 'Cambiar de cuenta. Ahora:',
+    empty: 'Ninguna todavía',
+    emptyTooltip: 'Ninguna cuenta todavía',
+  },
+  /** Primeros pasos: el Resumen, el Resumen anual y Movimientos sin nada que enseñar (ADR-0035). */
+  gettingStarted: {
+    eyebrow: 'Primeros pasos',
+    steps: 'Pasos para empezar',
+    titles: {
+      month: 'Crea tu primera cuenta para ver el resumen del mes',
+      year: 'Tu año, mes a mes, empieza con una cuenta',
+      transactions: 'Crea tu primera cuenta para ver sus movimientos',
+      import: 'Crea tu primera cuenta para importar sus extractos',
+    },
+    intros: {
+      month:
+        'Aquí verás tus ingresos, gastos y ahorro por categoría. Todo en AstroFinance va por cuenta: el resumen es siempre el de la cuenta que elijas.',
+      year: 'Aquí verás cada categoría en los doce meses del año, como en tu hoja de cálculo. La hoja es siempre la de la cuenta que elijas.',
+      transactions:
+        'Aquí verás cada movimiento con su categoría, y podrás buscarlos, dividirlos o vincular devoluciones. La lista es siempre la de la cuenta que elijas.',
+      import:
+        'Cada extracto se guarda en una cuenta: así el resumen y los movimientos de cada una van por separado. Crea primero la cuenta del banco del que descargas el extracto.',
+    },
+    readyTitle: '«{name}» está lista para su primer extracto',
+    readyIntroBank:
+      'Importa el extracto que descargas de {bank}. Antes de guardar podrás revisar cada movimiento: hasta que confirmes no se guarda nada.',
+    readyIntro:
+      'Importa el extracto que descargas de tu banco. Antes de guardar podrás revisar cada movimiento: hasta que confirmes no se guarda nada.',
+    step1Title: 'Crea la cuenta',
+    step1Text: 'Solo el banco y un nombre, como «Cuenta nómina».',
+    step1Done: 'Cuenta creada',
+    step1DoneBank: '{name}, de {bank}.',
+    doneLabel: 'hecho',
+    step2Title: 'Importa su extracto',
+    step2Text: 'El .xls, .xlsx o .csv que descargas de tu banco.',
+    step3Title: 'Revisa tu mes',
+    step3Text: 'Corrige categorías y conceptos antes de guardar.',
+    ctaCreate: 'Crear mi primera cuenta',
+    ctaImport: 'Importar el primer extracto',
+    privacy: 'Tus datos no salen de este navegador.',
+  },
   dashboard: {
     title: 'Resumen',
     empty: 'Todavía no hay movimientos.',
@@ -149,6 +193,10 @@ export const ES = {
     reorderHint:
       'Arrastra la cabecera o pulsa Alt + flecha izquierda o derecha para mover la columna.',
     columnPosition: 'columna',
+    columnWidth: 'Ancho de la columna',
+    resizeHint:
+      'Con las flechas cambia el ancho de la columna; con Inicio, o con doble clic en el borde, vuelven los anchos de siempre.',
+    widthsReset: 'Anchos de las columnas restablecidos.',
     edit: {
       open: 'Editar movimiento',
       actions: 'Acciones',
@@ -255,6 +303,11 @@ export const ES = {
     intro:
       'Elige el extracto mensual que has descargado de tu banco. Podrás revisar y corregir los movimientos antes de guardarlos: hasta que pulses «Guardar» no se guarda nada.',
     banks: 'Bancos admitidos:',
+    target: 'Cuenta de destino',
+    targetHint: 'Los movimientos del extracto se guardarán en esta cuenta.',
+    statementBank: 'Banco del extracto',
+    bankMismatch:
+      'El extracto es de otro banco que la cuenta elegida. Comprueba que es la cuenta correcta antes de guardar.',
     formats: 'Formatos: .xls, .xlsx y .csv.',
     choose: 'Elegir fichero',
     reading: 'Leyendo el extracto…',
@@ -333,7 +386,7 @@ export const ES = {
     loadError: 'No se han podido cargar las cuentas.',
     newTitle: 'Nueva cuenta',
     intro:
-      'Cada cuenta es de un banco y tiene un nombre, que es el que verás en sus movimientos. Al importar el extracto de una cuenta que todavía no está aquí, se crea sola con el nombre del banco; luego puedes cambiárselo.',
+      'Cada cuenta es de un banco y tiene un nombre, que es el que verás en sus movimientos. Para importar un extracto, primero crea aquí su cuenta y elígela al importar o en el menú lateral: el resumen y los movimientos son siempre los de la cuenta elegida.',
     bank: 'Banco',
     bankPlaceholder: 'Elige un banco',
     name: 'Nombre',
@@ -343,7 +396,7 @@ export const ES = {
     saved: 'Cuenta guardada:',
     deleted: 'Cuenta eliminada:',
     list: 'Tus cuentas',
-    empty: 'Todavía no hay ninguna cuenta. Crea una arriba o importa un extracto.',
+    empty: 'Todavía no hay ninguna cuenta. Crea una arriba para poder importar sus extractos.',
     noBank: 'Sin banco',
     ibanEnding: 'IBAN acabado en',
     noMovements: 'Sin movimientos',

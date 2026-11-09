@@ -117,7 +117,12 @@
     }
   }
 } @else {
-  <app-empty-state [status]="db.status()" />
+  <app-empty-state
+    [status]="db.status()"
+    page="month"
+    [noAccount]="accounts.loaded() && accounts.account() === null"
+    [account]="accounts.account()"
+  />
 }
 
 <!-- Una tarjeta: una categoría o lo que no tiene categoría. -->

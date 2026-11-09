@@ -7,6 +7,7 @@ import type {
   ImportBatchResult,
   ImportRowInput,
 } from '@domain/imports/import-batch';
+import { AccountError } from '@domain/accounts/account';
 import type { SqlDb } from '../sql-db';
 import { LOCALIZED_CATEGORIES, type CategoryLanguage } from './category-names';
 
@@ -52,12 +53,14 @@ export function existingDedupeHashes(db: SqlDb, hashes: readonly string[]): stri
 }
 
 /**
- * Guarda un lote revisado (T6.5) en una única transacción: da de alta la cuenta si es la
- * primera vez que se ve, registra el lote y añade los movimientos nuevos. Los que ya estaban
- * guardados se cuentan como duplicados y no se tocan.
+ * Guarda un lote revisado (T6.5) en una única transacción, en la cuenta que eligió el usuario
+ * (ADR-0035): registra el lote y añade los movimientos nuevos. Los que ya estaban guardados se
+ * cuentan como duplicados y no se tocan. Si la cuenta aún no sabía el final de su IBAN o su saldo
+ * inicial, los toma del extracto.
  */
 export function commitImport(db: SqlDb, batch: ImportBatchInput): ImportBatchResult {
   return db.transaction(() => {
+    const account = requireImportAccount(db, batch.accountId);
     const known = new Set(
       existingDedupeHashes(
         db,
@@ -67,10 +70,9 @@ export function commitImport(db: SqlDb, batch: ImportBatchInput): ImportBatchRes
     const rows = batch.rows.filter((row) => !known.has(row.dedupeHash));
     const duplicates = batch.duplicateCount + known.size;
     if (rows.length === 0) {
-      const accountName = findAccount(db, batch)?.name ?? defaultAccountName(batch);
-      return { inserted: 0, duplicates, accountName, periods: [] };
+      return { inserted: 0, duplicates, accountName: account.name, periods: [] };
     }
-    const account = findAccount(db, batch) ?? createAccount(db, batch, rows);
+    completeAccount(db, account.id, batch, rows);
 
     db.run(
       `INSERT INTO import_batches (account_id, bank_profile, file_name, file_sha256, date_from,
@@ -134,48 +136,31 @@ interface Account {
   readonly name: string;
 }
 
-/** La cuenta del extracto: misma entidad y mismos cuatro últimos dígitos del IBAN. */
-export function findAccount(
-  db: SqlDb,
-  batch: Pick<ImportBatchInput, 'institution' | 'ibanLast4'>,
-): Account | undefined {
-  const [existing] = db.rows(
-    'SELECT id, name FROM accounts WHERE institution = ? AND iban_last4 IS ? ORDER BY id LIMIT 1',
-    [batch.institution, batch.ibanLast4],
-  );
-  return existing && { id: Number(existing['id']), name: String(existing['name']) };
+/** La cuenta elegida para el extracto; si se ha eliminado mientras se revisaba, falla. */
+function requireImportAccount(db: SqlDb, id: number): Account {
+  const [row] = db.rows('SELECT id, name FROM accounts WHERE id = ?', [id]);
+  if (!row) throw new AccountError('cuenta-inexistente');
+  return { id: Number(row['id']), name: String(row['name']) };
 }
-
-const defaultAccountName = (batch: ImportBatchInput) =>
-  batch.ibanLast4 ? `${batch.institution} ·${batch.ibanLast4}` : batch.institution;
 
 /**
- * El nombre por defecto, o con « (2)», « (3)»… si el usuario ya ha llamado así a otra cuenta en
- * Configuración › Cuentas: los nombres no se repiten.
+ * Lo que la cuenta todavía no sabía y da el extracto: el final del IBAN y, en su primera
+ * importación, el saldo anterior al extracto y su fecha. Lo que ya tenía no se cambia.
  */
-function freeName(db: SqlDb, base: string): string {
-  const taken = (name: string) =>
-    db.value('SELECT 1 FROM accounts WHERE name = ?', [name]) !== undefined;
-  let name = base;
-  for (let n = 2; taken(name); n++) name = `${base} (${n})`;
-  return name;
-}
-
-/** Primera importación de una cuenta: se da de alta con el saldo anterior al extracto. */
-function createAccount(
+function completeAccount(
   db: SqlDb,
+  accountId: number,
   batch: ImportBatchInput,
   rows: readonly ImportRowInput[],
-): Account {
-  const name = freeName(db, defaultAccountName(batch));
+): void {
   const openingDate = rows.map((row) => row.opDate).sort()[0] ?? batch.dateFrom;
   db.run(
-    `INSERT INTO accounts (name, institution, kind, iban_last4, opening_balance_cents,
-       opening_date)
-     VALUES (?, ?, 'corriente', ?, ?, ?)`,
-    [name, batch.institution, batch.ibanLast4, batch.openingBalanceCents ?? 0, openingDate],
+    `UPDATE accounts SET iban_last4 = coalesce(iban_last4, ?),
+       opening_balance_cents = CASE WHEN opening_date IS NULL THEN ? ELSE opening_balance_cents END,
+       opening_date = coalesce(opening_date, ?)
+     WHERE id = ?`,
+    [batch.ibanLast4, batch.openingBalanceCents ?? 0, openingDate, accountId],
   );
-  return { id: db.lastInsertId(), name };
 }
 
 /** Los parámetros llegan de otro hilo: se comprueba su forma antes de tocar la BD. */
@@ -183,7 +168,10 @@ export function importBatchParam(params: unknown): ImportBatchInput {
   const batch = record(params);
   const rows = batch['rows'];
   if (!Array.isArray(rows) || rows.length > MAX_ROWS) throw invalid('rows');
+  const accountId = batch['accountId'];
+  if (!isId(accountId)) throw invalid('accountId');
   return {
+    accountId: accountId as number,
     profileId: text(batch, 'profileId', 40),
     institution: text(batch, 'institution', 80),
     ibanLast4: nullable(batch, 'ibanLast4', (v) => typeof v === 'string' && /^\d{4}$/.test(v)),

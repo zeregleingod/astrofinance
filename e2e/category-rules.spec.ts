@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { expect, movements, openDemo, startEmpty, test } from './fixtures';
+import { expect, movements, openDemo, startWithAccount, test } from './fixtures';
 
 const STATEMENT = 'e2e/fixtures/sabadell-enero-2026.xls';
 const TOTAL = 44;
@@ -29,7 +29,7 @@ async function addRule(page: Page, operator: string, pattern: string, category: 
 }
 
 test('crear reglas, ver los cambios, cancelar y después confirmar', async ({ page }) => {
-  await startEmpty(page, '/importar');
+  await startWithAccount(page);
   await page.locator('main input[type="file"]').setInputFiles(STATEMENT);
   await page.getByRole('button', { name: `Guardar (${TOTAL})` }).click();
   await expect(page.getByText(`Movimientos guardados: ${TOTAL}.`)).toBeVisible();

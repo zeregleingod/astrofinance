@@ -131,28 +131,28 @@ thead th {
 // Columnas de contenido corto: ancho fijo para que nunca se recorten.
 // Caben la fecha y el icono de fecha modificada.
 .col-bookedDate {
-  width: 132px;
+  width: var(--col-bookedDate-width, 132px);
 }
 
 // Cabe «-12.345,67 €».
 .col-amount {
-  width: 112px;
+  width: var(--col-amount-width, 112px);
 }
 
 // Columnas de texto libre: se reparten el resto y recortan con «…». La descripción es lo que se
-// lee primero: se queda con todo el ancho que sobra. La cuenta, junto a la fecha, cabe entera con
-// un nombre habitual («Cuenta principal»); la categoría, con su subcategoría; las observaciones,
-// cortas, con poco.
+// lee primero: se queda con todo el ancho que sobra. La cuenta, que es siempre la elegida
+// (ADR-0035), con poco; la categoría, con su subcategoría; las observaciones, con algo más que la
+// cuenta. Son los anchos de siempre: el usuario los cambia arrastrando los bordes (ADR-0036).
 .col-account {
-  width: 13%;
+  width: var(--col-account-width, 10%);
 }
 
 .col-category {
-  width: 16%;
+  width: var(--col-category-width, 16%);
 }
 
 .col-notes {
-  width: 9%;
+  width: var(--col-notes-width, 14%);
 }
 
 // .col-description: el ancho restante.
@@ -249,6 +249,50 @@ th {
 // Cabeceras arrastrables para reordenar las columnas.
 th.cdk-drag {
   cursor: grab;
+}
+
+// El borde derecho de cada cabecera cambia el ancho de la columna (ADR-0036). La zona que se
+// agarra es más ancha que la línea que se ve, que solo aparece al pasar por encima o con el foco.
+.resize {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 10px;
+  cursor: col-resize;
+  touch-action: none;
+
+  &::after {
+    content: '';
+    position: absolute;
+    top: 6px;
+    right: 3px;
+    bottom: 6px;
+    width: 2px;
+    border-radius: 1px;
+    background: var(--mat-sys-outline-variant);
+    opacity: 0;
+  }
+
+  &:hover::after,
+  &:focus-visible::after {
+    opacity: 1;
+    background: var(--mat-sys-primary);
+  }
+
+  &:focus-visible {
+    outline: none;
+  }
+}
+
+// Sin pasar por encima, una línea tenue marca dónde se puede agarrar.
+thead:hover .resize::after {
+  opacity: 1;
+}
+
+:host(.resizing) {
+  cursor: col-resize;
+  user-select: none;
 }
 
 th.cdk-drag-preview {

@@ -6,6 +6,7 @@ import { MatListModule } from '@angular/material/list';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { TEXTS } from '@ui/texts';
+import { AccountPicker } from './account-picker';
 import { DemoBanner } from './demo-banner';
 import { ExitButton } from './exit-button';
 import { PreferenceButtons } from './preference-buttons';
@@ -13,7 +14,8 @@ import { buildNavItems, groupNavItems } from './nav-items';
 import { DbService } from '@services/db/db-service';
 
 /**
- * Barra lateral: marca, accesos rápidos (los que se proyecten, el modo oscuro y el idioma), una entrada por
+ * Barra lateral: marca, accesos rápidos (los que se proyecten, el modo oscuro y el idioma), la
+ * cuenta con la que se trabaja (ADR-0035), una entrada por
  * sección (agrupadas en apartados) y, al pie, la salida (la de la demo, con su aviso, o «Salir») y
  * la política de privacidad.
  * En escritorio se pliega a una franja con solo los iconos; sus nombres salen al pasar por
@@ -23,6 +25,7 @@ import { DbService } from '@services/db/db-service';
   selector: 'app-sidebar',
   host: { '[class.collapsed]': 'collapsed()' },
   imports: [
+    AccountPicker,
     DemoBanner,
     ExitButton,
     PreferenceButtons,
@@ -61,6 +64,8 @@ import { DbService } from '@services/db/db-service';
       <ng-content />
       <app-preference-buttons />
     </div>
+    <!-- La cuenta con la que se trabaja (ADR-0035). -->
+    <app-account-picker [rail]="collapsed()" />
     <nav id="main-nav" [attr.aria-label]="texts.nav.label">
       @for (section of sections(); track section.label) {
         <p class="section-label" aria-hidden="true">{{ section.label ?? texts.nav.section }}</p>

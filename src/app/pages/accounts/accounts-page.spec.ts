@@ -14,8 +14,13 @@ describe('AccountsPage', () => {
     });
     const db = TestBed.inject(DbService);
     await db.openLocal();
-    // Una cuenta con movimientos, como la que crea la importación.
+    // Una cuenta con movimientos: el extracto se sube a ella y le da el final del IBAN.
+    const accountId = await db.createAccount({
+      name: 'Banco Demo ·1234',
+      institution: 'Banco Demo',
+    });
     await db.commitImport({
+      accountId,
       profileId: 'demo',
       institution: 'Banco Demo',
       ibanLast4: '1234',
@@ -85,11 +90,12 @@ describe('AccountsPage', () => {
       control.dispatchEvent(new Event('change', { bubbles: true }));
       await fixture.whenStable();
     };
-    /** Los nombres de las opciones de banco del alta. */
+    /** Las opciones de banco del alta como [nombre, imagen del logotipo]. */
     const bankOptions = () =>
-      [...element.querySelectorAll('.bank-option')].map((option) =>
+      [...element.querySelectorAll('.bank-option')].map((option) => [
         text(option.querySelector('.bank-name')),
-      );
+        option.querySelector('img')?.getAttribute('src'),
+      ]);
     const pickBank = async (bank: string) => {
       const option = [...element.querySelectorAll('.bank-option')].find(
         (o) => text(o.querySelector('.bank-name')) === bank,
@@ -139,10 +145,13 @@ describe('AccountsPage', () => {
     ]);
   });
 
-  it('ofrece para una cuenta nueva los bancos que se saben importar', async () => {
+  it('ofrece para una cuenta nueva los bancos que se saben importar, con su logotipo', async () => {
     const { bankOptions, pickBank, element } = await setup();
-    expect(bankOptions()).toContain('Banc Sabadell');
-    expect(bankOptions()).toContain('ING');
+    expect(bankOptions()).toContainEqual(['Banc Sabadell', 'banks/sabadell.webp']);
+    expect(bankOptions()).toContainEqual(['ING', 'banks/ing.webp']);
+    expect(bankOptions().every(([, logo]) => logo?.startsWith('banks/'))).toBe(true);
+    // El logotipo acompaña al nombre: no se lee dos veces.
+    expect(element.querySelector('.bank-option img')?.getAttribute('alt')).toBe('');
 
     await pickBank('ING');
     const checked = [...element.querySelectorAll<HTMLInputElement>('.bank-option input')]
@@ -151,11 +160,15 @@ describe('AccountsPage', () => {
     expect(checked).toEqual(['ING']);
   });
 
-  it('enseña las iniciales del banco de cada cuenta', async () => {
+  it('enseña el logotipo del banco de cada cuenta y, si no lo tiene, sus iniciales', async () => {
     const { add, settled, card } = await setup();
     expect(text(card('Banco Demo ·1234').querySelector('.badge'))).toBe('BD');
     await add('BBVA', 'Ahorro');
-    await settled(() => expect(text(card('Ahorro').querySelector('.badge'))).toBe('BB'));
+    await settled(() =>
+      expect(card('Ahorro').querySelector('img.badge')?.getAttribute('src')).toBe(
+        'banks/bbva.webp',
+      ),
+    );
   });
 
   it('da de alta una cuenta con su banco y su nombre', async () => {

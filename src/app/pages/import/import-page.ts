@@ -4,8 +4,10 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatProgressBarModule } from '@angular/material/progress-bar';
 import { RouterLink } from '@angular/router';
 import { TEXTS } from '@ui/texts';
+import { AccountSelection } from '@services/accounts/account-selection';
 import { DbService } from '@services/db/db-service';
 import { StatementReader } from '@services/import/statement-reader';
+import type { AccountRow } from '@domain/accounts/account';
 import { BANK_PROFILES } from '@domain/imports/bank-profiles';
 import { statementErrorCode } from '@domain/imports/bank-statement';
 import type { CategoryOption, ImportBatchResult } from '@domain/imports/import-batch';
@@ -24,6 +26,7 @@ import {
 import { statementPeriod, type ImportedStatement } from '@domain/imports/imported-statement';
 import { centsToInput } from '@domain/money/parse-cents';
 import type { CategorySuggestion } from '@domain/suggestions/category-suggestion';
+import { GettingStarted } from '@ui/getting-started/getting-started';
 import { IsoDatePipe } from '@ui/format/iso-date-pipe';
 import { PeriodLabelPipe } from '@ui/format/period-label-pipe';
 
@@ -69,12 +72,14 @@ const SUGGESTION_LABELS: Readonly<
 };
 
 /**
- * Importación de un extracto bancario (T6.4–T6.5): elegir el fichero, revisar y corregir los
- * movimientos en una tabla editable y guardarlos. Hasta que se confirma no se escribe nada.
+ * Importación de un extracto bancario (T6.4–T6.5): elegir la cuenta a la que se sube (ADR-0035)
+ * y el fichero, revisar y corregir los movimientos en una tabla editable y guardarlos. Hasta que
+ * se confirma no se escribe nada.
  */
 @Component({
   selector: 'app-import-page',
   imports: [
+    GettingStarted,
     IsoDatePipe,
     MatButtonModule,
     MatIconModule,
@@ -89,6 +94,8 @@ export class ImportPage {
   protected readonly texts = TEXTS;
   protected readonly db = inject(DbService);
   private readonly reader = inject(StatementReader);
+  /** La cuenta de destino es la elegida en la barra lateral; cambiarla aquí la cambia allí. */
+  protected readonly accounts = inject(AccountSelection);
 
   protected readonly banks = BANK_PROFILES.map((profile) => profile.institution).join(', ');
 
@@ -99,6 +106,15 @@ export class ImportPage {
   protected readonly categories = signal<readonly CategoryOption[]>([]);
   protected readonly result = signal<ImportBatchResult | null>(null);
   private readonly draft = signal<readonly DraftRow[]>([]);
+  /** La cuenta a la que se sube el extracto que se revisa: la elegida al leerlo. */
+  protected readonly target = signal<AccountRow | null>(null);
+
+  /** El extracto es de otro banco que la cuenta: puede que se haya elegido la que no es. */
+  protected readonly bankMismatch = computed(() => {
+    const institution = this.target()?.institution;
+    const statement = this.statement();
+    return !!institution && !!statement && institution !== statement.institution;
+  });
 
   /** El mes del extracto si cae entero en uno; si abarca varios se muestra el intervalo. */
   protected readonly period = computed(() => {
@@ -134,7 +150,8 @@ export class ImportPage {
     const file = input.files?.[0];
     // Permite volver a elegir el mismo fichero tras un error o una cancelación.
     input.value = '';
-    if (!file) return;
+    const target = this.accounts.account();
+    if (!file || !target) return;
 
     this.error.set(null);
     this.step.set('leyendo');
@@ -144,9 +161,10 @@ export class ImportPage {
       const [existing, categories, suggestions, descriptions] = await Promise.all([
         this.db.existingHashes(statement.movements.map((movement) => movement.dedupeHash)),
         this.db.categoryOptions(),
-        this.suggestions(statement),
+        this.suggestions(statement, target.id),
         this.descriptions(statement),
       ]);
+      this.target.set(target);
       this.statement.set(statement);
       this.categories.set(categories);
       this.draft.set(createDraft(statement, new Set(existing), suggestions, descriptions));
@@ -160,11 +178,11 @@ export class ImportPage {
   /** Las categorías propuestas (ADR-0018). Si fallan, se revisa igual, sin propuestas. */
   private async suggestions(
     statement: ImportedStatement,
+    accountId: number,
   ): Promise<readonly (CategorySuggestion | null)[]> {
     try {
       return await this.db.suggestCategories({
-        institution: statement.institution,
-        ibanLast4: statement.ibanLast4,
+        accountId,
         movements: statement.movements.map((movement) => ({
           text: movement.description,
           amountCents: movement.amountCents,
@@ -204,12 +222,15 @@ export class ImportPage {
 
   protected async save(): Promise<void> {
     const statement = this.statement();
-    if (!statement || !this.canSave()) return;
+    const target = this.target();
+    if (!statement || !target || !this.canSave()) return;
 
     this.error.set(null);
     this.saving.set(true);
     try {
-      this.result.set(await this.db.commitImport(draftToBatch(statement, this.draft())));
+      this.result.set(await this.db.commitImport(draftToBatch(statement, this.draft(), target.id)));
+      // Lo importado se ve en la cuenta en la que se ha guardado.
+      this.accounts.select(target.id);
       this.step.set('guardado');
     } catch {
       this.error.set(t.saveError);
@@ -221,6 +242,7 @@ export class ImportPage {
   /** Descarta la revisión (o el resultado) y vuelve a pedir un fichero. */
   protected reset(): void {
     this.statement.set(null);
+    this.target.set(null);
     this.draft.set([]);
     this.result.set(null);
     this.error.set(null);

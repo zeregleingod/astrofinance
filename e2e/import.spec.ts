@@ -1,5 +1,5 @@
 import { type Page } from '@playwright/test';
-import { expect, movements, openDemo, startEmpty, test } from './fixtures';
+import { expect, movements, openDemo, startWithAccount, test } from './fixtures';
 
 /** Extracto ficticio con la forma del Banc Sabadell (`tools/make-sabadell-fixture.mjs`). */
 const STATEMENT = 'e2e/fixtures/sabadell-enero-2026.xls';
@@ -16,15 +16,18 @@ async function chooseStatement(page: Page) {
 }
 
 test('importar un extracto: revisar, editar, guardar y verlo en movimientos', async ({ page }) => {
-  await startEmpty(page);
+  await startWithAccount(page, '/');
   await openNav(page);
   await page.getByRole('link', { name: 'Importar extracto' }).click();
+  await expect(page.getByRole('combobox', { name: 'Cuenta de destino' })).toHaveValue(/\d+/);
   await expect(page.getByRole('button', { name: 'Elegir fichero' })).toBeVisible();
 
   await chooseStatement(page);
   const review = page.getByRole('table');
   await expect(review.locator('tbody tr')).toHaveCount(TOTAL);
-  await expect(page.getByText('Cuenta: Banc Sabadell ·4321')).toBeVisible();
+  await expect(
+    page.getByText('Cuenta: Cuenta Sabadell — Banco del extracto: Banc Sabadell ·4321'),
+  ).toBeVisible();
   // Ni el titular ni el IBAN completo del fichero llegan a la pantalla.
   await expect(page.getByText('TITULAR')).toHaveCount(0);
   await expect(page.getByText('ES00 0000')).toHaveCount(0);
@@ -52,7 +55,7 @@ test('importar un extracto: revisar, editar, guardar y verlo en movimientos', as
 });
 
 test('la categoría viene propuesta por las reglas y se puede cambiar', async ({ page }) => {
-  await startEmpty(page, '/configuracion/reglas-de-categoria');
+  await startWithAccount(page, '/configuracion/reglas-de-categoria');
   await page.getByRole('textbox', { name: 'Texto', exact: true }).fill('recibo luz');
   await page
     .getByRole('combobox', { name: 'Categoría', exact: true })
@@ -81,7 +84,7 @@ test('la categoría viene propuesta por las reglas y se puede cambiar', async ({
 });
 
 test('reimportar el mismo extracto no duplica movimientos', async ({ page }) => {
-  await startEmpty(page, '/importar');
+  await startWithAccount(page);
   await chooseStatement(page);
   await page.getByRole('button', { name: `Guardar (${TOTAL})` }).click();
   await expect(page.getByText(`Movimientos guardados: ${TOTAL}.`)).toBeVisible();
@@ -95,7 +98,7 @@ test('reimportar el mismo extracto no duplica movimientos', async ({ page }) => 
 });
 
 test('un fichero que no es un extracto se rechaza con un mensaje claro', async ({ page }) => {
-  await startEmpty(page, '/importar');
+  await startWithAccount(page);
   await page.locator('main input[type="file"]').setInputFiles({
     name: 'notas.csv',
     mimeType: 'text/csv',

@@ -178,13 +178,17 @@
           </colgroup>
           <thead>
             <tr
+              #headerRow
               cdkDropList
               cdkDropListOrientation="horizontal"
               (cdkDropListDropped)="dropColumn($event)"
             >
-              @for (column of columns(); track column.key; let index = $index) {
+              @for (column of columns(); track column.key; let index = $index; let last = $last) {
+                <!-- Se nombra solo por su texto: sin él, el borde de al lado entraría en el nombre. -->
                 <th
                   scope="col"
+                  [attr.data-key]="column.key"
+                  [attr.aria-labelledby]="'col-label-' + column.key"
                   cdkDrag
                   cdkDragLockAxis="x"
                   cdkDragPreviewContainer="parent"
@@ -200,7 +204,7 @@
                     (keydown.alt.arrowleft)="shiftColumn(index, -1, $event)"
                     (keydown.alt.arrowright)="shiftColumn(index, 1, $event)"
                   >
-                    <span class="label">{{ column.label }}</span>
+                    <span class="label" [id]="'col-label-' + column.key">{{ column.label }}</span>
                     <mat-icon
                       class="sort-icon"
                       [class.active]="sort().key === column.key"
@@ -208,6 +212,29 @@
                       aria-hidden="true"
                     />
                   </button>
+                  <!--
+                    El borde derecho cambia el ancho (ADR-0036): se arrastra o, con el foco, se
+                    mueve con las flechas. La última no lo tiene: a su derecha van las acciones.
+                  -->
+                  @if (!last) {
+                    <span
+                      class="resize"
+                      role="separator"
+                      aria-orientation="vertical"
+                      tabindex="0"
+                      aria-describedby="resize-hint"
+                      [attr.aria-label]="texts.transactions.columnWidth + ': ' + column.label"
+                      [attr.aria-valuenow]="measured()[column.key] ?? null"
+                      [attr.aria-valuemin]="minWidth(column.key)"
+                      (pointerdown)="startResize($event, index)"
+                      (mousedown)="$event.stopPropagation()"
+                      (touchstart)="$event.stopPropagation()"
+                      (dblclick)="resetWidths($event)"
+                      (keydown.arrowleft)="nudgeBorder(index, -16, $event)"
+                      (keydown.arrowright)="nudgeBorder(index, 16, $event)"
+                      (keydown.home)="resetWidths($event)"
+                    ></span>
+                  }
                 </th>
               }
               <!-- Fuera de las columnas que se ordenan y se mueven: siempre la última. -->
@@ -507,6 +534,7 @@
         }
       </div>
       <p id="reorder-hint" class="visually-hidden">{{ texts.transactions.reorderHint }}</p>
+      <p id="resize-hint" class="visually-hidden">{{ texts.transactions.resizeHint }}</p>
 
       <!--
         A la izquierda de la fila, el color de su categoría, como la banda del resumen anual. Va
@@ -521,7 +549,12 @@
     }
   }
 } @else {
-  <app-empty-state [status]="db.status()" />
+  <app-empty-state
+    [status]="db.status()"
+    page="transactions"
+    [noAccount]="accounts.loaded() && accounts.account() === null"
+    [account]="accounts.account()"
+  />
 }
 
 <!--

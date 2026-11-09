@@ -132,13 +132,15 @@ describe('Sidebar', () => {
     expect(element.querySelector('.footer [role="status"]')).toBeNull();
   });
 
-  it('muestra los accesos rápidos entre el logo y el menú', async () => {
+  it('muestra los accesos rápidos y la cuenta entre el logo y el menú', async () => {
     const { element } = await setup();
 
     const group = element.querySelector('[role="group"]');
     expect(group?.getAttribute('aria-label')).toBe('Accesos rápidos');
     expect(group?.previousElementSibling?.tagName.toLowerCase()).toBe('header');
-    expect(group?.nextElementSibling?.tagName.toLowerCase()).toBe('nav');
+    const picker = group?.nextElementSibling;
+    expect(picker?.tagName.toLowerCase()).toBe('app-account-picker');
+    expect(picker?.nextElementSibling?.tagName.toLowerCase()).toBe('nav');
   });
 
   it('el botón de modo oscuro cambia el tema y su icono (sol en claro, luna en oscuro)', async () => {

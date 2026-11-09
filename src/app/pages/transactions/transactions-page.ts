@@ -23,6 +23,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatInputModule } from '@angular/material/input';
 import { TEXTS } from '@ui/texts';
 import { Viewport } from '@services/viewport/viewport';
+import { AccountSelection } from '@services/accounts/account-selection';
 import { DbService } from '@services/db/db-service';
 import {
   summaryOrigin,
@@ -53,6 +54,13 @@ import { EmptyState } from '@ui/empty-state/empty-state';
 import { CentsPipe } from '@ui/format/cents-pipe';
 import { IsoDatePipe } from '@ui/format/iso-date-pipe';
 import { PeriodLabelPipe } from '@ui/format/period-label-pipe';
+import {
+  minWidth,
+  moveBorder,
+  parseWidths,
+  type ColumnWidths,
+  type MeasuredWidths,
+} from './column-widths';
 import { TransactionCards } from './transaction-cards';
 import { TransactionEditDialog, type TransactionEditData } from './transaction-edit-dialog';
 import { TransactionFilters } from './transaction-filters';
@@ -69,6 +77,21 @@ interface Column {
 }
 
 const t = TEXTS.transactions;
+
+/**
+ * Clave de `localStorage` con los anchos de las columnas de Movimientos (ADR-0036): solo números
+ * por columna, sin datos financieros.
+ */
+export const WIDTHS_STORAGE_KEY = 'astrofinance.movimientos.anchos';
+
+/** Las columnas con ancho propio; la descripción se queda con el resto. */
+const RESIZABLE_KEYS: readonly TransactionSortKey[] = [
+  'bookedDate',
+  'account',
+  'category',
+  'amount',
+  'notes',
+];
 
 /** El nombre de cada total del resumen, como se ve en él. */
 const SUMMARY_TOTAL_NAMES: Record<SummaryTotal, () => string> = {
@@ -123,6 +146,7 @@ function column(key: TransactionSortKey, numeric = false): Column {
  */
 @Component({
   selector: 'app-transactions-page',
+  host: { '[class.resizing]': 'resizing()' },
   imports: [
     CdkDrag,
     CdkDropList,
@@ -146,6 +170,7 @@ export class TransactionsPage {
   protected readonly texts = TEXTS;
   protected readonly canSplit = canSplit;
   protected readonly db = inject(DbService);
+  protected readonly accounts = inject(AccountSelection);
   private readonly announcer = inject(LiveAnnouncer);
   private readonly injector = inject(Injector);
   private readonly dialog = inject(MatDialog);
@@ -165,6 +190,7 @@ export class TransactionsPage {
   );
   private readonly filtersToggle = viewChild('filtersToggle', { read: ElementRef });
   private readonly toolbar = viewChild('toolbar', { read: ElementRef });
+  private readonly headerRow = viewChild('headerRow', { read: ElementRef });
   private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
   constructor() {
@@ -179,6 +205,19 @@ export class TransactionsPage {
         host.style.setProperty('--toolbar-height', `${toolbar.offsetHeight}px`),
       );
       observer.observe(toolbar);
+      onCleanup(() => observer.disconnect());
+    });
+
+    this.applyWidths(this.widths());
+
+    // El ancho de cada columna, para los separadores que la redimensionan (ADR-0036): cambia al
+    // arrastrarlos, al reordenar las columnas y con el ancho de la ventana.
+    effect((onCleanup) => {
+      const row = this.headerRow()?.nativeElement as HTMLElement | undefined;
+      const view = host.ownerDocument.defaultView;
+      if (!row || !view || !('ResizeObserver' in view)) return;
+      const observer = new view.ResizeObserver(() => this.measured.set(this.measure()));
+      for (const cell of row.querySelectorAll('th')) observer.observe(cell);
       onCleanup(() => observer.disconnect());
     });
   }
@@ -226,12 +265,27 @@ export class TransactionsPage {
     column('notes'),
   ]);
 
+  /** Los anchos que ha fijado el usuario, en px; se recuerdan en este navegador (ADR-0036). */
+  protected readonly widths = signal<ColumnWidths>(this.readWidths());
+  /** El ancho de cada columna en pantalla, en px. */
+  protected readonly measured = signal<MeasuredWidths>({});
+  /** Se está arrastrando un borde: el cursor de redimensionar en toda la página. */
+  protected readonly resizing = signal(false);
+  protected readonly minWidth = minWidth;
+
   protected readonly query = signal('');
   protected readonly sort = signal<TransactionSort>({ key: 'bookedDate', direction: 'desc' });
 
+  /** Los de la cuenta elegida (ADR-0035); sin ninguna cuenta, ninguno. */
   private readonly transactions = resource({
-    params: () => (this.db.ready() ? { version: this.db.dataVersion() } : undefined),
-    loader: ({ abortSignal }) => this.db.allTransactions(abortSignal),
+    params: () =>
+      this.db.ready() && this.accounts.loaded()
+        ? { version: this.db.dataVersion(), accountId: this.accounts.accountId() }
+        : undefined,
+    loader: ({ params, abortSignal }) =>
+      params.accountId === null
+        ? Promise.resolve<readonly TransactionRow[]>([])
+        : this.db.allTransactions(params.accountId, abortSignal),
   });
 
   /** Conserva la lista anterior mientras se recarga tras un cambio, para que no parpadee. */
@@ -247,9 +301,13 @@ export class TransactionsPage {
   private readonly originIds = resource({
     params: () => {
       const origin = this.origin();
-      return origin && this.db.ready() ? { origin, version: this.db.dataVersion() } : undefined;
+      const accountId = this.accounts.accountId();
+      return origin && accountId !== null && this.db.ready()
+        ? { origin, accountId, version: this.db.dataVersion() }
+        : undefined;
     },
-    loader: ({ params, abortSignal }) => this.db.summaryTransactionIds(params.origin, abortSignal),
+    loader: ({ params, abortSignal }) =>
+      this.db.summaryTransactionIds(params.origin, params.accountId, abortSignal),
   });
 
   /** Las subcategorías que se pueden asignar al editar un movimiento. */
@@ -453,6 +511,113 @@ export class TransactionsPage {
       },
       { injector: this.injector },
     );
+  }
+
+  /**
+   * Arrastrar el borde derecho de la columna `index`: lo que gana una lo pierde la de al lado
+   * (ADR-0036). Mientras dura, el arrastre de la cabecera para reordenar no empieza.
+   */
+  protected startResize(event: PointerEvent, index: number): void {
+    const pair = this.borderPair(index);
+    if (!pair || event.button !== 0) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const handle = event.currentTarget as HTMLElement;
+    const start = this.measure();
+    const x0 = event.clientX;
+    handle.setPointerCapture(event.pointerId);
+    this.resizing.set(true);
+    const move = (moved: PointerEvent) =>
+      this.setWidths({
+        ...this.widths(),
+        ...moveBorder(start, pair.left, pair.right, moved.clientX - x0),
+      });
+    const end = () => {
+      handle.removeEventListener('pointermove', move);
+      handle.removeEventListener('pointerup', end);
+      handle.removeEventListener('pointercancel', end);
+      this.resizing.set(false);
+      this.saveWidths();
+    };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', end);
+    handle.addEventListener('pointercancel', end);
+  }
+
+  /** Alternativa de teclado: las flechas mueven el borde 16 px. */
+  protected nudgeBorder(index: number, dx: number, event: Event): void {
+    const pair = this.borderPair(index);
+    if (!pair) return;
+    event.preventDefault();
+    this.setWidths({
+      ...this.widths(),
+      ...moveBorder(this.measure(), pair.left, pair.right, dx),
+    });
+    this.saveWidths();
+  }
+
+  /** Doble clic o Inicio en un borde: todas las columnas vuelven a su ancho de siempre. */
+  protected resetWidths(event: Event): void {
+    event.preventDefault();
+    this.setWidths({});
+    this.saveWidths();
+    void this.announcer.announce(t.widthsReset);
+  }
+
+  private setWidths(widths: ColumnWidths): void {
+    this.widths.set(widths);
+    this.applyWidths(widths);
+  }
+
+  /**
+   * Los anchos como variables que lee la hoja de estilos; sin ellas, cada columna tiene su ancho
+   * de siempre. Se aplican al momento: la siguiente pulsación de una flecha ya mide los nuevos.
+   */
+  private applyWidths(widths: ColumnWidths): void {
+    for (const key of RESIZABLE_KEYS) {
+      const width = widths[key];
+      if (width === undefined) this.host.style.removeProperty(`--col-${key}-width`);
+      else this.host.style.setProperty(`--col-${key}-width`, `${width}px`);
+    }
+  }
+
+  private borderPair(index: number) {
+    const columns = this.columns();
+    const left = columns[index]?.key;
+    const right = columns[index + 1]?.key;
+    return left && right ? { left, right } : undefined;
+  }
+
+  /** El ancho en pantalla de cada columna de la cabecera. */
+  private measure(): MeasuredWidths {
+    const row = this.headerRow()?.nativeElement as HTMLElement | undefined;
+    const widths: Partial<Record<TransactionSortKey, number>> = {};
+    for (const cell of row?.querySelectorAll<HTMLElement>('th[data-key]') ?? []) {
+      const key = cell.dataset['key'] as TransactionSortKey;
+      widths[key] = Math.round(cell.getBoundingClientRect().width);
+    }
+    return widths;
+  }
+
+  private readWidths(): ColumnWidths {
+    try {
+      const stored = this.host.ownerDocument.defaultView?.localStorage.getItem(WIDTHS_STORAGE_KEY);
+      return stored ? parseWidths(JSON.parse(stored)) : {};
+    } catch {
+      // Almacenamiento bloqueado o con algo que no es JSON: los anchos de siempre.
+      return {};
+    }
+  }
+
+  private saveWidths(): void {
+    try {
+      const storage = this.host.ownerDocument.defaultView?.localStorage;
+      const widths = this.widths();
+      if (Object.keys(widths).length === 0) storage?.removeItem(WIDTHS_STORAGE_KEY);
+      else storage?.setItem(WIDTHS_STORAGE_KEY, JSON.stringify(widths));
+    } catch {
+      // Almacenamiento bloqueado: los anchos valen hasta recargar.
+    }
   }
 
   private moveColumn(from: number, to: number): Column | undefined {

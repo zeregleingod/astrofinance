@@ -81,7 +81,7 @@ describe('borrador de importación', () => {
     expect(draft[4] && draftAmountCents(draft[4])).toBe(-200);
     expect(draft[4] && isEdited(draft[4])).toBe(true);
     expect(summarizeDraft(draft)).toMatchObject({ toSave: 4, invalid: 4 });
-    expect(() => draftToBatch(statement, draft)).toThrow(RangeError);
+    expect(() => draftToBatch(statement, draft, 7)).toThrow(RangeError);
 
     // Una fila excluida deja de bloquear el guardado.
     const excluded = [0, 1, 2, 3].reduce(
@@ -102,9 +102,10 @@ describe('borrador de importación', () => {
       note: ' Revisar ',
     });
 
-    const batch = draftToBatch(statement, draft);
+    const batch = draftToBatch(statement, draft, 7);
 
     expect(batch).toMatchObject({
+      accountId: 7,
       profileId: 'sabadell',
       institution: 'Banc Sabadell',
       ibanLast4: '4321',
@@ -147,7 +148,7 @@ describe('borrador de importación', () => {
     const proposed = () =>
       createDraft(statement, new Set([hashOf(1)]), [], ['Préstamo', 'Otro', '', 'Luz']);
     const rowOf = (draft: ReturnType<typeof proposed>, index: number) =>
-      draftToBatch(statement, draft).rows.find((row) => row.dedupeHash === hashOf(index));
+      draftToBatch(statement, draft, 7).rows.find((row) => row.dedupeHash === hashOf(index));
 
     it('vienen puestos, salvo en los ya guardados, y se guardan con su origen', () => {
       const draft = proposed();
@@ -176,7 +177,7 @@ describe('borrador de importación', () => {
     const suggested = () =>
       createDraft(statement, new Set([hashOf(1)]), [byRule, byHistory, null, byHistory]);
     const rowOf = (draft: ReturnType<typeof suggested>, index: number) =>
-      draftToBatch(statement, draft).rows.find((row) => row.dedupeHash === hashOf(index));
+      draftToBatch(statement, draft, 7).rows.find((row) => row.dedupeHash === hashOf(index));
 
     it('vienen puestas, salvo en los ya guardados, y se guardan con su origen', () => {
       const draft = suggested();

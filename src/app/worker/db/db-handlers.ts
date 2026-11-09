@@ -182,13 +182,21 @@ export function createDbHandlers(
       language = languageParam(params);
       return undefined;
     },
-    periods: () => listPeriods(requireDb()),
-    monthReport: (params) => monthReport(requireDb(), periodParam(params), language),
-    yearReport: (params) => yearReport(requireDb(), yearParam(params), language),
-    transactions: (params) => monthTransactions(requireDb(), periodParam(params), language),
-    allTransactions: () => allTransactions(requireDb(), language),
+    periods: (params) => listPeriods(requireDb(), scopeParam(params)),
+    monthReport: (params) =>
+      monthReport(requireDb(), periodParam(params), language, scopeParam(params)),
+    yearReport: (params) =>
+      yearReport(requireDb(), yearParam(params), language, scopeParam(params)),
+    transactions: (params) =>
+      monthTransactions(requireDb(), periodParam(params), language, scopeParam(params)),
+    allTransactions: (params) => allTransactions(requireDb(), language, scopeParam(params)),
     summaryTransactionIds: (params) =>
-      summaryTransactionIds(requireDb(), periodParam(params), summaryTotalParam(params)),
+      summaryTransactionIds(
+        requireDb(),
+        periodParam(params),
+        summaryTotalParam(params),
+        scopeParam(params),
+      ),
     updateTransaction: (params) => updateTransaction(requireDb(), transactionEditParam(params)),
     saveSplits: (params) => saveSplits(requireDb(), transactionSplitsParam(params)),
     expenseRefundOptions: (params) => expenseRefundOptions(requireDb(), expenseIdParam(params)),
@@ -230,6 +238,16 @@ function periodParam(params: unknown): string {
       : undefined;
   if (!isPeriod(period)) throw new RangeError('Periodo no válido (AAAA-MM).');
   return period;
+}
+
+/** La cuenta de la que se leen los informes y los movimientos (ADR-0035). */
+function scopeParam(params: unknown): number {
+  const id: unknown =
+    typeof params === 'object' && params !== null
+      ? (params as { accountId?: unknown }).accountId
+      : undefined;
+  if (!Number.isSafeInteger(id) || Number(id) <= 0) throw new RangeError('Cuenta no válida.');
+  return Number(id);
 }
 
 function summaryTotalParam(params: unknown): SummaryTotal {

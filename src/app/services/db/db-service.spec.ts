@@ -68,9 +68,9 @@ describe('DbService', () => {
 
     expect(db.status()).toBe('lista');
     expect(db.mode()).toBe('demo');
-    expect(await db.periods()).toEqual(['2026-07', '2026-08', '2026-09']);
-    expect((await db.monthReport('2026-09')).period).toBe('2026-09');
-    expect((await db.transactions('2026-09')).length).toBeGreaterThan(0);
+    expect(await db.periods(1)).toEqual(['2026-07', '2026-08', '2026-09']);
+    expect((await db.monthReport('2026-09', 1)).period).toBe('2026-09');
+    expect((await db.transactions('2026-09', 1)).length).toBeGreaterThan(0);
   });
 
   it('da de alta categorías y avisa de que los datos han cambiado', async () => {
@@ -145,7 +145,7 @@ describe('DbService', () => {
     expect(db.mode()).toBe('local');
     expect(db.hasUserData()).toBe(true);
     expect(db.dataVersion()).toBeGreaterThan(version);
-    expect(await db.periods()).toEqual(['2026-07', '2026-08', '2026-09']);
+    expect(await db.periods(1)).toEqual(['2026-07', '2026-08', '2026-09']);
   });
 
   it('cargar una copia saca de la demo', async () => {
@@ -220,7 +220,7 @@ describe('DbService', () => {
     expect(db.mode()).toBeNull();
     expect(db.dataVersion()).toBeGreaterThan(version);
     expect((created[0] as ReturnType<typeof inProcessDbWorker>).terminated()).toBe(true);
-    await expect(db.periods()).rejects.toThrow(/ninguna base de datos/);
+    await expect(db.periods(1)).rejects.toThrow(/ninguna base de datos/);
   });
 
   it('pasa a error si el worker no puede abrir la demo', async () => {

@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
+import { AccountSelection } from '@services/accounts/account-selection';
 import { DB_WORKER_FACTORY, DbService } from '@services/db/db-service';
 import { IMPORT_WORKER_FACTORY } from '@services/import/statement-reader';
 import { inProcessDbWorker } from '../../../testing/in-process-db-worker';
@@ -8,7 +9,12 @@ import { sabadellSheet } from '../../../testing/sabadell-sheet';
 import { ImportPage } from './import-page';
 
 describe('ImportPage', () => {
-  async function setup() {
+  /**
+   * Con `account`, la BD del usuario ya abierta y con una cuenta del Sabadell, la que se elige
+   * para importar (ADR-0035). Sin ella, nada abierto.
+   */
+  async function setup({ account = true } = {}) {
+    sessionStorage.clear();
     TestBed.configureTestingModule({
       providers: [
         provideRouter([]),
@@ -17,9 +23,17 @@ describe('ImportPage', () => {
       ],
     });
     const db = TestBed.inject(DbService);
+    let accountId = 0;
+    if (account) {
+      await db.openLocal();
+      accountId = await db.createAccount({ name: 'Cuenta nómina', institution: 'Banc Sabadell' });
+    }
     const fixture = TestBed.createComponent(ImportPage);
-    await fixture.whenStable();
     const element = fixture.nativeElement as HTMLElement;
+    await vi.waitFor(async () => {
+      await fixture.whenStable();
+      if (account) expect(element.querySelector('#import-account')).not.toBeNull();
+    });
 
     const settled = async (assertion: () => void) => {
       await vi.waitFor(async () => {
@@ -64,7 +78,20 @@ describe('ImportPage', () => {
           Number(text(div.querySelector('dd'))),
         ]),
       );
-    return { db, fixture, element, settled, choose, rows, row, field, type, button, summary };
+    return {
+      db,
+      accountId,
+      fixture,
+      element,
+      settled,
+      choose,
+      rows,
+      row,
+      field,
+      type,
+      button,
+      summary,
+    };
   }
 
   const text = (el: Element | null | undefined) => el?.textContent?.replace(/\s+/g, ' ').trim();
@@ -73,7 +100,7 @@ describe('ImportPage', () => {
   const NOMINA = 'NOMINA DE EMPRESA DEMO SL';
 
   it('pide un fichero y avisa de que nada se guarda hasta confirmar', async () => {
-    const { element, db } = await setup();
+    const { element, db } = await setup({ account: false });
 
     expect(text(element)).toContain('hasta que pulses «Guardar» no se guarda nada');
     expect(text(element)).toContain('Bancos admitidos: Banc Sabadell');
@@ -84,8 +111,63 @@ describe('ImportPage', () => {
     expect(db.status()).toBe('cerrada');
   });
 
+  it('sin ninguna cuenta, en vez del fichero, los primeros pasos llevan a crearla', async () => {
+    const { element, db, fixture, button } = await setup({ account: false });
+    await db.openLocal();
+    await vi.waitFor(async () => {
+      await fixture.whenStable();
+      expect(element.querySelector('app-getting-started')).not.toBeNull();
+    });
+
+    expect(text(element.querySelector('app-getting-started h3'))).toBe(
+      'Crea tu primera cuenta para importar sus extractos',
+    );
+    expect(button('Elegir fichero')).toBeUndefined();
+    expect(element.querySelector('input[type="file"]')).toBeNull();
+    const cta = element.querySelector('app-getting-started a');
+    expect(cta?.getAttribute('href')).toBe('/configuracion/cuentas');
+    expect(text(cta)).toBe('Crear mi primera cuenta');
+  });
+
+  it('se elige la cuenta de destino antes del fichero, la misma que la del menú', async () => {
+    const { element, db, fixture, settled } = await setup();
+    const other = await db.createAccount({ name: 'Ahorro', institution: 'BBVA' });
+    const picker = () => element.querySelector<HTMLSelectElement>('#import-account');
+    await settled(() => expect(picker()?.options).toHaveLength(2));
+
+    expect(text(element.querySelector('label[for="import-account"]'))).toBe('Cuenta de destino');
+    expect([...(picker()?.options ?? [])].map(text)).toEqual([
+      'Ahorro (BBVA)',
+      'Cuenta nómina (Banc Sabadell)',
+    ]);
+    expect(picker()?.getAttribute('aria-describedby')).toBe('import-account-hint');
+
+    const select = picker();
+    if (!select) throw new Error('Sin selector de cuenta');
+    select.value = String(other);
+    select.dispatchEvent(new Event('change'));
+    await fixture.whenStable();
+    expect(TestBed.inject(AccountSelection).accountId()).toBe(other);
+  });
+
+  it('avisa si el extracto es de otro banco que la cuenta elegida', async () => {
+    const { element, db, choose, settled } = await setup();
+    const other = await db.createAccount({ name: 'Ahorro', institution: 'BBVA' });
+    TestBed.inject(AccountSelection).select(other);
+    await settled(() =>
+      expect(element.querySelector<HTMLSelectElement>('#import-account')?.value).toBe(
+        String(other),
+      ),
+    );
+
+    await choose(sabadellFile());
+
+    expect(text(element)).toContain('Cuenta: Ahorro — Banco del extracto: Banc Sabadell ·4321');
+    expect(text(element)).toContain('El extracto es de otro banco que la cuenta elegida.');
+  });
+
   it('en la demo no deja importar', async () => {
-    const { element, db, fixture } = await setup();
+    const { element, db, fixture } = await setup({ account: false });
     await db.openDemo();
     await fixture.whenStable();
 
@@ -94,12 +176,15 @@ describe('ImportPage', () => {
   });
 
   it('detecta el mes y muestra los movimientos sin haber guardado nada', async () => {
-    const { element, db, choose, rows, field, summary } = await setup();
+    const { element, db, accountId, choose, rows, field, summary } = await setup();
 
     await choose(sabadellFile());
 
     expect(text(element.querySelector('h3'))).toBe('Extracto de enero de 2026');
-    expect(text(element)).toContain('Cuenta: Banc Sabadell ·4321 — Fichero: enero.xls');
+    expect(text(element)).toContain(
+      'Cuenta: Cuenta nómina — Banco del extracto: Banc Sabadell ·4321 — Fichero: enero.xls',
+    );
+    expect(text(element)).not.toContain('El extracto es de otro banco');
     expect(summary()).toEqual({
       Movimientos: 8,
       'Se guardarán': 8,
@@ -114,7 +199,7 @@ describe('ImportPage', () => {
     expect(rows().every((r) => text(r.querySelector('.badge')) === 'Nuevo')).toBe(true);
 
     expect(db.mode()).toBe('local');
-    expect(await db.periods()).toEqual([]);
+    expect(await db.periods(accountId)).toEqual([]);
     expect([...field(LUZ, 'Categoría').querySelectorAll('option')].map(text).slice(0, 3)).toEqual([
       'Sin categoría',
       'Ingresos › Nómina',
@@ -123,7 +208,8 @@ describe('ImportPage', () => {
   });
 
   it('guarda lo revisado: conceptos, importes, categoría, observaciones y descartes', async () => {
-    const { element, db, choose, type, field, row, button, summary, settled } = await setup();
+    const { element, db, accountId, choose, type, field, row, button, summary, settled } =
+      await setup();
     await choose(sabadellFile());
 
     await type(LUZ, 'Concepto', 'Luz de enero');
@@ -145,16 +231,16 @@ describe('ImportPage', () => {
     button('Guardar')?.click();
     await settled(() => expect(text(element)).toContain('Movimientos guardados: 7.'));
 
-    expect(text(element)).toContain('Cuenta: Banc Sabadell ·4321.');
+    expect(text(element)).toContain('Cuenta: Cuenta nómina.');
     const link = element.querySelector<HTMLAnchorElement>('a[href^="/movimientos"]');
     expect(link?.getAttribute('href')).toBe('/movimientos?mes=2026-01');
 
-    const saved = await db.transactions('2026-01');
+    const saved = await db.transactions('2026-01', accountId);
     expect(saved).toHaveLength(7);
     expect(saved.find((tx) => tx.description === 'Luz de enero')).toMatchObject({
       amountCents: -7000,
       note: 'Revisar la tarifa',
-      accountName: 'Banc Sabadell ·4321',
+      accountName: 'Cuenta nómina',
     });
     expect(saved.find((tx) => tx.description === NOMINA)).toMatchObject({
       categoryName: 'Ingresos',
@@ -164,7 +250,7 @@ describe('ImportPage', () => {
   });
 
   it('propone la categoría por las reglas y por los movimientos parecidos ya guardados', async () => {
-    const { element, db, choose, type, field, row, button, settled } = await setup();
+    const { element, db, accountId, choose, type, field, row, button, settled } = await setup();
     const CAFE = 'COMPRA TARJ. 4000XXXXXXXX0001 CAFETERIA DEMO-BARCELONA';
     await db.openLocal();
     const options = await db.categoryOptions();
@@ -217,7 +303,7 @@ describe('ImportPage', () => {
 
     button('Guardar')?.click();
     await settled(() => expect(text(element)).toContain('Movimientos guardados: 8.'));
-    const saved = await db.transactions('2026-01');
+    const saved = await db.transactions('2026-01', accountId);
     expect(saved.filter((tx) => tx.subcategoryName === 'Restaurantes')).toHaveLength(2);
     expect(saved.find((tx) => tx.description === LUZ)?.subcategoryName).toBe('Hogar');
   });
@@ -237,7 +323,7 @@ describe('ImportPage', () => {
   });
 
   it('no deja guardar mientras haya un dato no válido', async () => {
-    const { element, db, choose, type, field, row, button, summary } = await setup();
+    const { element, db, accountId, choose, type, field, row, button, summary } = await setup();
     await choose(sabadellFile());
 
     await type(LUZ, 'Importe', 'sesenta');
@@ -252,7 +338,7 @@ describe('ImportPage', () => {
     expect(button('Guardar')?.disabled).toBe(true);
 
     button('Guardar')?.click();
-    expect(await db.periods()).toEqual([]);
+    expect(await db.periods(accountId)).toEqual([]);
 
     await type(LUZ, 'Importe', '-60,00');
     await type(NOMINA, 'Concepto', 'Nómina');
@@ -261,7 +347,7 @@ describe('ImportPage', () => {
   });
 
   it('al reimportar el mismo extracto no hay nada nuevo que guardar', async () => {
-    const { element, db, choose, rows, button, summary, settled, field } = await setup();
+    const { element, db, accountId, choose, rows, button, summary, settled, field } = await setup();
     await choose(sabadellFile());
     button('Guardar')?.click();
     await settled(() => expect(text(element)).toContain('Movimientos guardados: 8.'));
@@ -275,11 +361,11 @@ describe('ImportPage', () => {
     expect(field(LUZ, 'Guardar').disabled).toBe(true);
     expect(text(element)).toContain('No hay ningún movimiento nuevo que guardar.');
     expect(button('Guardar')?.disabled).toBe(true);
-    expect(await db.transactions('2026-01')).toHaveLength(8);
+    expect(await db.transactions('2026-01', accountId)).toHaveLength(8);
   });
 
   it('cancelar descarta la revisión sin guardar nada', async () => {
-    const { element, db, choose, button, fixture } = await setup();
+    const { element, db, accountId, choose, button, fixture } = await setup();
     await choose(sabadellFile());
 
     button('Cancelar')?.click();
@@ -287,7 +373,7 @@ describe('ImportPage', () => {
 
     expect(element.querySelector('table')).toBeNull();
     expect(element.querySelector('input[type="file"]')).not.toBeNull();
-    expect(await db.periods()).toEqual([]);
+    expect(await db.periods(accountId)).toEqual([]);
   });
 
   it('explica por qué no se puede leer un fichero y deja elegir otro', async () => {

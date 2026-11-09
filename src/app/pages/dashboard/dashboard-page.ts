@@ -5,6 +5,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { RouterLink } from '@angular/router';
 import { TEXTS } from '@ui/texts';
+import { AccountSelection } from '@services/accounts/account-selection';
 import { injectMonthSelection } from '@services/period/month-selection';
 import { DbService } from '@services/db/db-service';
 import { EmptyState } from '@ui/empty-state/empty-state';
@@ -68,6 +69,7 @@ const FOLD_BUTTON: Record<FoldStep, { readonly label: string; readonly icon: str
 export class DashboardPage {
   protected readonly texts = TEXTS;
   protected readonly db = inject(DbService);
+  protected readonly accounts = inject(AccountSelection);
 
   /** `?mes=AAAA-MM`. */
   readonly mes = input<string>();
@@ -77,9 +79,13 @@ export class DashboardPage {
   protected readonly report = resource({
     params: () => {
       const period = this.selection.period();
-      return this.db.ready() && period ? { period, version: this.db.dataVersion() } : undefined;
+      const accountId = this.accounts.accountId();
+      return this.db.ready() && period && accountId !== null
+        ? { period, accountId, version: this.db.dataVersion() }
+        : undefined;
     },
-    loader: ({ params, abortSignal }) => this.db.monthReport(params.period, abortSignal),
+    loader: ({ params, abortSignal }) =>
+      this.db.monthReport(params.period, params.accountId, abortSignal),
   });
 
   /**

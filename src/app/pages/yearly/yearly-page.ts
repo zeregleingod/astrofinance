@@ -11,6 +11,7 @@ import { NgTemplateOutlet } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { TEXTS } from '@ui/texts';
 import { Viewport } from '@services/viewport/viewport';
+import { AccountSelection } from '@services/accounts/account-selection';
 import { injectYearSelection } from '@services/period/year-selection';
 import { DbService } from '@services/db/db-service';
 import type { MonthSeries, YearLine } from '@domain/reports/year-report';
@@ -51,6 +52,7 @@ export class YearlyPage {
   protected readonly db = inject(DbService);
   /** En móvil la columna de categoría no cabe junto a los meses. */
   protected readonly compact = inject(Viewport).compact;
+  protected readonly accounts = inject(AccountSelection);
 
   /** `?anio=AAAA`. */
   readonly anio = input<string>();
@@ -79,11 +81,13 @@ export class YearlyPage {
   protected readonly report = resource({
     params: () => {
       const year = this.selection.year();
-      return this.db.ready() && year !== undefined
-        ? { year, version: this.db.dataVersion() }
+      const accountId = this.accounts.accountId();
+      return this.db.ready() && year !== undefined && accountId !== null
+        ? { year, accountId, version: this.db.dataVersion() }
         : undefined;
     },
-    loader: ({ params, abortSignal }) => this.db.yearReport(params.year, abortSignal),
+    loader: ({ params, abortSignal }) =>
+      this.db.yearReport(params.year, params.accountId, abortSignal),
   });
 
   protected readonly columns = computed(() => {

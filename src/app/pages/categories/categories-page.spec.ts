@@ -609,7 +609,7 @@ describe('CategoriesPage', () => {
   it('pide confirmación para eliminar y deja sin categoría los movimientos asociados', async () => {
     const { db, groupNames, group, tool, dialog, dialogButton, settled, status } =
       await setup(true);
-    const before = await db.transactions('2026-09');
+    const before = await db.transactions('2026-09', 1);
     const used = before.filter((tx) => tx.categoryName === 'Variables').length;
     const uncategorized = before.filter((tx) => tx.categoryName === null).length;
     expect(used).toBeGreaterThan(0);
@@ -626,7 +626,7 @@ describe('CategoriesPage', () => {
     dialogButton('Cancelar').click();
     await settled(() => expect(dialog()).toBeNull());
     expect(group('Variables')).toBeTruthy();
-    expect(await db.transactions('2026-09')).toEqual(before);
+    expect(await db.transactions('2026-09', 1)).toEqual(before);
 
     tool('Eliminar: Variables').click();
     await settled(() => expect(dialog()).not.toBeNull());
@@ -634,7 +634,7 @@ describe('CategoriesPage', () => {
 
     await settled(() => expect(groupNames()).not.toContain('Variables'));
     expect(status()).toBe('Eliminada: Variables');
-    const after = await db.transactions('2026-09');
+    const after = await db.transactions('2026-09', 1);
     expect(after).toHaveLength(before.length);
     expect(after.filter((tx) => tx.categoryName === 'Variables')).toHaveLength(0);
     expect(after.filter((tx) => tx.categoryName === null)).toHaveLength(uncategorized + used);

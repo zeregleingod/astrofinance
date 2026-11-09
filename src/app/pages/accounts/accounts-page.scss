@@ -131,7 +131,7 @@ select {
   min-height: 44px;
 }
 
-// --- Bancos: el botón de opción, invisible; la tarjeta entera es la opción ---
+// --- Bancos con su logotipo: el botón de opción, invisible; la tarjeta entera es la opción ---
 
 .banks {
   flex: 1 1 100%;
@@ -234,6 +234,17 @@ select {
   }
 }
 
+// Los logotipos son cuadrados de fondo blanco: un borde fino los separa del fondo en modo oscuro.
+.logo {
+  flex: none;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  object-fit: contain;
+  background: #fff;
+  box-shadow: 0 0 0 1px var(--mat-sys-outline-variant);
+}
+
 .banks[aria-invalid='true'] .bank-option {
   border-color: var(--mat-sys-error);
 }
@@ -325,6 +336,13 @@ select {
   font: var(--mat-sys-title-medium);
   font-weight: 600;
   letter-spacing: 0.02em;
+
+  &.logo {
+    width: 48px;
+    height: 48px;
+    border-radius: 12px;
+    background: #fff;
+  }
 }
 
 .title-block {

@@ -1,5 +1,5 @@
 import { type Locator, type Page } from '@playwright/test';
-import { expect, openDemo, startEmpty, test } from './fixtures';
+import { expect, openDemo, startEmpty, startWithAccount, test } from './fixtures';
 
 async function openNav(page: Page) {
   const openMenu = page.getByRole('button', { name: 'Abrir menú' });
@@ -23,7 +23,7 @@ async function drag(page: Page, handle: Locator, target: Locator) {
 test('configuración › categorías: dar de alta una categoría y sus subcategorías', async ({
   page,
 }) => {
-  await startEmpty(page);
+  await startWithAccount(page, '/');
   await openNav(page);
   const settings = page.getByRole('navigation', { name: 'Configuración' });
   await settings.getByRole('link', { name: 'Categorías' }).click();
@@ -69,7 +69,7 @@ test('configuración › categorías: dar de alta una categoría y sus subcatego
   await page
     .locator('main input[type="file"]')
     .setInputFiles('e2e/fixtures/sabadell-enero-2026.xls');
-  const category = page.getByRole('combobox').first();
+  const category = page.getByRole('combobox', { name: /^Categoría: / }).first();
   await expect(category.getByRole('option', { name: 'Mascotas › Veterinario' })).toBeAttached();
   await expect(category.getByRole('option', { name: 'Mascotas', exact: true })).toHaveCount(0);
 });
@@ -98,7 +98,7 @@ test('editar una subcategoría y una categoría, y eliminarla con sus movimiento
 
   // Categoría principal: nombre y color, sin tipo.
   await page.getByRole('button', { name: 'Editar: Variables', exact: true }).click();
-  await expect(page.getByRole('combobox')).toHaveCount(0);
+  await expect(page.getByRole('main').getByRole('combobox')).toHaveCount(0);
   await page.getByLabel('Color: Variables').fill('#123456');
   await page.getByRole('textbox', { name: 'Nombre: Variables' }).fill('Día a día');
   await page.getByRole('button', { name: 'Guardar' }).click();

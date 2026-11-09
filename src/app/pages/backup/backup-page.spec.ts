@@ -146,7 +146,7 @@ describe('BackupPage', () => {
     expect(status()).toMatch(/Movimientos: [1-9]\d*\./);
     expect(dialog()).toBeNull();
     expect(db.mode()).toBe('local');
-    expect(await db.periods()).toEqual(['2026-07', '2026-08', '2026-09']);
+    expect(await db.periods(1)).toEqual(['2026-07', '2026-08', '2026-09']);
     expect(element.querySelector('a[href="/movimientos"]')).not.toBeNull();
   });
 
@@ -181,6 +181,6 @@ describe('BackupPage', () => {
       ),
     );
     expect(db.mode()).toBe('demo');
-    expect((await db.periods()).length).toBe(3);
+    expect((await db.periods(1)).length).toBe(3);
   });
 });

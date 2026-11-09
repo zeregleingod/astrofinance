@@ -63,6 +63,32 @@ export async function startEmpty(page: Page, path = '/') {
   await enterFrom(page, 'Empezar sin datos');
 }
 
+/** Va a `path` por el menú lateral, sin recargar: la BD de la pestaña vive en memoria. */
+export async function goByMenu(page: Page, path: string) {
+  const openMenu = page.getByRole('button', { name: 'Abrir menú' });
+  if (await openMenu.isVisible()) await openMenu.click();
+  await page.locator(`nav a[href="${path}"]`).click();
+  await expect(page).toHaveURL((url) => url.pathname === path);
+}
+
+/**
+ * Entra sin datos y crea una cuenta en Configuración › Cuentas (sin cuenta no se importa,
+ * ADR-0035); luego va a `path` por el menú. La cuenta queda elegida: es la única.
+ */
+export async function startWithAccount(
+  page: Page,
+  path = '/importar',
+  name = 'Cuenta Sabadell',
+  bank = 'Banc Sabadell',
+) {
+  await startEmpty(page, '/configuracion/cuentas');
+  await page.getByRole('group', { name: 'Banco' }).getByRole('radio', { name: bank }).check();
+  await page.getByRole('textbox', { name: 'Nombre', exact: true }).fill(name);
+  await page.getByRole('button', { name: 'Añadir cuenta' }).click();
+  await expect(page.getByRole('status')).toHaveText(`Cuenta añadida: ${name}`);
+  if (path !== '/configuracion/cuentas') await goByMenu(page, path);
+}
+
 /**
  * El navegador tiene OPFS, donde se copian los datos de la pestaña para que sobrevivan a una
  * recarga (ADR-0031). El WebKit de Playwright en Windows no lo tiene: allí recargar vuelve a la

@@ -10,10 +10,40 @@ import type {
 } from '@domain/reports/transaction-row';
 import { buildYearReport, type YearReport } from '@domain/reports/year-report';
 import { LOCALIZED_CATEGORIES, type CategoryLanguage } from './category-names';
-import type { SqlDb, SqlRow } from '../sql-db';
+import type { SqlDb, SqlRow, SqlValue } from '../sql-db';
 
-/** La pata de entrada de un traspaso no cuenta en los informes: el dinero ya salió por la otra. */
-const NOT_INCOMING_LEG = 't.id NOT IN (SELECT incoming_tx_id FROM transfers)';
+/** La cuenta de la que se leen los informes (ADR-0035); `null`, todas. */
+export type AccountScope = number | null;
+
+/**
+ * Lo que limita una consulta a una cuenta (ADR-0035). `with` es una expresión de tabla llamada
+ * `transactions` que tapa a la tabla en toda la sentencia: solo deja los movimientos de la cuenta.
+ * Lo que está en otra cuenta se lee de `main.transactions`. Va siempre la primera del `WITH`, con
+ * sus valores (`bind`) delante de los demás.
+ *
+ * `notIncomingLeg`: con todas las cuentas, la pata de entrada de un traspaso no cuenta en los
+ * informes, porque el dinero ya salió por la otra. En una sola cuenta las dos patas son reales: la
+ * otra está siempre en otra cuenta.
+ */
+interface Scope {
+  readonly with: string;
+  readonly bind: readonly SqlValue[];
+  readonly notIncomingLeg: string;
+}
+
+function accountScope(accountId: AccountScope): Scope {
+  return accountId === null
+    ? {
+        with: 'transactions AS (SELECT * FROM main.transactions)',
+        bind: [],
+        notIncomingLeg: 't.id NOT IN (SELECT incoming_tx_id FROM transfers)',
+      }
+    : {
+        with: 'transactions AS (SELECT * FROM main.transactions WHERE account_id = ?)',
+        bind: [accountId],
+        notIncomingLeg: '1',
+      };
+}
 
 /**
  * Lo que sale de cada movimiento hacia otro sitio (`allocated`): sus submovimientos (ADR-0019)
@@ -44,7 +74,8 @@ const SOURCE_NAME = "b.description || ifnull(' › ' || src.description, '')";
  * gasto (ADR-0019). Si el gasto se ha dividido, se reparte en proporción a cada submovimiento
  * (`whole_shares`, céntimos truncados) y lo demás va al resto sin dividir (`whole_rest`); si no
  * queda resto, los céntimos del redondeo van al último submovimiento. Sin submovimientos,
- * `whole_rest` es la parte entera, en la categoría del gasto.
+ * `whole_rest` es la parte entera, en la categoría del gasto. Cuenta en la cuenta del reembolso,
+ * que es donde entró el dinero, aunque el gasto esté en otra.
  */
 const WHOLE_SHARES = /* sql */ `
   whole_shares (reimbursement_id, reimbursement_tx_id, source_split_id, expense_id, split_id,
@@ -61,7 +92,8 @@ const WHOLE_SHARES = /* sql */ `
                  row_number() OVER (PARTITION BY r.id ORDER BY s.id DESC) AS last,
                  e.amount_cents = sum(s.amount_cents) OVER (PARTITION BY r.id) AS whole
           FROM reimbursements r
-          JOIN transactions e ON e.id = r.expense_tx_id
+          JOIN transactions b ON b.id = r.reimbursement_tx_id
+          JOIN main.transactions e ON e.id = r.expense_tx_id
           JOIN transaction_splits s ON s.transaction_id = e.id)
   ),
   whole_rest (reimbursement_id, reimbursement_tx_id, source_split_id, expense_id, category_id,
@@ -69,7 +101,9 @@ const WHOLE_SHARES = /* sql */ `
     SELECT r.id, r.reimbursement_tx_id, r.reimbursement_split_id, e.id, e.category_id, e.period,
            r.amount_cents - ifnull((SELECT sum(w.cents) FROM whole_shares w
                                     WHERE w.reimbursement_id = r.id), 0)
-    FROM reimbursements r JOIN transactions e ON e.id = r.expense_tx_id
+    FROM reimbursements r
+    JOIN transactions b ON b.id = r.reimbursement_tx_id
+    JOIN main.transactions e ON e.id = r.expense_tx_id
   )`;
 
 /**
@@ -81,20 +115,20 @@ const WHOLE_SHARES = /* sql */ `
  * dividido. `reimbursed_cents` separa lo devuelto; `n` cuenta movimientos (y cada parte, en su
  * destino). El total de todos los flujos no cambia.
  */
-const FLOWS = /* sql */ `
+const flows = (scope: Scope) => /* sql */ `
   ${ALLOCATED},
   ${WHOLE_SHARES},
   flows (category_id, period, amount_cents, reimbursed_cents, n) AS (
     SELECT t.category_id, t.period, t.amount_cents - ifnull(a.cents, 0), 0,
            CASE WHEN t.amount_cents = ifnull(a.cents, 0) THEN 0 ELSE 1 END
     FROM transactions t LEFT JOIN allocated a ON a.tx_id = t.id
-    WHERE ${NOT_INCOMING_LEG}
+    WHERE ${scope.notIncomingLeg}
     UNION ALL
     SELECT s.category_id, t.period, s.amount_cents - ifnull(sa.cents, 0), 0,
            CASE WHEN s.amount_cents = ifnull(sa.cents, 0) THEN 0 ELSE 1 END
     FROM transaction_splits s JOIN transactions t ON t.id = s.transaction_id
     LEFT JOIN split_allocated sa ON sa.split_id = s.id
-    WHERE ${NOT_INCOMING_LEG}
+    WHERE ${scope.notIncomingLeg}
     UNION ALL
     SELECT category_id, period, cents, cents, 1 FROM whole_shares WHERE cents <> 0
     UNION ALL
@@ -102,8 +136,9 @@ const FLOWS = /* sql */ `
     UNION ALL
     SELECT s.category_id, e.period, r.amount_cents, r.amount_cents, 1
     FROM reimbursements r
+    JOIN transactions b ON b.id = r.reimbursement_tx_id
     JOIN transaction_splits s ON s.id = r.expense_split_id
-    JOIN transactions e ON e.id = s.transaction_id
+    JOIN main.transactions e ON e.id = s.transaction_id
     UNION ALL
     SELECT r.category_id, b.period, r.amount_cents, r.amount_cents, 1
     FROM reimbursements r JOIN transactions b ON b.id = r.reimbursement_tx_id
@@ -120,9 +155,11 @@ const PENDING = /* sql */ `
     FROM shared_split_status s JOIN transactions t ON t.id = s.transaction_id
   )`;
 
-export function listPeriods(db: SqlDb): string[] {
+/** Los meses con movimientos de la cuenta (`null`, de todas), en orden. */
+export function listPeriods(db: SqlDb, accountId: AccountScope = null): string[] {
+  const scope = accountScope(accountId);
   return db
-    .rows('SELECT DISTINCT period FROM transactions ORDER BY period')
+    .rows(`WITH ${scope.with} SELECT DISTINCT period FROM transactions ORDER BY period`, scope.bind)
     .map((r) => str(r, 'period'));
 }
 
@@ -130,10 +167,12 @@ export function monthReport(
   db: SqlDb,
   period: string,
   language: CategoryLanguage = null,
+  accountId: AccountScope = null,
 ): MonthReport {
+  const scope = accountScope(accountId);
   const categories = db
     .rows(
-      `WITH ${LOCALIZED_CATEGORIES}, ${FLOWS}
+      `WITH ${scope.with}, ${LOCALIZED_CATEGORIES}, ${flows(scope)}
        SELECT c.id, c.parent_id, c.name, c.kind, c.color,
               coalesce(sum(f.amount_cents), 0) AS total_cents,
               coalesce(sum(f.reimbursed_cents), 0) AS reimbursed_cents,
@@ -143,7 +182,7 @@ export function monthReport(
        WHERE c.archived = 0
        GROUP BY c.id
        ORDER BY c.sort_order, c.name`,
-      [language, period],
+      [...scope.bind, language, period],
     )
     .map((r) => ({
       id: num(r, 'id'),
@@ -157,29 +196,29 @@ export function monthReport(
     }));
 
   const [uncategorized] = db.rows(
-    `WITH ${FLOWS}
+    `WITH ${scope.with}, ${flows(scope)}
      SELECT coalesce(sum(amount_cents), 0) AS total_cents,
             coalesce(sum(reimbursed_cents), 0) AS reimbursed_cents,
             coalesce(sum(n), 0) AS tx_count
      FROM flows WHERE period = ? AND category_id IS NULL`,
-    [period],
+    [...scope.bind, period],
   );
 
   const movements = db
     .rows(
-      `WITH ${ALLOCATED}, ${WHOLE_SHARES}
+      `WITH ${scope.with}, ${ALLOCATED}, ${WHOLE_SHARES}
        SELECT 't' || t.id AS key, t.id AS tx_id, t.category_id,
               coalesce(t.booked_date, t.op_date) AS date, t.description,
               t.amount_cents - ifnull(a.cents, 0) AS amount_cents, 0 AS reimbursed,
               NULL AS expense_key
        FROM transactions t LEFT JOIN allocated a ON a.tx_id = t.id
-       WHERE t.period = ? AND ${NOT_INCOMING_LEG} AND t.amount_cents <> ifnull(a.cents, 0)
+       WHERE t.period = ? AND ${scope.notIncomingLeg} AND t.amount_cents <> ifnull(a.cents, 0)
        UNION ALL
        SELECT 's' || s.id, t.id, s.category_id, coalesce(t.booked_date, t.op_date),
               s.description, s.amount_cents - ifnull(sa.cents, 0), 0, NULL
        FROM transaction_splits s JOIN transactions t ON t.id = s.transaction_id
        LEFT JOIN split_allocated sa ON sa.split_id = s.id
-       WHERE t.period = ? AND ${NOT_INCOMING_LEG} AND s.amount_cents <> ifnull(sa.cents, 0)
+       WHERE t.period = ? AND ${scope.notIncomingLeg} AND s.amount_cents <> ifnull(sa.cents, 0)
        UNION ALL
        SELECT 'r' || w.reimbursement_id || 's' || w.split_id, b.id, w.category_id,
               coalesce(b.booked_date, b.op_date), ${SOURCE_NAME}, w.cents, 1, 's' || w.split_id
@@ -197,7 +236,7 @@ export function monthReport(
               ${SOURCE_NAME}, r.amount_cents, 1, 's' || s.id
        FROM reimbursements r
        JOIN transaction_splits s ON s.id = r.expense_split_id
-       JOIN transactions e ON e.id = s.transaction_id
+       JOIN main.transactions e ON e.id = s.transaction_id
        JOIN transactions b ON b.id = r.reimbursement_tx_id
        LEFT JOIN transaction_splits src ON src.id = r.reimbursement_split_id
        WHERE e.period = ?
@@ -207,7 +246,7 @@ export function monthReport(
        FROM reimbursements r JOIN transactions b ON b.id = r.reimbursement_tx_id
        LEFT JOIN transaction_splits src ON src.id = r.reimbursement_split_id
        WHERE r.category_id IS NOT NULL AND b.period = ?`,
-      [period, period, period, period, period, period],
+      [...scope.bind, period, period, period, period, period, period],
     )
     .map((r) => ({
       key: str(r, 'key'),
@@ -221,8 +260,8 @@ export function monthReport(
     }));
 
   const pending = db.value(
-    `WITH ${PENDING} SELECT coalesce(sum(cents), 0) FROM pending WHERE period = ?`,
-    [period],
+    `WITH ${scope.with}, ${PENDING} SELECT coalesce(sum(cents), 0) FROM pending WHERE period = ?`,
+    [...scope.bind, period],
   );
 
   return buildMonthReport({
@@ -239,7 +278,13 @@ export function monthReport(
 }
 
 /** Hoja anual: el total de cada categoría en cada mes del año. */
-export function yearReport(db: SqlDb, year: number, language: CategoryLanguage = null): YearReport {
+export function yearReport(
+  db: SqlDb,
+  year: number,
+  language: CategoryLanguage = null,
+  accountId: AccountScope = null,
+): YearReport {
+  const scope = accountScope(accountId);
   const categories = db
     .rows(
       `WITH ${LOCALIZED_CATEGORIES}
@@ -258,13 +303,13 @@ export function yearReport(db: SqlDb, year: number, language: CategoryLanguage =
   const pad = String(year).padStart(4, '0');
   const totals = db
     .rows(
-      `WITH ${FLOWS}
+      `WITH ${scope.with}, ${flows(scope)}
        SELECT category_id, period, sum(amount_cents) AS total_cents,
               sum(reimbursed_cents) AS reimbursed_cents, sum(n) AS tx_count
        FROM flows
        WHERE period BETWEEN ? AND ?
        GROUP BY category_id, period`,
-      [`${pad}-01`, `${pad}-12`],
+      [...scope.bind, `${pad}-01`, `${pad}-12`],
     )
     .map((r) => ({
       categoryId: numOrNull(r, 'category_id'),
@@ -296,29 +341,35 @@ const SUMMARY_SCOPE: Record<Exclude<SummaryTotal, 'pendiente'>, string> = {
  * subcategoría. En lo pendiente, los movimientos del mes con algo compartido (entero o en un
  * submovimiento) a lo que aún le falta algo por devolver. Ids de menor a mayor.
  */
-export function summaryTransactionIds(db: SqlDb, period: string, total: SummaryTotal): number[] {
+export function summaryTransactionIds(
+  db: SqlDb,
+  period: string,
+  total: SummaryTotal,
+  accountId: AccountScope = null,
+): number[] {
+  const scope = accountScope(accountId);
   if (total === 'pendiente') {
     return db
       .rows(
-        `WITH ${PENDING}
+        `WITH ${scope.with}, ${PENDING}
          SELECT DISTINCT transaction_id AS id FROM pending WHERE period = ? AND cents > 0
          ORDER BY transaction_id`,
-        [period],
+        [...scope.bind, period],
       )
       .map((r) => num(r, 'id'));
   }
   return db
     .rows(
-      `WITH ${ALLOCATED}, ${WHOLE_SHARES},
+      `WITH ${scope.with}, ${ALLOCATED}, ${WHOLE_SHARES},
        counted (tx_id, category_id) AS (
          SELECT t.id, t.category_id
          FROM transactions t LEFT JOIN allocated a ON a.tx_id = t.id
-         WHERE t.period = ? AND ${NOT_INCOMING_LEG} AND t.amount_cents <> ifnull(a.cents, 0)
+         WHERE t.period = ? AND ${scope.notIncomingLeg} AND t.amount_cents <> ifnull(a.cents, 0)
          UNION ALL
          SELECT s.transaction_id, s.category_id
          FROM transaction_splits s JOIN transactions t ON t.id = s.transaction_id
          LEFT JOIN split_allocated sa ON sa.split_id = s.id
-         WHERE t.period = ? AND ${NOT_INCOMING_LEG} AND s.amount_cents <> ifnull(sa.cents, 0)
+         WHERE t.period = ? AND ${scope.notIncomingLeg} AND s.amount_cents <> ifnull(sa.cents, 0)
          UNION ALL
          SELECT reimbursement_tx_id, category_id FROM whole_shares
          WHERE period = ? AND cents <> 0
@@ -328,8 +379,9 @@ export function summaryTransactionIds(db: SqlDb, period: string, total: SummaryT
          UNION ALL
          SELECT r.reimbursement_tx_id, s.category_id
          FROM reimbursements r
+         JOIN transactions b ON b.id = r.reimbursement_tx_id
          JOIN transaction_splits s ON s.id = r.expense_split_id
-         JOIN transactions e ON e.id = s.transaction_id
+         JOIN main.transactions e ON e.id = s.transaction_id
          WHERE e.period = ?
          UNION ALL
          SELECT r.reimbursement_tx_id, r.category_id
@@ -339,7 +391,7 @@ export function summaryTransactionIds(db: SqlDb, period: string, total: SummaryT
        SELECT DISTINCT x.tx_id AS id FROM counted x LEFT JOIN categories c ON c.id = x.category_id
        WHERE ${SUMMARY_SCOPE[total]}
        ORDER BY x.tx_id`,
-      [period, period, period, period, period, period],
+      [...scope.bind, period, period, period, period, period, period],
     )
     .map((r) => num(r, 'id'));
 }
@@ -348,31 +400,38 @@ export function monthTransactions(
   db: SqlDb,
   period: string,
   language: CategoryLanguage = null,
+  accountId: AccountScope = null,
 ): TransactionRow[] {
-  return transactionRows(db, 'WHERE t.period = ?', [period], language);
+  return transactionRows(db, accountScope(accountId), 'WHERE t.period = ?', [period], language);
 }
 
-/** Todos los movimientos, del más reciente al más antiguo. */
-export function allTransactions(db: SqlDb, language: CategoryLanguage = null): TransactionRow[] {
-  return transactionRows(db, '', [], language);
+/** Todos los movimientos de la cuenta (`null`, de todas), del más reciente al más antiguo. */
+export function allTransactions(
+  db: SqlDb,
+  language: CategoryLanguage = null,
+  accountId: AccountScope = null,
+): TransactionRow[] {
+  return transactionRows(db, accountScope(accountId), '', [], language);
 }
 
 /**
  * `where` es siempre un literal de este fichero; los valores van en `bind`. Las categorías se
- * nombran en `language`.
+ * nombran en `language`. Solo los movimientos de la cuenta de `scope`; lo vinculado a ellos sale
+ * aunque esté en otra.
  */
 function transactionRows(
   db: SqlDb,
+  scope: Scope,
   where: string,
   bind: readonly string[],
   language: CategoryLanguage,
 ): TransactionRow[] {
-  const splits = splitRows(db, where, bind, language);
-  const refunds = refundRows(db, where, bind);
-  const links = linkRows(db, where, bind);
+  const splits = splitRows(db, scope, where, bind, language);
+  const refunds = refundRows(db, scope, where, bind);
+  const links = linkRows(db, scope, where, bind);
   return db
     .rows(
-      `WITH ${LOCALIZED_CATEGORIES}
+      `WITH ${scope.with}, ${LOCALIZED_CATEGORIES}
        SELECT t.id, t.op_date, coalesce(t.booked_date, t.op_date) AS booked_date,
               t.booked_date IS NOT NULL AND t.booked_date <> t.op_date AS date_changed,
               t.period, t.description, t.original_description, t.note, t.amount_cents,
@@ -397,7 +456,7 @@ function transactionRows(
        LEFT JOIN localized_categories p ON p.id = c.parent_id
        ${where}
        ORDER BY t.op_date DESC, t.id DESC`,
-      [language, ...bind],
+      [...scope.bind, language, ...bind],
     )
     .map((r) => ({
       id: num(r, 'id'),
@@ -433,12 +492,13 @@ function transactionRows(
  */
 function linkRows(
   db: SqlDb,
+  scope: Scope,
   where: string,
   bind: readonly string[],
 ): Map<number, TransactionLink[]> {
   const byTransaction = new Map<number, TransactionLink[]>();
   const rows = db.rows(
-    `WITH refund_pairs (expense_id, income_id, cents) AS (
+    `WITH ${scope.with}, refund_pairs (expense_id, income_id, cents) AS (
        SELECT coalesce(r.expense_tx_id, es.transaction_id), r.reimbursement_tx_id,
               sum(r.amount_cents)
        FROM reimbursements r LEFT JOIN transaction_splits es ON es.id = r.expense_split_id
@@ -458,11 +518,11 @@ function linkRows(
             a.name AS account_name, coalesce(p.cents, o.amount_cents) AS amount_cents
      FROM pairs p
      JOIN transactions t ON t.id = p.tx_id
-     JOIN transactions o ON o.id = p.other_id
+     JOIN main.transactions o ON o.id = p.other_id
      JOIN accounts a ON a.id = o.account_id
      ${where}
      ORDER BY date, o.id`,
-    bind,
+    [...scope.bind, ...bind],
   );
   for (const r of rows) {
     const id = num(r, 'tx_id');
@@ -481,18 +541,24 @@ function linkRows(
 }
 
 /** Los ingresos que devuelven los gastos que cumplen `where` (ADR-0021), agrupados por gasto. */
-function refundRows(db: SqlDb, where: string, bind: readonly string[]): Map<number, RefundRow[]> {
+function refundRows(
+  db: SqlDb,
+  scope: Scope,
+  where: string,
+  bind: readonly string[],
+): Map<number, RefundRow[]> {
   const byExpense = new Map<number, RefundRow[]>();
   const rows = db.rows(
-    `SELECT r.expense_tx_id, b.id, coalesce(b.booked_date, b.op_date) AS date,
+    `WITH ${scope.with}
+     SELECT r.expense_tx_id, b.id, coalesce(b.booked_date, b.op_date) AS date,
             ${SOURCE_NAME} AS description, r.amount_cents
      FROM reimbursements r
      JOIN transactions t ON t.id = r.expense_tx_id
-     JOIN transactions b ON b.id = r.reimbursement_tx_id
+     JOIN main.transactions b ON b.id = r.reimbursement_tx_id
      LEFT JOIN transaction_splits src ON src.id = r.reimbursement_split_id
      ${where}
      ORDER BY date, b.id`,
-    bind,
+    [...scope.bind, ...bind],
   );
   for (const r of rows) {
     const id = num(r, 'expense_tx_id');
@@ -511,13 +577,14 @@ function refundRows(db: SqlDb, where: string, bind: readonly string[]): Map<numb
 /** Los submovimientos de los movimientos que cumplen `where`, agrupados por movimiento. */
 function splitRows(
   db: SqlDb,
+  scope: Scope,
   where: string,
   bind: readonly string[],
   language: CategoryLanguage,
 ): Map<number, SplitRow[]> {
   const byTransaction = new Map<number, SplitRow[]>();
   const rows = db.rows(
-    `WITH ${LOCALIZED_CATEGORIES}
+    `WITH ${scope.with}, ${LOCALIZED_CATEGORIES}
      SELECT s.id, s.transaction_id, s.description, s.amount_cents, s.category_id,
             coalesce(p.name, c.name) AS category_name,
             CASE WHEN p.id IS NULL THEN NULL ELSE c.name END AS subcategory_name,
@@ -532,7 +599,7 @@ function splitRows(
      LEFT JOIN localized_categories p ON p.id = c.parent_id
      ${where}
      ORDER BY s.id`,
-    [language, ...bind],
+    [...scope.bind, language, ...bind],
   );
   for (const r of rows) {
     const id = num(r, 'transaction_id');

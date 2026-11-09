@@ -1,6 +1,14 @@
 import { type Page } from '@playwright/test';
 import { readFile } from 'node:fs/promises';
-import { exitApp, expect, keepsSession, movements, openDemo, startEmpty, test } from './fixtures';
+import {
+  exitApp,
+  expect,
+  keepsSession,
+  movements,
+  openDemo,
+  startWithAccount,
+  test,
+} from './fixtures';
 
 const STATEMENT = 'e2e/fixtures/sabadell-enero-2026.xls';
 const TOTAL = 44;
@@ -12,7 +20,7 @@ async function openNav(page: Page) {
 }
 
 async function importStatement(page: Page) {
-  await startEmpty(page, '/importar');
+  await startWithAccount(page);
   await page.locator('main input[type="file"]').setInputFiles(STATEMENT);
   await page.getByRole('button', { name: `Guardar (${TOTAL})` }).click();
   await expect(page.getByText(`Movimientos guardados: ${TOTAL}.`)).toBeVisible();

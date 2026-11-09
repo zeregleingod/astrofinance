@@ -28,6 +28,48 @@ export const CA: Texts = {
   quickActions: {
     label: 'Accessos ràpids',
   },
+  accountPicker: {
+    label: 'Compte',
+    change: 'Canvia de compte. Ara:',
+    empty: 'Cap encara',
+    emptyTooltip: 'Encara no hi ha cap compte',
+  },
+  gettingStarted: {
+    eyebrow: 'Primers passos',
+    steps: 'Passos per començar',
+    titles: {
+      month: 'Crea el teu primer compte per veure el resum del mes',
+      year: 'El teu any, mes a mes, comença amb un compte',
+      transactions: 'Crea el teu primer compte per veure’n els moviments',
+      import: 'Crea el teu primer compte per importar-ne els extractes',
+    },
+    intros: {
+      month:
+        'Aquí veuràs els teus ingressos, despeses i estalvi per categoria. Tot a AstroFinance va per compte: el resum és sempre el del compte que triïs.',
+      year: 'Aquí veuràs cada categoria als dotze mesos de l’any, com al teu full de càlcul. El full és sempre el del compte que triïs.',
+      transactions:
+        'Aquí veuràs cada moviment amb la seva categoria, i podràs cercar-los, dividir-los o vincular devolucions. La llista és sempre la del compte que triïs.',
+      import:
+        'Cada extracte es desa en un compte: així el resum i els moviments de cadascun van per separat. Crea primer el compte del banc d’on baixes l’extracte.',
+    },
+    readyTitle: '«{name}» ja està a punt per al primer extracte',
+    readyIntroBank:
+      'Importa l’extracte que baixes de {bank}. Abans de desar podràs revisar cada moviment: fins que no confirmis no es desa res.',
+    readyIntro:
+      'Importa l’extracte que baixes del teu banc. Abans de desar podràs revisar cada moviment: fins que no confirmis no es desa res.',
+    step1Title: 'Crea el compte',
+    step1Text: 'Només el banc i un nom, com ara «Compte nòmina».',
+    step1Done: 'Compte creat',
+    step1DoneBank: '{name}, de {bank}.',
+    doneLabel: 'fet',
+    step2Title: 'Importa’n l’extracte',
+    step2Text: 'L’.xls, .xlsx o .csv que baixes del teu banc.',
+    step3Title: 'Revisa el teu mes',
+    step3Text: 'Corregeix categories i conceptes abans de desar.',
+    ctaCreate: 'Crea el meu primer compte',
+    ctaImport: 'Importa el primer extracte',
+    privacy: 'Les teves dades no surten d’aquest navegador.',
+  },
   dashboard: {
     title: 'Resum',
     empty: 'Encara no hi ha moviments.',
@@ -145,6 +187,10 @@ export const CA: Texts = {
     reorderHint:
       'Arrossega la capçalera o prem Alt + fletxa esquerra o dreta per moure la columna.',
     columnPosition: 'columna',
+    columnWidth: 'Amplada de la columna',
+    resizeHint:
+      'Amb les fletxes canvia l’amplada de la columna; amb Inici, o amb doble clic a la vora, tornen les amplades de sempre.',
+    widthsReset: 'Amplades de les columnes restablertes.',
     edit: {
       open: 'Edita el moviment',
       actions: 'Accions',
@@ -246,6 +292,11 @@ export const CA: Texts = {
     intro:
       'Tria l’extracte mensual que has baixat del teu banc. Podràs revisar i corregir els moviments abans de desar-los: fins que no premis «Desa» no es desa res.',
     banks: 'Bancs admesos:',
+    target: 'Compte de destinació',
+    targetHint: 'Els moviments de l’extracte es desaran en aquest compte.',
+    statementBank: 'Banc de l’extracte',
+    bankMismatch:
+      'L’extracte és d’un banc diferent del compte triat. Comprova que és el compte correcte abans de desar.',
     formats: 'Formats: .xls, .xlsx i .csv.',
     choose: 'Tria un fitxer',
     reading: 'S’està llegint l’extracte…',
@@ -323,7 +374,7 @@ export const CA: Texts = {
     loadError: 'No s’han pogut carregar els comptes.',
     newTitle: 'Compte nou',
     intro:
-      'Cada compte és d’un banc i té un nom, que és el que veuràs als seus moviments. Quan importes l’extracte d’un compte que encara no és aquí, es crea sol amb el nom del banc; després el pots canviar.',
+      'Cada compte és d’un banc i té un nom, que és el que veuràs als seus moviments. Per importar un extracte, primer crea aquí el seu compte i tria’l en importar o al menú lateral: el resum i els moviments són sempre els del compte triat.',
     bank: 'Banc',
     bankPlaceholder: 'Tria un banc',
     name: 'Nom',
@@ -333,7 +384,7 @@ export const CA: Texts = {
     saved: 'Compte desat:',
     deleted: 'Compte eliminat:',
     list: 'Els teus comptes',
-    empty: 'Encara no hi ha cap compte. Crea’n un a dalt o importa un extracte.',
+    empty: 'Encara no hi ha cap compte. Crea’n un a dalt per poder importar-ne els extractes.',
     noBank: 'Sense banc',
     ibanEnding: 'IBAN acabat en',
     noMovements: 'Sense moviments',

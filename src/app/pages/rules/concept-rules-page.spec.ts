@@ -32,7 +32,9 @@ describe('ConceptRulesPage', () => {
     });
     const db = TestBed.inject(DbService);
     await db.openLocal();
+    const accountId = await db.createAccount({ name: 'Banco Demo', institution: 'Banco Demo' });
     await db.commitImport({
+      accountId,
       profileId: 'demo',
       institution: 'Banco Demo',
       ibanLast4: '1234',
@@ -221,13 +223,13 @@ describe('ConceptRulesPage', () => {
 
     button('Cancelar').click();
     await settled(() => expect(element.querySelector('.preview')).toBeNull());
-    expect((await db.allTransactions()).map((tx) => tx.description)).toContain('AMAZON-55-1');
+    expect((await db.allTransactions(1)).map((tx) => tx.description)).toContain('AMAZON-55-1');
 
     button('Aplicar a movimientos existentes').click();
     await settled(() => expect(changes()).toHaveLength(3));
     button('Aplicar cambios').click();
     await settled(() => expect(status()).toBe('Conceptos cambiados: 3.'));
-    expect((await db.allTransactions()).map((tx) => tx.description).sort()).toEqual([
+    expect((await db.allTransactions(1)).map((tx) => tx.description).sort()).toEqual([
       'Amazon compra',
       'Amazon compra',
       'TRANSFERENCIA ALQUILER',

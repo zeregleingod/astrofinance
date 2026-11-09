@@ -3,51 +3,70 @@ import { sessionFileName } from '@domain/session/tab-session';
 import { memorySessionFiles } from '../../../testing/memory-session-files';
 import { createDbHandlers } from './db-handlers';
 
+/** La cuenta principal de la demo: los informes son siempre de una cuenta (ADR-0035). */
+const MAIN = { accountId: 1 };
+
 const SESSION = '0f8fad5b-d9cb-469f-a165-70867728950e';
 
 describe('createDbHandlers', () => {
   it('falla si se consulta sin una BD abierta', () => {
     const handlers = createDbHandlers(sqlite3InitModule);
-    expect(() => handlers.periods(undefined)).toThrow(/ninguna base de datos/);
+    expect(() => handlers.periods(MAIN)).toThrow(/ninguna base de datos/);
   });
 
   it('abre la demo, la consulta y la cierra', async () => {
     const handlers = createDbHandlers(sqlite3InitModule);
     await handlers.openDemo(undefined);
 
-    expect(await handlers.periods(undefined)).toEqual(['2026-07', '2026-08', '2026-09']);
-    expect((await handlers.monthReport({ period: '2026-09' })).period).toBe('2026-09');
-    expect((await handlers.yearReport({ year: 2026 })).year).toBe(2026);
-    expect((await handlers.transactions({ period: '2026-09' })).length).toBeGreaterThan(0);
+    expect(await handlers.periods(MAIN)).toEqual(['2026-07', '2026-08', '2026-09']);
+    expect((await handlers.monthReport({ period: '2026-09', ...MAIN })).period).toBe('2026-09');
+    expect((await handlers.yearReport({ year: 2026, ...MAIN })).year).toBe(2026);
+    expect((await handlers.transactions({ period: '2026-09', ...MAIN })).length).toBeGreaterThan(0);
     expect(
-      (await handlers.summaryTransactionIds({ period: '2026-09', total: 'gastos' })).length,
+      (await handlers.summaryTransactionIds({ period: '2026-09', total: 'gastos', ...MAIN }))
+        .length,
     ).toBeGreaterThan(0);
 
     handlers.close(undefined);
-    expect(() => handlers.periods(undefined)).toThrow(/ninguna base de datos/);
+    expect(() => handlers.periods(MAIN)).toThrow(/ninguna base de datos/);
   });
 
   it('reabrir la demo empieza de cero', async () => {
     const handlers = createDbHandlers(sqlite3InitModule);
     await handlers.openDemo(undefined);
-    const before = (await handlers.transactions({ period: '2026-09' })).length;
+    const before = (await handlers.transactions({ period: '2026-09', ...MAIN })).length;
     await handlers.openDemo(undefined);
-    expect((await handlers.transactions({ period: '2026-09' })).length).toBe(before);
+    expect((await handlers.transactions({ period: '2026-09', ...MAIN })).length).toBe(before);
   });
 
   it('valida los parámetros que llegan del hilo principal', async () => {
     const handlers = createDbHandlers(sqlite3InitModule);
     await handlers.openDemo(undefined);
-    expect(() => handlers.monthReport({ period: "2026-09' OR 1=1 --" })).toThrow(RangeError);
-    expect(() => handlers.transactions(null as unknown as { period: string })).toThrow(RangeError);
-    expect(() => handlers.yearReport({ year: 2026.5 })).toThrow(RangeError);
-    expect(() =>
-      handlers.summaryTransactionIds({ period: '2026-09', total: 'otros' as 'gastos' }),
-    ).toThrow(RangeError);
-    expect(() => handlers.summaryTransactionIds({ period: '2026-9', total: 'gastos' })).toThrow(
+    expect(() => handlers.monthReport({ period: "2026-09' OR 1=1 --", ...MAIN })).toThrow(
       RangeError,
     );
-    expect(() => handlers.yearReport({ year: '2026' as unknown as number })).toThrow(RangeError);
+    expect(() =>
+      handlers.transactions(null as unknown as { period: string; accountId: number }),
+    ).toThrow(RangeError);
+    // Los informes son siempre de una cuenta (ADR-0035).
+    expect(() => handlers.periods({ accountId: 0 })).toThrow(RangeError);
+    expect(() => handlers.periods(undefined as unknown as { accountId: number })).toThrow(
+      RangeError,
+    );
+    expect(() => handlers.monthReport({ period: '2026-09', accountId: 1.5 })).toThrow(RangeError);
+    expect(() => handlers.allTransactions({ accountId: '1' as unknown as number })).toThrow(
+      RangeError,
+    );
+    expect(() => handlers.yearReport({ year: 2026.5, ...MAIN })).toThrow(RangeError);
+    expect(() =>
+      handlers.summaryTransactionIds({ period: '2026-09', total: 'otros' as 'gastos', ...MAIN }),
+    ).toThrow(RangeError);
+    expect(() =>
+      handlers.summaryTransactionIds({ period: '2026-9', total: 'gastos', ...MAIN }),
+    ).toThrow(RangeError);
+    expect(() => handlers.yearReport({ year: '2026' as unknown as number, ...MAIN })).toThrow(
+      RangeError,
+    );
     expect(() =>
       handlers.createCategory({ parentId: 1, name: 'A', kind: 'otro' as 'gasto' }),
     ).toThrow(RangeError);

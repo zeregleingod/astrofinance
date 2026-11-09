@@ -228,32 +228,45 @@ export class DbService {
     this.statusSignal.set('cerrada');
   }
 
-  periods(signal?: AbortSignal): Promise<readonly string[]> {
-    return this.call((c) => c.call('periods', undefined, { signal }));
+  /*
+   * Los informes y los movimientos son siempre de una cuenta, `accountId` (ADR-0035).
+   */
+
+  /** Los meses con movimientos de la cuenta, en orden. */
+  periods(accountId: number, signal?: AbortSignal): Promise<readonly string[]> {
+    return this.call((c) => c.call('periods', { accountId }, { signal }));
   }
 
-  monthReport(period: string, signal?: AbortSignal): Promise<MonthReport> {
-    return this.call((c) => c.call('monthReport', { period }, { signal }));
+  monthReport(period: string, accountId: number, signal?: AbortSignal): Promise<MonthReport> {
+    return this.call((c) => c.call('monthReport', { period, accountId }, { signal }));
   }
 
-  yearReport(year: number, signal?: AbortSignal): Promise<YearReport> {
-    return this.call((c) => c.call('yearReport', { year }, { signal }));
+  yearReport(year: number, accountId: number, signal?: AbortSignal): Promise<YearReport> {
+    return this.call((c) => c.call('yearReport', { year, accountId }, { signal }));
   }
 
-  transactions(period: string, signal?: AbortSignal): Promise<readonly TransactionRow[]> {
-    return this.call((c) => c.call('transactions', { period }, { signal }));
+  transactions(
+    period: string,
+    accountId: number,
+    signal?: AbortSignal,
+  ): Promise<readonly TransactionRow[]> {
+    return this.call((c) => c.call('transactions', { period, accountId }, { signal }));
   }
 
-  /** Todos los movimientos, del más reciente al más antiguo. */
-  allTransactions(signal?: AbortSignal): Promise<readonly TransactionRow[]> {
+  /** Todos los movimientos de la cuenta, del más reciente al más antiguo. */
+  allTransactions(accountId: number, signal?: AbortSignal): Promise<readonly TransactionRow[]> {
     return this.call((c) =>
-      c.call('allTransactions', undefined, { signal, timeoutMs: OPEN_TIMEOUT_MS }),
+      c.call('allTransactions', { accountId }, { signal, timeoutMs: OPEN_TIMEOUT_MS }),
     );
   }
 
-  /** Los movimientos que forman un total del resumen del mes (ids, de menor a mayor). */
-  summaryTransactionIds(origin: SummaryOrigin, signal?: AbortSignal): Promise<readonly number[]> {
-    return this.call((c) => c.call('summaryTransactionIds', origin, { signal }));
+  /** Los movimientos de la cuenta que forman un total del resumen del mes (ids, en orden). */
+  summaryTransactionIds(
+    origin: SummaryOrigin,
+    accountId: number,
+    signal?: AbortSignal,
+  ): Promise<readonly number[]> {
+    return this.call((c) => c.call('summaryTransactionIds', { ...origin, accountId }, { signal }));
   }
 
   /** Guarda lo que el usuario cambia de un movimiento y avisa de que hay datos nuevos. */

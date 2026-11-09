@@ -22,6 +22,7 @@ import {
 import { MatButtonModule } from '@angular/material/button';
 import { MatDialog } from '@angular/material/dialog';
 import { MatIconModule } from '@angular/material/icon';
+import { bankLogoSrc } from '@ui/bank-logo/bank-logo';
 import { TEXTS } from '@ui/texts';
 import { DbService } from '@services/db/db-service';
 import {
@@ -154,7 +155,12 @@ export class AccountsPage {
     return own && !this.banks.includes(own) ? [own, ...this.banks] : this.banks;
   }
 
-  /** Dos letras del banco para su distintivo: «BD» para Banco Demo. */
+  /** La imagen del logotipo de un banco (`public/banks`), o `null` si no lo tiene. */
+  protected logoFor(institution: string | null): string | null {
+    return bankLogoSrc(institution);
+  }
+
+  /** Dos letras del banco para su distintivo si no tiene logotipo: «BD» para Banco Demo. */
   protected initials(institution: string | null): string {
     const [first = '?', ...rest] = (institution ?? '').split(/\s+/u).filter(Boolean);
     const last = rest.at(-1);

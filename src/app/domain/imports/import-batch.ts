@@ -25,6 +25,8 @@ export interface ImportRowInput {
 
 /** Lote que se confirma tras la revisión. Se guarda entero o no se guarda nada. */
 export interface ImportBatchInput {
+  /** La cuenta a la que se sube el extracto, elegida por el usuario (ADR-0035). */
+  readonly accountId: number;
   readonly profileId: string;
   readonly institution: string;
   readonly ibanLast4: string | null;
@@ -32,7 +34,7 @@ export interface ImportBatchInput {
   readonly fileSha256: string;
   readonly dateFrom: string;
   readonly dateTo: string;
-  /** Saldo anterior al extracto; solo se usa al dar de alta la cuenta. */
+  /** Saldo anterior al extracto; solo se usa en la primera importación de la cuenta. */
   readonly openingBalanceCents: number | null;
   readonly rows: readonly ImportRowInput[];
   /** Movimientos del fichero que ya estaban guardados. */

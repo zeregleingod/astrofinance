@@ -59,23 +59,33 @@ export interface DbApi {
    * interfaz, o `null` para el nombre por defecto. Vale para el worker, no para la BD abierta.
    */
   setCategoryLanguage: { params: { language: string | null }; result: undefined };
-  periods: { params: undefined; result: readonly string[] };
-  monthReport: { params: { period: string }; result: MonthReport };
+  /*
+   * Los informes y los movimientos son siempre de una cuenta, `accountId` (ADR-0035).
+   */
+  /** Los meses con movimientos de la cuenta, en orden. */
+  periods: { params: { accountId: number }; result: readonly string[] };
+  monthReport: { params: { period: string; accountId: number }; result: MonthReport };
   /** Hoja anual: el total de cada categoría en cada mes del año. */
-  yearReport: { params: { year: number }; result: YearReport };
-  transactions: { params: { period: string }; result: readonly TransactionRow[] };
-  /** Todos los movimientos, del más reciente al más antiguo. */
-  allTransactions: { params: undefined; result: readonly TransactionRow[] };
+  yearReport: { params: { year: number; accountId: number }; result: YearReport };
+  transactions: {
+    params: { period: string; accountId: number };
+    result: readonly TransactionRow[];
+  };
+  /** Todos los movimientos de la cuenta, del más reciente al más antiguo. */
+  allTransactions: { params: { accountId: number }; result: readonly TransactionRow[] };
   /** Los movimientos que forman un total del resumen del mes (ids, de menor a mayor). */
   summaryTransactionIds: {
-    params: { period: string; total: SummaryTotal };
+    params: { period: string; total: SummaryTotal; accountId: number };
     result: readonly number[];
   };
   /** Guarda lo que el usuario cambia de un movimiento (concepto, fecha, categoría, notas). */
   updateTransaction: { params: TransactionEdit; result: undefined };
   /** Sustituye los submovimientos de un movimiento; una lista vacía lo deja sin dividir. */
   saveSplits: { params: TransactionSplits; result: undefined };
-  /** Los ingresos que devuelven un gasto o pueden devolverlo, de fecha más cercana primero. */
+  /**
+   * Los ingresos de la cuenta del gasto que lo devuelven o pueden devolverlo, de fecha más
+   * cercana primero.
+   */
   expenseRefundOptions: { params: { expenseId: number }; result: ExpenseRefundOptions };
   /** Sustituye las devoluciones de un gasto; una lista vacía lo deja sin devoluciones. */
   saveRefunds: { params: ExpenseRefunds; result: undefined };
@@ -128,6 +138,6 @@ export interface DbApi {
     params: SuggestionRequest;
     result: readonly (CategorySuggestion | null)[];
   };
-  /** Guarda un lote revisado, entero o nada. */
+  /** Guarda un lote revisado en la cuenta que indica, entero o nada. */
   commitImport: { params: ImportBatchInput; result: ImportBatchResult };
 }

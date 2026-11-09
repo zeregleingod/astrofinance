@@ -5,7 +5,7 @@ import { provideRouter } from '@angular/router';
 import { Viewport } from '@services/viewport/viewport';
 import { DB_WORKER_FACTORY, DbService } from '@services/db/db-service';
 import { inProcessDbWorker } from '../../../testing/in-process-db-worker';
-import { TransactionsPage } from './transactions-page';
+import { TransactionsPage, WIDTHS_STORAGE_KEY } from './transactions-page';
 
 describe('TransactionsPage', () => {
   /** `prepare` cambia la demo antes de abrir la página. */
@@ -301,6 +301,84 @@ describe('TransactionsPage', () => {
     });
   });
 
+  describe('anchos de las columnas (ADR-0036)', () => {
+    afterEach(() => localStorage.removeItem(WIDTHS_STORAGE_KEY));
+
+    const headers = (element: HTMLElement) =>
+      [...element.querySelectorAll('thead th[data-key]')].map(text);
+    const separators = (element: HTMLElement) => [
+      ...element.querySelectorAll<HTMLElement>('thead [role="separator"]'),
+    ];
+
+    it('cada cabecera menos la última tiene su borde para cambiar el ancho, accesible', async () => {
+      const { element, header } = await setup(true);
+      const all = separators(element);
+
+      expect(all).toHaveLength(element.querySelectorAll('thead th[data-key]').length - 1);
+      expect(header('Observaciones')?.querySelector('[role="separator"]')).toBeNull();
+      const account = header('Cuenta')?.querySelector('[role="separator"]');
+      expect(account?.getAttribute('aria-label')).toBe('Ancho de la columna: Cuenta');
+      expect(account?.getAttribute('aria-orientation')).toBe('vertical');
+      expect(account?.getAttribute('tabindex')).toBe('0');
+      expect(account?.getAttribute('aria-valuemin')).toBe('64');
+      expect(
+        text(element.querySelector(`#${account?.getAttribute('aria-describedby')}`)),
+      ).toContain('Con las flechas cambia el ancho');
+    });
+
+    it('los anchos guardados se aplican; con Inicio vuelven los de siempre', async () => {
+      localStorage.setItem(
+        WIDTHS_STORAGE_KEY,
+        JSON.stringify({ account: 90, notes: 260, description: 999 }),
+      );
+      const { element, header, fixture } = await setup(true);
+      const host = element;
+
+      expect(host.style.getPropertyValue('--col-account-width')).toBe('90px');
+      expect(host.style.getPropertyValue('--col-notes-width')).toBe('260px');
+      // La descripción no tiene ancho propio: se queda con el resto.
+      expect(host.style.getPropertyValue('--col-description-width')).toBe('');
+
+      const separator = header('Cuenta')?.querySelector<HTMLElement>('[role="separator"]');
+      separator?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Home', bubbles: true }));
+      await fixture.whenStable();
+
+      expect(host.style.getPropertyValue('--col-account-width')).toBe('');
+      expect(host.style.getPropertyValue('--col-notes-width')).toBe('');
+      expect(localStorage.getItem(WIDTHS_STORAGE_KEY)).toBeNull();
+    });
+
+    it('el doble clic en un borde también los restablece', async () => {
+      localStorage.setItem(WIDTHS_STORAGE_KEY, JSON.stringify({ category: 300 }));
+      const { element, header, fixture } = await setup(true);
+      expect(element.style.getPropertyValue('--col-category-width')).toBe('300px');
+
+      header('Fecha')
+        ?.querySelector('[role="separator"]')
+        ?.dispatchEvent(new MouseEvent('dblclick', { bubbles: true }));
+      await fixture.whenStable();
+
+      expect(element.style.getPropertyValue('--col-category-width')).toBe('');
+    });
+
+    it('agarrar el borde no empieza a reordenar ni ordena la columna', async () => {
+      const { element, header, fixture } = await setup(true);
+      const before = headers(element);
+      const sort = header('Cuenta')?.getAttribute('aria-sort');
+      const separator = header('Cuenta')?.querySelector<HTMLElement>('[role="separator"]');
+      const down = new MouseEvent('mousedown', { bubbles: true, cancelable: true });
+      const stop = vi.spyOn(down, 'stopPropagation');
+
+      separator?.dispatchEvent(down);
+      separator?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+      await fixture.whenStable();
+
+      expect(stop).toHaveBeenCalled();
+      expect(headers(element)).toEqual(before);
+      expect(header('Cuenta')?.getAttribute('aria-sort')).toBe(sort);
+    });
+  });
+
   describe('búsqueda', () => {
     it('filtra al escribir, sin tildes ni mayúsculas, y actualiza el recuento', async () => {
       const { element, rows, search } = await setup(true);
@@ -548,10 +626,10 @@ describe('TransactionsPage', () => {
     it('enseña justo los movimientos que forman el total, sin filtrar por fechas', async () => {
       const { element, fixture, rows, caption, filterField } = await setup(true);
       const total = rows().length;
-      const ids = await TestBed.inject(DbService).summaryTransactionIds({
-        period: '2026-09',
-        total: 'gastos',
-      });
+      const ids = await TestBed.inject(DbService).summaryTransactionIds(
+        { period: '2026-09', total: 'gastos' },
+        1,
+      );
 
       fixture.componentRef.setInput('mes', '2026-09');
       fixture.componentRef.setInput('origen', 'gastos');
@@ -574,9 +652,9 @@ describe('TransactionsPage', () => {
 
       const db = TestBed.inject(DbService);
       const ids = new Set(
-        await db.summaryTransactionIds({ period: '2026-09', total: 'pendiente' }),
+        await db.summaryTransactionIds({ period: '2026-09', total: 'pendiente' }, 1),
       );
-      const pending = (await db.allTransactions()).filter((tx) => ids.has(tx.id));
+      const pending = (await db.allTransactions(1)).filter((tx) => ids.has(tx.id));
       expect(rows().length).toBe(pending.length);
       expect(pending.length).toBeGreaterThan(0);
       expect(pending.every((tx) => tx.shared)).toBe(true);
@@ -818,7 +896,7 @@ describe('TransactionsPage', () => {
       const cells = [...(row?.querySelectorAll('td') ?? [])].map(text);
       expect(cells[3]).toBe('Variables › Ocio');
       expect(cells[5]).toBe('Viaje a la playa');
-      const saved = (await TestBed.inject(DbService).allTransactions()).find(
+      const saved = (await TestBed.inject(DbService).allTransactions(1)).find(
         (tx) => tx.description === 'Gasolina del coche',
       );
       expect(saved).toMatchObject({ subcategoryName: 'Ocio', note: 'Viaje a la playa' });
@@ -945,7 +1023,7 @@ describe('TransactionsPage', () => {
     it('un submovimiento que devuelve un gasto lleva «Devuelve» con el gasto (ADR-0019)', async () => {
       let refunded = '';
       const { splitRows } = await setup(true, false, async (db) => {
-        const all = await db.allTransactions();
+        const all = await db.allTransactions(1);
         const income = all.find((t) => t.description.startsWith('Transferencia recibida'));
         const expense = all.find((t) => t.description.startsWith('Pizzería Demo'));
         if (!income || !expense) throw new Error('Faltan movimientos de la demo');
@@ -1037,7 +1115,7 @@ describe('TransactionsPage', () => {
       await settled(() => expect(splitRows().length).toBe(4));
       const gas = rows().find((r) => text(r)?.includes('Gasolinera Demo'));
       expect(text(gas?.nextElementSibling)).toContain('GASOLINA COCHE');
-      const saved = (await TestBed.inject(DbService).allTransactions()).find((tx) =>
+      const saved = (await TestBed.inject(DbService).allTransactions(1)).find((tx) =>
         tx.splits.some((s) => s.description === 'LAVADO'),
       );
       expect(saved?.splits.map((s) => [s.description, s.amountCents, s.subcategoryName])).toEqual([
@@ -1187,7 +1265,7 @@ describe('TransactionsPage', () => {
         ).toContain('Transferencia recibida'),
       );
       expect(refundRows().length).toBeGreaterThan(0);
-      const saved = (await TestBed.inject(DbService).allTransactions()).find(
+      const saved = (await TestBed.inject(DbService).allTransactions(1)).find(
         (tx) => tx.description === 'Pizzería Demo',
       );
       expect(saved?.refunds.map((r) => r.amountCents)).toEqual([2500]);
@@ -1261,19 +1339,18 @@ describe('TransactionsPage', () => {
       expect(document.activeElement).toBe(linkButton(rows().find((r) => text(r)?.includes(BIZUM))));
     });
 
-    it('las dos patas de un traspaso se enlazan entre sí', async () => {
+    it('un traspaso enlaza con su otra pata, que está en otra cuenta y no se lista', async () => {
       const { fixture, rows, column: columnOf } = await setup(true);
       const leg = rows().find((r) => /^Traspaso con: /.test(linkButton(r)?.title ?? ''));
       expect(leg).toBeDefined();
+      expect(linkButton(leg)?.title).toContain('Hucha');
 
       linkButton(leg)?.click();
       await fixture.whenStable();
 
-      expect(rows().map((r) => linkButton(r)?.title.startsWith('Traspaso con: '))).toEqual([
-        true,
-        true,
-      ]);
-      expect(new Set(columnOf(1)).size).toBe(2);
+      // Solo se ven los movimientos de la cuenta elegida (ADR-0035).
+      expect(rows().map((r) => linkButton(r)?.title.startsWith('Traspaso con: '))).toEqual([true]);
+      expect(columnOf(1)).toEqual(['Cuenta principal']);
     });
 
     it('buscar o filtrar vuelve a la lista de siempre', async () => {

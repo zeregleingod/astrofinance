@@ -24,6 +24,48 @@ export const EN: Texts = {
   quickActions: {
     label: 'Quick actions',
   },
+  accountPicker: {
+    label: 'Account',
+    change: 'Change account. Current:',
+    empty: 'None yet',
+    emptyTooltip: 'No accounts yet',
+  },
+  gettingStarted: {
+    eyebrow: 'Getting started',
+    steps: 'Steps to get started',
+    titles: {
+      month: 'Create your first account to see the monthly summary',
+      year: 'Your year, month by month, starts with an account',
+      transactions: 'Create your first account to see its transactions',
+      import: 'Create your first account to import its statements',
+    },
+    intros: {
+      month:
+        'Here you will see your income, expenses and savings by category. Everything in AstroFinance is per account: the summary always belongs to the account you choose.',
+      year: 'Here you will see each category across the twelve months of the year, like in your spreadsheet. The sheet always belongs to the account you choose.',
+      transactions:
+        'Here you will see every transaction with its category, and you can search them, split them or link refunds. The list always belongs to the account you choose.',
+      import:
+        'Each statement is saved in an account, so each one keeps its own summary and transactions. First create the account for the bank you download the statement from.',
+    },
+    readyTitle: '“{name}” is ready for its first statement',
+    readyIntroBank:
+      'Import the statement you download from {bank}. You can review every transaction before saving: nothing is saved until you confirm.',
+    readyIntro:
+      'Import the statement you download from your bank. You can review every transaction before saving: nothing is saved until you confirm.',
+    step1Title: 'Create the account',
+    step1Text: 'Just the bank and a name, such as “Salary account”.',
+    step1Done: 'Account created',
+    step1DoneBank: '{name}, at {bank}.',
+    doneLabel: 'done',
+    step2Title: 'Import its statement',
+    step2Text: 'The .xls, .xlsx or .csv you download from your bank.',
+    step3Title: 'Review your month',
+    step3Text: 'Fix categories and descriptions before saving.',
+    ctaCreate: 'Create my first account',
+    ctaImport: 'Import the first statement',
+    privacy: 'Your data never leaves this browser.',
+  },
   dashboard: {
     title: 'Overview',
     empty: 'There are no transactions yet.',
@@ -140,6 +182,10 @@ export const EN: Texts = {
     of: 'of',
     reorderHint: 'Drag the header or press Alt + left or right arrow to move the column.',
     columnPosition: 'column',
+    columnWidth: 'Column width',
+    resizeHint:
+      'Use the arrow keys to change the column width; Home, or double-clicking the border, restores the default widths.',
+    widthsReset: 'Column widths restored.',
     edit: {
       open: 'Edit transaction',
       actions: 'Actions',
@@ -241,6 +287,11 @@ export const EN: Texts = {
     intro:
       'Choose the monthly statement you downloaded from your bank. You can review and correct the transactions before saving them: nothing is saved until you press “Save”.',
     banks: 'Supported banks:',
+    target: 'Destination account',
+    targetHint: 'The statement’s transactions will be saved in this account.',
+    statementBank: 'Statement bank',
+    bankMismatch:
+      'The statement is from a different bank than the chosen account. Check it is the right account before saving.',
     formats: 'Formats: .xls, .xlsx and .csv.',
     choose: 'Choose file',
     reading: 'Reading the statement…',
@@ -318,7 +369,7 @@ export const EN: Texts = {
     loadError: 'The accounts could not be loaded.',
     newTitle: 'New account',
     intro:
-      'Each account belongs to a bank and has a name, which is the one you will see on its transactions. When you import a statement from an account that is not here yet, it is created automatically with the bank’s name; you can rename it afterwards.',
+      'Each account belongs to a bank and has a name, which is the one you will see on its transactions. To import a statement, first create its account here and choose it when importing or in the side menu: the summary and the transactions always belong to the chosen account.',
     bank: 'Bank',
     bankPlaceholder: 'Choose a bank',
     name: 'Name',
@@ -328,7 +379,7 @@ export const EN: Texts = {
     saved: 'Account saved:',
     deleted: 'Account deleted:',
     list: 'Your accounts',
-    empty: 'There are no accounts yet. Create one above or import a statement.',
+    empty: 'There are no accounts yet. Create one above to import its statements.',
     noBank: 'No bank',
     ibanEnding: 'IBAN ending in',
     noMovements: 'No transactions',

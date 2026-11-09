@@ -5,7 +5,7 @@ import {
 } from '@domain/suggestions/category-suggestion';
 import { trainClassifier } from '@domain/suggestions/history-classifier';
 import type { SqlDb } from '../sql-db';
-import { categoryOptions, findAccount, nullable, record, text } from './imports';
+import { categoryOptions, nullable, record, text } from './imports';
 import { loadRules } from './rules';
 
 /** Movimientos del historial de los que se aprende: los más recientes bastan y acotan el coste. */
@@ -39,7 +39,7 @@ export function suggestCategoriesFor(
     }))
     .filter((item) => assignable.has(item.categoryId));
 
-  const accountId = findAccount(db, request)?.id ?? null;
+  const { accountId } = request;
   return suggestCategories(
     loadRules(db),
     trainClassifier(history),
@@ -55,8 +55,7 @@ export function suggestionRequestParam(params: unknown): SuggestionRequest {
     throw new RangeError('Movimientos no válidos.');
   }
   return {
-    institution: text(request, 'institution', 80),
-    ibanLast4: nullable(request, 'ibanLast4', (v) => typeof v === 'string' && /^\d{4}$/.test(v)),
+    accountId: nullable(request, 'accountId', (v) => Number.isSafeInteger(v) && Number(v) > 0),
     movements: movements.map((value: unknown) => {
       const movement = record(value);
       const amountCents = movement['amountCents'];

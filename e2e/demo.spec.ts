@@ -154,5 +154,8 @@ test('salir de la demo descarta los datos y vuelve a la landing', async ({ page 
   await expect(page.getByText('Modo demo')).toHaveCount(0);
   await expect(page.getByRole('heading', { level: 1 })).toHaveText('Tus finanzas, en tu equipo.');
   await enterFrom(page, 'Empezar sin datos');
-  await expect(page.getByText('Todavía no hay movimientos.')).toBeVisible();
+  // Sin ninguna cuenta todavía, los primeros pasos invitan a crearla (ADR-0035).
+  await expect(
+    page.getByRole('heading', { name: 'Crea tu primera cuenta para ver el resumen del mes' }),
+  ).toBeVisible();
 });

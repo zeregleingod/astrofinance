@@ -14,15 +14,18 @@ import { positiveId } from './transactions';
  * Lo que puede devolver un gasto (ADR-0021): lo que cada ingreso no ha dividido y cada
  * submovimiento de un ingreso (el Bizum de suministros dividido en luz, agua y gas), si tienen algo
  * libre o ya lo devuelven. Primero los posteriores al gasto (las devoluciones llegan después),
- * del más cercano al más lejano, y luego los anteriores. No se ofrece la entrada de un traspaso,
- * que no cuenta en los informes, ni sus submovimientos.
+ * del más cercano al más lejano, y luego los anteriores. Solo los de la cuenta del gasto, que es
+ * la que se ve (ADR-0035). No se ofrece la entrada de un traspaso, ni sus submovimientos.
  */
 export function expenseRefundOptions(db: SqlDb, expenseId: number): ExpenseRefundOptions {
-  const date = db.value(
-    'SELECT coalesce(booked_date, op_date) FROM transactions WHERE id = ? AND amount_cents < 0',
+  const [expense] = db.rows(
+    `SELECT coalesce(booked_date, op_date) AS date, account_id FROM transactions
+     WHERE id = ? AND amount_cents < 0`,
     [expenseId],
   );
+  const date = expense?.['date'];
   if (typeof date !== 'string') throw invalid('expenseId');
+  const accountId = Number(expense?.['account_id']);
 
   const candidates = db
     .rows(
@@ -39,7 +42,8 @@ export function expenseRefundOptions(db: SqlDb, expenseId: number): ExpenseRefun
                  WHERE r.reimbursement_tx_id = t.id AND r.reimbursement_split_id IS NULL
                    AND r.expense_tx_id = ?) AS linked_cents
          FROM transactions t JOIN accounts a ON a.id = t.account_id
-         WHERE t.amount_cents > 0 AND t.id NOT IN (SELECT incoming_tx_id FROM transfers)
+         WHERE t.amount_cents > 0 AND t.account_id = ?
+           AND t.id NOT IN (SELECT incoming_tx_id FROM transfers)
          UNION ALL
          SELECT t.id, s.id, coalesce(t.booked_date, t.op_date), t.description || ' › ' || s.description,
                 a.name, s.amount_cents,
@@ -52,10 +56,11 @@ export function expenseRefundOptions(db: SqlDb, expenseId: number): ExpenseRefun
          FROM transaction_splits s
          JOIN transactions t ON t.id = s.transaction_id
          JOIN accounts a ON a.id = t.account_id
-         WHERE s.amount_cents > 0 AND t.id NOT IN (SELECT incoming_tx_id FROM transfers))
+         WHERE s.amount_cents > 0 AND t.account_id = ?
+           AND t.id NOT IN (SELECT incoming_tx_id FROM transfers))
        WHERE available_cents > 0 OR linked_cents IS NOT NULL
        ORDER BY date < ?, abs(julianday(date) - julianday(?)), id, ifnull(split_id, 0)`,
-      [expenseId, expenseId, expenseId, expenseId, date, date],
+      [expenseId, expenseId, accountId, expenseId, expenseId, accountId, date, date],
     )
     .map((r): RefundCandidate => ({
       id: Number(r['id']),

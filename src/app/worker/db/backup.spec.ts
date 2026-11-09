@@ -7,6 +7,9 @@ import { MIGRATIONS } from './migrations';
 import { loadDemoData } from './seeds/demo-data';
 import { wrapDatabase, type SqlDb } from './sql-db';
 
+/** La cuenta principal de la demo: los informes son siempre de una cuenta (ADR-0035). */
+const MAIN = { accountId: 1 };
+
 describe('copia de la base de datos en un fichero', () => {
   let sqlite3: Sqlite3Static;
 
@@ -117,11 +120,11 @@ describe('copia de la base de datos en un fichero', () => {
       const bytes = await handlers.exportFile(undefined);
 
       await handlers.openNew(undefined);
-      expect(await handlers.periods(undefined)).toEqual([]);
+      expect(await handlers.periods(MAIN)).toEqual([]);
 
       expect((await handlers.openFile({ bytes })).transactions).toBeGreaterThan(0);
-      expect(await handlers.periods(undefined)).toEqual(['2026-07', '2026-08', '2026-09']);
-      expect((await handlers.monthReport({ period: '2026-09' })).period).toBe('2026-09');
+      expect(await handlers.periods(MAIN)).toEqual(['2026-07', '2026-08', '2026-09']);
+      expect((await handlers.monthReport({ period: '2026-09', ...MAIN })).period).toBe('2026-09');
       const id = await handlers.createCategory({ parentId: null, name: 'Mascotas', color: null });
       expect(await handlers.deleteCategory({ id })).toBe(0);
     });
@@ -129,7 +132,7 @@ describe('copia de la base de datos en un fichero', () => {
     it('abre un fichero aunque no hubiera ninguna BD abierta', async () => {
       const handlers = createDbHandlers(() => Promise.resolve(sqlite3));
       await handlers.openFile({ bytes: demoFile() });
-      expect((await handlers.periods(undefined)).length).toBe(3);
+      expect((await handlers.periods(MAIN)).length).toBe(3);
     });
 
     it('si el fichero no vale, la BD abierta queda como estaba', async () => {
@@ -143,7 +146,7 @@ describe('copia de la base de datos en un fichero', () => {
         RangeError,
       );
 
-      expect((await handlers.periods(undefined)).length).toBe(3);
+      expect((await handlers.periods(MAIN)).length).toBe(3);
     });
 
     it('no hay nada que exportar sin una BD abierta', async () => {

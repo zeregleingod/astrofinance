@@ -39,3 +39,5 @@ la superficie lavanda, apenas se distinguían.
   compactan un poco.
 - Una columna nueva tiene que caber en el reparto de anchos (`transactions-page.scss`): las de
   ancho fijo y las de porcentaje suman el ancho de la tabla, y la de observaciones toma el resto.
+- Desde el ADR-0036 los anchos de siempre cambian (Cuenta 10 %, Observaciones 14 %) y el usuario
+  puede ajustarlos arrastrando los bordes de la cabecera.

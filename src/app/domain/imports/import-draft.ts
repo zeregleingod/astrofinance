@@ -139,10 +139,12 @@ export function summarizeDraft(rows: readonly DraftRow[]): DraftSummary {
 export function draftToBatch(
   statement: Omit<ImportedStatement, 'movements'>,
   rows: readonly DraftRow[],
+  accountId: number,
 ): ImportBatchInput {
   const summary = summarizeDraft(rows);
   if (summary.invalid > 0) throw new RangeError('Hay movimientos con datos no válidos.');
   return {
+    accountId,
     profileId: statement.profileId,
     institution: statement.institution,
     ibanLast4: statement.ibanLast4,

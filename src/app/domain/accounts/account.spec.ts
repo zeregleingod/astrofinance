@@ -1,13 +1,32 @@
 import {
   ACCOUNT_BANKS,
+  bankLogo,
   AccountError,
   accountError,
   accountErrorCode,
   cleanAccount,
   cleanAccountText,
+  resolveAccount,
 } from './account';
 
 describe('cuentas', () => {
+  describe('cuenta con la que se trabaja', () => {
+    const accounts = [{ id: 3 }, { id: 1 }, { id: 7 }];
+
+    it('es la pedida si existe', () => {
+      expect(resolveAccount(7, accounts)).toEqual({ id: 7 });
+    });
+
+    it('si no se pide ninguna o ya no existe, la primera de la lista', () => {
+      expect(resolveAccount(null, accounts)).toEqual({ id: 3 });
+      expect(resolveAccount(99, accounts)).toEqual({ id: 3 });
+    });
+
+    it('sin cuentas, ninguna', () => {
+      expect(resolveAccount(1, [])).toBeNull();
+    });
+  });
+
   describe('bancos que se ofrecen', () => {
     it('son los que se saben importar, sin repetir y por orden alfabético', () => {
       expect(ACCOUNT_BANKS).toContain('Banc Sabadell');
@@ -16,6 +35,19 @@ describe('cuentas', () => {
       expect([...ACCOUNT_BANKS]).toEqual(
         [...ACCOUNT_BANKS].sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' })),
       );
+    });
+  });
+
+  describe('logotipos', () => {
+    it('cada banco que se ofrece tiene el suyo, con el identificador de su perfil', () => {
+      expect(bankLogo('Banc Sabadell')).toBe('sabadell');
+      expect(bankLogo('ING')).toBe('ing');
+      expect(ACCOUNT_BANKS.every((bank) => bankLogo(bank) !== null)).toBe(true);
+    });
+
+    it('un banco que no se sabe importar, o ninguno, no tiene', () => {
+      expect(bankLogo('Banco Demo')).toBeNull();
+      expect(bankLogo(null)).toBeNull();
     });
   });
 

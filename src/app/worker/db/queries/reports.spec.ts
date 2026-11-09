@@ -37,6 +37,85 @@ describe('consultas de informes (sobre la demo)', () => {
     expect(listPeriods(db)).toEqual(['2026-07', '2026-08', '2026-09']);
   });
 
+  describe('de una sola cuenta (ADR-0035)', () => {
+    const accountId = (name: string) =>
+      Number(db.value('SELECT id FROM accounts WHERE name = ?', [name]));
+    const ahorro = (report: MonthReport) =>
+      report.groups.find((g) => g.name === 'Ahorro')?.totalCents ?? 0;
+
+    it('los movimientos y los meses son solo los de la cuenta', () => {
+      const ids = ['Cuenta principal', 'Hucha viajes', 'Hucha emergencias'].map(accountId);
+      const lists = ids.map((id) => allTransactions(db, null, id));
+
+      expect(lists[0]?.every((tx) => tx.accountName === 'Cuenta principal')).toBe(true);
+      expect(lists[1]?.every((tx) => tx.accountName === 'Hucha viajes')).toBe(true);
+      expect(lists.reduce((n, list) => n + list.length, 0)).toBe(allTransactions(db).length);
+      expect(listPeriods(db, ids[1] ?? 0)).toEqual(['2026-07', '2026-08', '2026-09']);
+      expect(monthTransactions(db, '2026-09', null, ids[1] ?? 0).length).toBeGreaterThan(0);
+      expect(listPeriods(db, 999)).toEqual([]);
+    });
+
+    it('en cada cuenta cuenta su pata del traspaso: la salida en una, la entrada en otra', () => {
+      const main = monthReport(db, '2026-09', null, accountId('Cuenta principal'));
+      const travel = monthReport(db, '2026-09', null, accountId('Hucha viajes'));
+
+      // Las salidas están todas en la principal: lo mismo que con todas las cuentas.
+      expect(ahorro(main)).toBe(ahorro(monthReport(db, '2026-09')));
+      // La hucha recibe su traspaso, con el signo contrario.
+      expect(ahorro(travel)).toBe(-10000);
+      expect(
+        summaryTransactionIds(db, '2026-09', 'ahorro', accountId('Hucha viajes')),
+      ).toHaveLength(1);
+    });
+
+    it('un reembolso que entra en otra cuenta cuenta en la de su entrada', () => {
+      const main = accountId('Cuenta principal');
+      const travel = accountId('Hucha viajes');
+      const expense = db.rows(
+        `SELECT t.id, t.amount_cents, t.category_id FROM transactions t
+         WHERE t.account_id = ? AND t.period = '2026-09' AND t.amount_cents < -1000
+           AND t.category_id IS NOT NULL
+           AND t.id NOT IN (SELECT transaction_id FROM transaction_splits)
+           AND t.id NOT IN (SELECT transaction_id FROM shared_expenses)
+           AND t.id NOT IN (SELECT outgoing_tx_id FROM transfers)
+         ORDER BY t.id LIMIT 1`,
+        [main],
+      )[0];
+      if (!expense) throw new Error('Sin gasto');
+      const category = Number(expense['category_id']);
+      const before = (id: number) =>
+        monthReport(db, '2026-09', null, id)
+          .groups.flatMap((g) => g.lines)
+          .find((l) => l.id === category)?.totalCents ?? 0;
+      const mainBefore = before(main);
+      const travelBefore = before(travel);
+
+      db.run(`INSERT INTO people (name) VALUES ('Prueba')`);
+      db.run(
+        `INSERT INTO shared_expenses (transaction_id, person_id, expected_cents)
+         VALUES (?, last_insert_rowid(), 500)`,
+        [Number(expense['id'])],
+      );
+      db.run(
+        `INSERT INTO transactions (account_id, op_date, amount_cents, description, origin)
+         VALUES (?, '2026-09-20', 500, 'Bizum devolución', 'manual')`,
+        [travel],
+      );
+      db.run(
+        `INSERT INTO reimbursements (expense_tx_id, reimbursement_tx_id, amount_cents)
+         VALUES (?, last_insert_rowid(), 500)`,
+        [Number(expense['id'])],
+      );
+
+      // El gasto sigue entero en su cuenta; lo devuelto entra en la otra, en su categoría.
+      expect(before(main)).toBe(mainBefore);
+      expect(before(travel)).toBe(travelBefore + 500);
+      expect(
+        allTransactions(db, null, main).find((tx) => tx.id === Number(expense['id']))?.refunds,
+      ).toHaveLength(1);
+    });
+  });
+
   describe('monthReport', () => {
     it('suma cada subcategoría neta de reembolsos y devoluciones', () => {
       const report = monthReport(db, '2026-07');

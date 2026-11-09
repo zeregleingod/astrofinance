@@ -164,7 +164,12 @@
     </div>
   }
 } @else {
-  <app-empty-state [status]="db.status()" />
+  <app-empty-state
+    [status]="db.status()"
+    page="year"
+    [noAccount]="accounts.loaded() && accounts.account() === null"
+    [account]="accounts.account()"
+  />
 }
 
 <!--

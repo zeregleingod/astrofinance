@@ -15,6 +15,7 @@ import {
   hashesParam,
   importBatchParam,
 } from './imports';
+import { createAccount } from './accounts';
 import { listPeriods, monthTransactions } from './reports';
 import { createRule, deleteRule } from './rules';
 
@@ -27,8 +28,10 @@ describe('consultas de importación', () => {
     name: 'enero.xls',
     sha256: 'c'.repeat(64),
   });
+  /** La cuenta a la que se suben los extractos (ADR-0035), creada antes de importar. */
+  let accountId: number;
   const batch = (existing: readonly string[] = []): ImportBatchInput =>
-    draftToBatch(statement, createDraft(statement, new Set(existing)));
+    draftToBatch(statement, createDraft(statement, new Set(existing)), accountId);
   const count = (table: string) => Number(db.value(`SELECT count(*) FROM ${table}`));
 
   beforeAll(async () => {
@@ -41,22 +44,24 @@ describe('consultas de importación', () => {
     db.run('PRAGMA foreign_keys = ON');
     migrate(db, MIGRATIONS);
     for (const { sql, bind } of categoryTemplateStatements()) db.run(sql, bind);
+    accountId = createAccount(db, { name: 'Cuenta nómina', institution: 'Banc Sabadell' });
   });
 
   afterEach(() => raw.close());
 
-  it('guarda el lote: cuenta nueva, lote y movimientos con su concepto original', () => {
+  it('guarda el lote en la cuenta elegida, que toma del extracto lo que no sabía', () => {
     const result = commitImport(db, batch());
 
     expect(result).toEqual({
       inserted: SABADELL_ROWS.length,
       duplicates: 0,
-      accountName: 'Banc Sabadell ·4321',
+      accountName: 'Cuenta nómina',
       periods: ['2026-01'],
     });
     expect(db.rows('SELECT * FROM accounts')).toMatchObject([
       {
-        name: 'Banc Sabadell ·4321',
+        id: accountId,
+        name: 'Cuenta nómina',
         institution: 'Banc Sabadell',
         kind: 'corriente',
         iban_last4: '4321',
@@ -66,6 +71,7 @@ describe('consultas de importación', () => {
     ]);
     expect(db.rows('SELECT * FROM import_batches')).toMatchObject([
       {
+        account_id: accountId,
         bank_profile: 'sabadell',
         file_name: 'enero.xls',
         file_sha256: 'c'.repeat(64),
@@ -95,8 +101,8 @@ describe('consultas de importación', () => {
         },
       ],
     );
-    expect(listPeriods(db)).toEqual(['2026-01']);
-    expect(monthTransactions(db, '2026-01')).toHaveLength(8);
+    expect(listPeriods(db, accountId)).toEqual(['2026-01']);
+    expect(monthTransactions(db, '2026-01', null, accountId)).toHaveLength(8);
   });
 
   it('guarda lo editado en la revisión sin perder el concepto del banco', () => {
@@ -110,7 +116,7 @@ describe('consultas de importación', () => {
     });
     draft = editDraft(draft, 0, { included: false });
 
-    expect(commitImport(db, draftToBatch(statement, draft)).inserted).toBe(7);
+    expect(commitImport(db, draftToBatch(statement, draft, accountId)).inserted).toBe(7);
     expect(
       db.rows(`SELECT * FROM transactions WHERE original_description LIKE 'NOMINA%'`),
     ).toMatchObject([
@@ -139,7 +145,7 @@ describe('consultas de importación', () => {
     ]);
     draft = editDraft(draft, 3, { categoryId: otra });
 
-    commitImport(db, draftToBatch(statement, draft));
+    commitImport(db, draftToBatch(statement, draft, accountId));
 
     const sources = db.rows(
       `SELECT original_description, category_id, category_source, rule_id FROM transactions
@@ -173,17 +179,44 @@ describe('consultas de importación', () => {
     const draft = createDraft(statement, new Set(), [{ source: 'regla', categoryId: luz, ruleId }]);
     deleteRule(db, ruleId);
 
-    expect(commitImport(db, draftToBatch(statement, draft)).inserted).toBe(8);
+    expect(commitImport(db, draftToBatch(statement, draft, accountId)).inserted).toBe(8);
     expect(
       db.rows('SELECT category_source, rule_id FROM transactions WHERE category_id = ?', [luz]),
     ).toEqual([{ category_source: 'regla', rule_id: null }]);
   });
 
-  it('si el nombre por defecto ya lo tiene otra cuenta, la nueva se numera', () => {
-    db.run(
-      `INSERT INTO accounts (name, institution, kind) VALUES ('Banc Sabadell ·4321', 'BBVA', 'corriente')`,
+  it('guarda en la cuenta elegida aunque haya otras del mismo banco', () => {
+    const other = createAccount(db, { name: 'Ahorro', institution: 'Banc Sabadell' });
+    const result = commitImport(
+      db,
+      draftToBatch(statement, createDraft(statement, new Set()), other),
     );
-    expect(commitImport(db, batch()).accountName).toBe('Banc Sabadell ·4321 (2)');
+
+    expect(result.accountName).toBe('Ahorro');
+    expect(count('accounts')).toBe(2);
+    expect(listPeriods(db, other)).toEqual(['2026-01']);
+    expect(listPeriods(db, accountId)).toEqual([]);
+  });
+
+  it('no cambia el IBAN ni el saldo inicial que la cuenta ya tenía', () => {
+    db.run(
+      `UPDATE accounts SET iban_last4 = '9999', opening_balance_cents = 5, opening_date = '2025-12-01'
+       WHERE id = ?`,
+      [accountId],
+    );
+    commitImport(db, batch());
+    expect(db.rows('SELECT iban_last4, opening_balance_cents, opening_date FROM accounts')).toEqual(
+      [{ iban_last4: '9999', opening_balance_cents: 5, opening_date: '2025-12-01' }],
+    );
+  });
+
+  it('no crea cuentas: si la elegida ya no existe, falla sin guardar nada', () => {
+    expect(() => commitImport(db, { ...batch(), accountId: 999 })).toThrow(
+      expect.objectContaining({ name: 'AccountError', message: 'cuenta-inexistente' }),
+    );
+    expect(count('accounts')).toBe(1);
+    expect(count('transactions')).toBe(0);
+    expect(count('import_batches')).toBe(0);
   });
 
   it('reimportar el mismo fichero no añade nada', () => {
@@ -198,7 +231,7 @@ describe('consultas de importación', () => {
     expect(commitImport(db, batch())).toEqual({
       inserted: 0,
       duplicates: 8,
-      accountName: 'Banc Sabadell ·4321',
+      accountName: 'Cuenta nómina',
       periods: [],
     });
     expect(commitImport(db, batch(hashes))).toMatchObject({ inserted: 0, duplicates: 8 });
@@ -212,7 +245,7 @@ describe('consultas de importación', () => {
       name: 'quincena.xls',
       sha256: 'd'.repeat(64),
     });
-    commitImport(db, draftToBatch(first, createDraft(first, new Set())));
+    commitImport(db, draftToBatch(first, createDraft(first, new Set()), accountId));
 
     expect(commitImport(db, batch())).toMatchObject({ inserted: 3, duplicates: 5 });
     expect(count('transactions')).toBe(8);
@@ -225,7 +258,7 @@ describe('consultas de importación', () => {
     ]);
   });
 
-  it('es todo o nada: si un movimiento falla no queda ni la cuenta', () => {
+  it('es todo o nada: si un movimiento falla la cuenta queda como estaba', () => {
     const good = batch();
     const broken = {
       ...good,
@@ -237,7 +270,7 @@ describe('consultas de importación', () => {
     expect(() => commitImport(db, broken)).toThrow(/FOREIGN KEY/i);
     expect(count('transactions')).toBe(0);
     expect(count('import_batches')).toBe(0);
-    expect(count('accounts')).toBe(0);
+    expect(db.value('SELECT iban_last4 FROM accounts')).toBeNull();
   });
 
   it('el concepto original no se puede modificar después', () => {
@@ -283,6 +316,9 @@ describe('consultas de importación', () => {
 
     it.each([
       ['no es un objeto', () => null],
+      ['sin cuenta', (b: ImportBatchInput) => ({ ...b, accountId: undefined })],
+      ['cuenta no numérica', (b: ImportBatchInput) => ({ ...b, accountId: '1' })],
+      ['cuenta cero', (b: ImportBatchInput) => ({ ...b, accountId: 0 })],
       ['sin filas', (b: ImportBatchInput) => ({ ...b, rows: 'x' })],
       ['perfil vacío', (b: ImportBatchInput) => ({ ...b, profileId: ' ' })],
       ['IBAN completo', (b: ImportBatchInput) => ({ ...b, ibanLast4: 'ES0000000000' })],

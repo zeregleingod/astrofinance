@@ -191,6 +191,19 @@ describe('devoluciones: vincular ingresos a un gasto', () => {
     expect(links()).toEqual(before);
   });
 
+  it('solo ofrece ingresos de la cuenta del gasto, la que se está viendo (ADR-0035)', () => {
+    tx(9, '2026-09-11', 2500, 'BIZUM A LA HUCHA', 2);
+    const candidates = expenseRefundOptions(db, 1).candidates;
+    expect(candidates.map((c) => c.id)).not.toContain(9);
+    expect(candidates.every((c) => c.accountName === 'Cuenta')).toBe(true);
+    expect(() =>
+      saveRefunds(db, {
+        expenseId: 1,
+        links: [{ reimbursementTxId: 9, reimbursementSplitId: null, amountCents: 2500 }],
+      }),
+    ).toThrow(RangeError);
+  });
+
   it('no ofrece la entrada de un traspaso; de un ingreso dividido, lo no dividido y cada parte', () => {
     tx(7, '2026-09-10', -2000, 'A LA HUCHA');
     tx(8, '2026-09-10', 2000, 'A LA HUCHA', 2);

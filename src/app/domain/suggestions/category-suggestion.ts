@@ -22,9 +22,11 @@ export interface SuggestionQuery {
 
 /** Lo que se pide al worker de BD para la revisión de una importación. */
 export interface SuggestionRequest {
-  /** La cuenta del extracto, para las reglas limitadas a una cuenta. */
-  readonly institution: string;
-  readonly ibanLast4: string | null;
+  /**
+   * La cuenta a la que se sube el extracto (ADR-0035), para las reglas limitadas a una cuenta;
+   * `null` si ninguna.
+   */
+  readonly accountId: number | null;
   readonly movements: readonly Pick<SuggestionQuery, 'text' | 'amountCents'>[];
 }
 

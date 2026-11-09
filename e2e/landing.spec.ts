@@ -29,7 +29,10 @@ test('un fichero que no es una copia se explica y se sigue en la landing', async
 
   // Se puede entrar de otra forma, y el error no se arrastra.
   await enterFrom(page, 'Empezar sin datos');
-  await expect(page.getByText('Todavía no hay movimientos.')).toBeVisible();
+  // Sin ninguna cuenta todavía, los primeros pasos invitan a crearla (ADR-0035).
+  await expect(
+    page.getByRole('heading', { name: 'Crea tu primera cuenta para ver el resumen del mes' }),
+  ).toBeVisible();
 });
 
 test('la landing cambia de idioma y de tema sin entrar', async ({ page }) => {

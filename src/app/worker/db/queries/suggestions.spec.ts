@@ -27,8 +27,7 @@ describe('sugerencias de categoría', () => {
       [description, original, categoryId],
     );
   const request = (...texts: string[]) => ({
-    institution: 'Banc Sabadell',
-    ibanLast4: '4321',
+    accountId: 1,
     movements: texts.map((text) => ({ text, amountCents: -1500 })),
   });
 
@@ -113,17 +112,11 @@ describe('sugerencias de categoría', () => {
 
     it.each([
       ['no es un objeto', null],
-      ['sin movimientos', { institution: 'Banco', ibanLast4: null, movements: 'x' }],
-      ['sin entidad', { institution: '', ibanLast4: null, movements: [] }],
-      ['IBAN completo', { institution: 'Banco', ibanLast4: 'ES00', movements: [] }],
-      [
-        'importe decimal',
-        { institution: 'Banco', ibanLast4: null, movements: [{ text: 'A', amountCents: 1.5 }] },
-      ],
-      [
-        'concepto vacío',
-        { institution: 'Banco', ibanLast4: null, movements: [{ text: ' ', amountCents: 1 }] },
-      ],
+      ['sin movimientos', { accountId: 1, movements: 'x' }],
+      ['cuenta no numérica', { accountId: '1', movements: [] }],
+      ['cuenta cero', { accountId: 0, movements: [] }],
+      ['importe decimal', { accountId: null, movements: [{ text: 'A', amountCents: 1.5 }] }],
+      ['concepto vacío', { accountId: null, movements: [{ text: ' ', amountCents: 1 }] }],
     ])('rechaza una petición con %s', (_name, params) => {
       expect(() => suggestionRequestParam(params)).toThrow(RangeError);
     });

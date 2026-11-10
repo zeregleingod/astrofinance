@@ -99,8 +99,8 @@ import { TEXTS } from '@ui/texts';
       display: flex;
       flex-direction: column;
       gap: 6px;
-      margin-bottom: 16px;
-      padding: 0 4px 16px;
+      margin-bottom: 12px;
+      padding: 0 4px 12px;
       border-bottom: 1px solid var(--mat-sys-outline-variant);
     }
 
@@ -166,8 +166,13 @@ import { TEXTS } from '@ui/texts';
       align-items: center;
     }
 
+    /*
+      min-width: 0: un <select> mide lo que su opción más larga y, como elemento flexible, no
+      encoge por debajo; con un nombre de cuenta largo desbordaría la barra lateral.
+    */
     select {
       width: 100%;
+      min-width: 0;
       min-height: 44px;
       padding: 0 40px 0 48px;
       border: 1px solid var(--mat-sys-outline-variant);

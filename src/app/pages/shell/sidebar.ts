@@ -134,7 +134,7 @@ import { DbService } from '@services/db/db-service';
       display: flex;
       flex-direction: column;
       min-height: 100%;
-      padding: 24px 16px;
+      padding: 20px 16px;
       box-sizing: border-box;
     }
 
@@ -142,15 +142,21 @@ import { DbService } from '@services/db/db-service';
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 0 8px 16px;
+      padding: 0 8px 12px;
     }
 
-    /* Debajo de los accesos rápidos, una línea los separa del menú. */
+    /*
+      Debajo de los accesos rápidos, una línea los separa del menú. Botones de 40px: caben aunque
+      la barra de desplazamiento vertical (en Windows, ~17px) le quite ancho al menú.
+    */
     .quick-actions {
+      --mat-icon-button-state-layer-size: 40px;
+
       display: flex;
+      flex-wrap: wrap;
       gap: 4px;
-      margin-bottom: 16px;
-      padding: 0 4px 12px;
+      margin-bottom: 12px;
+      padding: 0 4px 8px;
       border-bottom: 1px solid var(--mat-sys-outline-variant);
       color: var(--mat-sys-on-surface-variant);
     }
@@ -173,8 +179,8 @@ import { DbService } from '@services/db/db-service';
 
     /* Entre un apartado y el siguiente, una línea, como en la barra plegada. */
     mat-nav-list + .section-label {
-      margin-top: 12px;
-      padding-top: 16px;
+      margin-top: 8px;
+      padding-top: 12px;
       border-top: 1px solid var(--mat-sys-outline-variant);
     }
 
@@ -190,10 +196,12 @@ import { DbService } from '@services/db/db-service';
       --mat-list-list-item-label-text-color: var(--mat-sys-on-surface-variant);
       --mat-list-list-item-leading-icon-color: var(--mat-sys-on-surface-variant);
       --mat-list-list-item-leading-icon-end-space: 12px;
+      /* 44px: sigue siendo un objetivo táctil cómodo y el menú cabe en pantallas de portátil. */
+      --mat-list-list-item-one-line-container-height: 44px;
     }
 
     a[mat-list-item] {
-      margin-bottom: 4px;
+      margin-bottom: 2px;
     }
 
     a[aria-current='page'] {
@@ -210,7 +218,7 @@ import { DbService } from '@services/db/db-service';
       flex-direction: column;
       gap: 8px;
       margin-top: auto;
-      padding: 16px 8px 0;
+      padding: 12px 8px 0;
     }
 
     .privacy {

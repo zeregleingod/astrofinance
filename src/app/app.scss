@@ -7,6 +7,14 @@
   height: 100%;
 }
 
+// El menú solo se desplaza en vertical (en pantallas bajas), con una barra fina que no le quita
+// apenas ancho; nunca en horizontal.
+mat-sidenav ::ng-deep .mat-drawer-inner-container {
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: var(--mat-sys-outline-variant) transparent;
+}
+
 // Plegada, la barra lateral es una franja con solo los iconos.
 mat-sidenav.collapsed {
   --mat-sidenav-container-width: 80px;
